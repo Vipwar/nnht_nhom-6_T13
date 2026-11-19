@@ -22,7 +22,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import FrozenSet, List, Optional, Set, Tuple
 
-from .models import SIGMA, format_charset
+from .models import ASCII_SIGMA, SIGMA, format_charset
 
 
 class RegexSyntaxError(ValueError):
@@ -201,8 +201,10 @@ class OptionalNode(RegexNode):
 
 
 # ---------------------------------------------------------------------------
-# Shorthand sets
+# Shorthand sets & Escapes
 # ---------------------------------------------------------------------------
+
+MAX_QUANTIFIER_BOUND = 64
 
 SHORTHAND_CLASSES = {
     "d": frozenset("0123456789"),
@@ -214,6 +216,8 @@ ESCAPE_CHARS = {
     "n": "\n",
     "t": "\t",
     "r": "\r",
+    "f": "\f",
+    "v": "\v",
     "\\": "\\",
     "|": "|",
     "*": "*",
@@ -223,6 +227,9 @@ ESCAPE_CHARS = {
     ")": ")",
     "[": "[",
     "]": "]",
+    "{": "{",
+    "}": "}",
+    "/": "/",
     ".": ".",
     "-": "-",
     "^": "^",
@@ -241,7 +248,7 @@ class RegexParser:
     Formal Grammar for Regular Expressions:
         expr   -> concat ('|' concat)*
         concat -> repeat+
-        repeat -> atom ('*' | '+' | '?')*
+        repeat -> atom ('*' | '+' | '?' | '{' m [',' [n]] '}')*
         atom   -> '(' expr ')' | char_class | '.' | escape | 'ε' | literal
     """
 
@@ -298,24 +305,126 @@ class RegexParser:
 
     def _parse_repeat(self) -> RegexNode:
         node = self._parse_atom()
-        while self._peek() in ("*", "+", "?"):
-            op = self._advance()
-            if op == "*":
-                node = StarNode(node)
-            elif op == "+":
-                node = PlusNode(node)
-            elif op == "?":
-                node = OptionalNode(node)
+        while self._peek() in ("*", "+", "?", "{"):
+            ch = self._peek()
+            if ch == "{":
+                node = self._parse_counted_quantifier(node)
+            else:
+                op = self._advance()
+                if op == "*":
+                    node = StarNode(node)
+                elif op == "+":
+                    node = PlusNode(node)
+                elif op == "?":
+                    node = OptionalNode(node)
         return node
+
+    def _parse_counted_quantifier(self, child: RegexNode) -> RegexNode:
+        """
+        Parse `{m}`, `{m,}`, or `{m,n}` and expand it into pure AST nodes
+        (`EpsilonNode`, `ConcatNode`, `OptionalNode`, `StarNode`).
+        """
+        open_pos = self.pos
+        self._advance()  # consume '{'
+        content_chars: List[str] = []
+        while self._peek() is not None and self._peek() != "}":
+            content_chars.append(self._advance())
+
+        if self._peek() != "}":
+            raise RegexSyntaxError("Thiếu dấu đóng '}' cho bộ định lượng", open_pos, self.pattern)
+        self._advance()  # consume '}'
+
+        content = "".join(content_chars)
+        if not content:
+            raise RegexSyntaxError("Bộ định lượng '{}' rỗng không hợp lệ", open_pos, self.pattern)
+
+        if "," not in content:
+            if not content.isdigit() or not content.isascii():
+                raise RegexSyntaxError(
+                    f"Cú pháp định lượng '{{{content}}}' không hợp lệ (cần số nguyên không âm)",
+                    open_pos,
+                    self.pattern,
+                )
+            m = int(content)
+            n = m
+            unbounded = False
+        else:
+            parts = content.split(",")
+            if len(parts) != 2:
+                raise RegexSyntaxError(
+                    f"Cú pháp định lượng '{{{content}}}' có quá nhiều dấu phẩy",
+                    open_pos,
+                    self.pattern,
+                )
+            m_str, n_str = parts
+            if not m_str or not m_str.isdigit() or not m_str.isascii():
+                raise RegexSyntaxError(
+                    f"Cận dưới trong định lượng '{{{content}}}' không hợp lệ",
+                    open_pos,
+                    self.pattern,
+                )
+            m = int(m_str)
+            if n_str == "":
+                unbounded = True
+                n = m
+            else:
+                if not n_str.isdigit() or not n_str.isascii():
+                    raise RegexSyntaxError(
+                        f"Cận trên trong định lượng '{{{content}}}' không hợp lệ",
+                        open_pos,
+                        self.pattern,
+                    )
+                unbounded = False
+                n = int(n_str)
+                if m > n:
+                    raise RegexSyntaxError(
+                        f"Định lượng '{{{content}}}' không hợp lệ: cận dưới m={m} > cận trên n={n}",
+                        open_pos,
+                        self.pattern,
+                    )
+
+        if m > MAX_QUANTIFIER_BOUND or (not unbounded and n > MAX_QUANTIFIER_BOUND):
+            raise RegexSyntaxError(
+                f"Định lượng '{{{content}}}' vượt quá giới hạn an toàn ({MAX_QUANTIFIER_BOUND})",
+                open_pos,
+                self.pattern,
+            )
+
+        # Expand into pure AST nodes
+        if unbounded:
+            # {0,} -> child*
+            if m == 0:
+                return StarNode(child)
+            # {m,} -> child . child ... (m times) . child*
+            acc = child
+            for _ in range(m - 1):
+                acc = ConcatNode(acc, child)
+            return ConcatNode(acc, StarNode(child))
+
+        # Bounded {m,n}
+        if n == 0:
+            # {0} or {0,0} -> ε
+            return EpsilonNode()
+
+        factors: List[RegexNode] = []
+        for _ in range(m):
+            factors.append(child)
+        for _ in range(n - m):
+            factors.append(OptionalNode(child))
+
+        acc = factors[0]
+        for f in factors[1:]:
+            acc = ConcatNode(acc, f)
+        return acc
 
     def _parse_atom(self) -> RegexNode:
         ch = self._peek()
         if ch is None:
             raise RegexSyntaxError("Kết thúc biểu thức bất ngờ", self.pos, self.pattern)
 
-        if ch in ("*", "+", "?", "|", ")"):
+        if ch in ("*", "+", "?", "|", ")", "{", "}"):
             raise RegexSyntaxError(
-                f"Toán tử '{ch}' không có toán hạng đứng trước",
+                f"Toán tử hoặc ký hiệu '{ch}' không có toán hạng đứng trước",
                 self.pos,
                 self.pattern,
             )
@@ -347,7 +456,7 @@ class RegexParser:
             return self._parse_escape_atom()
 
         self._advance()
-        if ch not in SIGMA:
+        if ch not in ASCII_SIGMA:
             raise RegexSyntaxError(
                 f"Ký tự '{ch}' (U+{ord(ch):04X}) nằm ngoài bảng chữ cái Σ hỗ trợ",
                 self.pos - 1,
@@ -373,8 +482,8 @@ class RegexParser:
             val = ESCAPE_CHARS[ch]
             fset = frozenset({val})
             return CharSetNode(chars=fset, label=format_charset(fset))
-        # Allow escaping any ASCII character in SIGMA as literal
-        if ch in SIGMA:
+        # Allow escaping any ASCII character in ASCII_SIGMA as literal
+        if ch in ASCII_SIGMA:
             fset = frozenset({ch})
             return CharSetNode(chars=fset, label=format_charset(fset))
         raise RegexSyntaxError(f"Chuỗi escape '\\{ch}' không được hỗ trợ", esc_pos, self.pattern)
@@ -394,14 +503,18 @@ class RegexParser:
             if nxt is None:
                 raise RegexSyntaxError("Dấu '\\' chưa hoàn tất trong [...]", esc_pos, self.pattern)
             self._advance()
+            if nxt == "e":
+                raise RegexSyntaxError("Không thể dùng ε (\\e) bên trong lớp ký tự [...]", esc_pos, self.pattern)
             if nxt in SHORTHAND_CLASSES:
                 return None, SHORTHAND_CLASSES[nxt]
-            val = ESCAPE_CHARS.get(nxt, nxt)
-            if val not in SIGMA:
-                raise RegexSyntaxError(f"Ký tự '\\{nxt}' ngoài bảng chữ cái Σ", esc_pos, self.pattern)
-            return val, frozenset({val})
+            if nxt in ESCAPE_CHARS:
+                val = ESCAPE_CHARS[nxt]
+                return val, frozenset({val})
+            if nxt in ASCII_SIGMA:
+                return nxt, frozenset({nxt})
+            raise RegexSyntaxError(f"Ký tự '\\{nxt}' ngoài bảng chữ cái Σ", esc_pos, self.pattern)
         self._advance()
-        if ch not in SIGMA:
+        if ch not in ASCII_SIGMA:
             raise RegexSyntaxError(
                 f"Ký tự '{ch}' trong lớp ký tự nằm ngoài bảng chữ cái Σ",
                 self.pos - 1,
@@ -447,7 +560,7 @@ class RegexParser:
                     )
                 for code in range(ord(single_start), ord(single_end) + 1):
                     c = chr(code)
-                    if c in SIGMA:
+                    if c in ASCII_SIGMA or c in ("\v", "\f"):
                         chars.add(c)
             else:
                 chars.update(item_set)
@@ -456,7 +569,13 @@ class RegexParser:
             raise RegexSyntaxError("Thiếu dấu đóng ']' cho lớp ký tự", start_pos, self.pattern)
         self._advance()  # consume ']'
 
-        final_set = (SIGMA - chars) if negated else frozenset(chars)
+        if negated:
+            if ASCII_SIGMA.issubset(chars):
+                raise RegexSyntaxError("Lớp ký tự sau khi phủ định là tập rỗng ∅", start_pos, self.pattern)
+            final_set = SIGMA - chars
+        else:
+            final_set = frozenset(chars)
+
         if not final_set:
             raise RegexSyntaxError("Lớp ký tự sau khi phủ định là tập rỗng ∅", start_pos, self.pattern)
         raw_label = self.pattern[start_pos : self.pos]
@@ -472,3 +591,4 @@ def parse_regex(pattern: str) -> RegexNode:
 def regex_to_postfix(pattern: str) -> List[str]:
     """Return postfix token list for a regex (for display & educational inspection)."""
     return parse_regex(pattern).to_postfix_tokens()
+

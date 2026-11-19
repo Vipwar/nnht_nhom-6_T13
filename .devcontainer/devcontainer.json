@@ -1,0 +1,12 @@
+{
+  "name": "LexAutomata Studio (UEH - Đề tài T13)",
+  "image": "mcr.microsoft.com/devcontainers/python:3.11",
+  "forwardPorts": [8000],
+  "portsAttributes": {
+    "8000": {
+      "label": "LexAutomata Studio",
+      "onAutoForward": "openBrowser"
+    }
+  },
+  "postStartCommand": "nohup python3 app.py --host 0.0.0.0 --port 8000 --no-browser > /tmp/lexautomata.log 2>&1 &"
+}

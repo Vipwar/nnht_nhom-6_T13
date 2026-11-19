@@ -14,7 +14,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import sys
 import time
 from pathlib import Path
 from typing import List
@@ -23,6 +22,9 @@ from lexer_engine import (
     PRESETS,
     LexicalAnalyzer,
     TokenSpec,
+    build_combined_direct_dfa,
+    check_dfa_equivalence,
+    eliminate_epsilon,
     export_dfa_to_jflap,
     export_nfa_to_jflap,
     inspect_single_regex,
@@ -64,25 +66,38 @@ def cmd_scan(args: argparse.Namespace) -> int:
         source = PRESETS[args.preset]["samples"]["valid"]["code"]
 
     summary = lex.summary_dict()
-    result = lex.scan(source, use_minimized=not args.unminimized, record_traces=args.trace)
+    result = lex.scan(
+        source,
+        use_minimized=not args.unminimized,
+        record_traces=args.trace,
+        error_recovery=args.error_recovery,
+    )
 
-    print("=" * 78)
+    print("=" * 84)
     print(f"T13 AUTOMATA-BASED LEXICAL ANALYZER | Spec: {spec_label}")
-    print("=" * 78)
+    print("=" * 84)
     print(
         f"Automata Pipeline: {summary['token_count']} token REs "
-        f"-> Combined ε-NFA ({summary['nfa_states']} states) "
+        f"-> ε-NFA ({summary['nfa_states']} states) "
+        f"-> NFA khử ε ({summary['eps_free_nfa_states']} states) "
         f"-> Subset DFA ({summary['subset_dfa_states']} states) "
         f"-> Min-DFA ({summary['minimized_dfa_states']} states, -{summary['state_reduction_percent']}%)"
     )
     print(
         f"Alphabet Classes: {summary['char_class_count']} | "
         f"Compile: {summary['timings_ms']['total_ms']:.2f} ms | "
-        f"Equivalence Proof: {'PASS' if summary['equivalence']['equivalent'] else 'FAIL'}"
+        f"Subset≡Min: {'PASS' if summary['equivalence']['equivalent'] else 'FAIL'} | "
+        f"Moore≡Hopcroft: {'PASS' if summary['moore_vs_hopcroft']['equivalent'] else 'FAIL'} | "
+        f"Myhill-Nerode Minimal: {'PASS' if summary['minimality']['is_minimal'] else 'FAIL'}"
     )
-    print("-" * 78)
+    if lex.warnings:
+        print("-" * 84)
+        print(f"COMPILER WARNINGS ({len(lex.warnings)}):")
+        for w in lex.warnings:
+            print(f"  [!] {w}")
+    print("-" * 84)
     print(f"{'#':>3}  {'TYPE':<16} {'LEXEME':<24} {'POS (L:C)':<10} {'STATE':<7} {'BACKTRACK'}")
-    print("-" * 78)
+    print("-" * 84)
     tok_list = result.tokens if args.include_skipped else result.visible_tokens
     for idx, tok in enumerate(tok_list, start=1):
         lex_disp = repr(tok.lexeme)
@@ -95,16 +110,16 @@ def cmd_scan(args: argparse.Namespace) -> int:
         )
 
     if result.errors:
-        print("-" * 78)
-        print(f"LEXICAL ERRORS ({len(result.errors)}):")
+        print("-" * 84)
+        print(f"LEXICAL ERRORS ({len(result.errors)}) [mode={result.error_recovery_mode}]:")
         for e in result.errors:
             print(f"  [Line {e.line}, Col {e.col}] {e.message}")
 
-    print("=" * 78)
+    print("=" * 84)
     print(
         f"Scanned {result.total_chars} chars in {result.elapsed_ms:.3f} ms | "
         f"{len(result.visible_tokens)} visible tokens | {len(result.errors)} errors | "
-        f"{result.total_transitions} DFA transitions"
+        f"{result.total_transitions} DFA transitions | {result.memoized_cutoffs} memoized cutoffs"
     )
     if args.json_out:
         Path(args.json_out).write_text(
@@ -116,26 +131,30 @@ def cmd_scan(args: argparse.Namespace) -> int:
 
 def cmd_inspect(args: argparse.Namespace) -> int:
     info = inspect_single_regex(args.pattern, token_name=args.name, test_strings=args.test or [])
-    print("=" * 78)
+    print("=" * 84)
     print(f"SINGLE REGEX PIPELINE INSPECTOR: {args.name} = {args.pattern}")
-    print("=" * 78)
+    print("=" * 84)
     print(f"Explicit Infix : {info['explicit_infix']}")
     print(f"Postfix        : {info['postfix']}")
     print(f"Nullable (ε∈L) : {info['nullable']}")
     print(
         f"State Counts   : Thompson ε-NFA = {info['nfa']['state_count']} "
+        f"| ε-free NFA (ĐL 2) = {info['eps_free_nfa']['state_count']} "
         f"| Subset DFA = {info['subset_dfa']['state_count']} "
         f"| Direct DFA = {info['direct_dfa']['dfa']['state_count']} "
-        f"| Minimized DFA = {info['minimized_dfa']['state_count']}"
+        f"| Moore Min-DFA = {info['minimized_dfa']['state_count']} "
+        f"| Hopcroft Min-DFA = {info['hopcroft_minimization']['minimized_state_count']}"
     )
     print(f"Subset ≡ Min   : {info['equivalence']['subset_vs_minimized']['message']}")
     print(f"Subset ≡ Direct: {info['equivalence']['subset_vs_direct']['message']}")
+    print(f"Moore ≡ Hopcr. : {info['equivalence']['moore_vs_hopcroft']['message']}")
+    print(f"Myhill-Nerode  : {info['minimality']['message']}")
 
     print("\n--- Direct RE -> DFA Followpos Table ---")
     for row in info["direct_dfa"]["followpos_table"]:
         print(f"  pos {row['position']:>2} ({row['symbol']:<10}) -> followpos = {row['followpos']}")
 
-    print("\n--- Minimization Partitions ---")
+    print("\n--- Minimization Partitions (Moore) ---")
     for step in info["minimization"]["partition_history"]:
         groups_str = ", ".join("{" + ",".join(g["states"]) + "}" for g in step["groups"])
         print(f"  Π_{step['iteration']}: {groups_str}")
@@ -144,36 +163,60 @@ def cmd_inspect(args: argparse.Namespace) -> int:
         print("\n--- String Membership Tests ---")
         for st in info["string_tests"]:
             verdict = "ACCEPT" if st["min_dfa_accepted"] else "REJECT"
-            sync = "OK (NFA=MinDFA=DirectDFA)" if st["consistent"] else "MISMATCH!"
+            sync = "OK (εNFA=NFA=SubDFA=DirDFA=MinDFA)" if st["consistent"] else "MISMATCH!"
             print(f"  {st['input']!r:<16} -> {verdict:<6} | {sync}")
     return 0
 
 
-def cmd_benchmark(args: argparse.Namespace) -> int:
-    print("=" * 86)
-    print("BENCHMARK: COMPILE & SCAN PERFORMANCE ACROSS ALL PRESETS")
-    print("=" * 86)
+def cmd_benchmark(_args: argparse.Namespace) -> int:
+    print("=" * 108)
+    print("BENCHMARK: AUTOMATA COMPILATION (6-WAY) & LINEAR-TIME O(n) SCANNER PERFORMANCE")
+    print("=" * 108)
     print(
-        f"{'Preset':<12} {'Tokens':>6} {'ε-NFA':>7} {'SubDFA':>7} {'MinDFA':>7} "
-        f"{'Reduce':>8} {'Classes':>7} {'Compile(ms)':>12} {'Scan 10KB(ms)':>14}"
+        f"{'Preset':<10} {'Tok':>4} {'ε-NFA':>6} {'No-ε':>6} {'SubDFA':>7} {'DirDFA':>7} {'MinDFA':>7} "
+        f"{'Moore(ms)':>10} {'Hopcr(ms)':>10} {'Scan10KB(ms)':>15} {'Myhill-Nerode':>14}"
     )
-    print("-" * 86)
+    print("-" * 108)
     for pid, pinfo in PRESETS.items():
         lex = LexicalAnalyzer.from_preset(pid)
         s = lex.summary_dict()
+        combined_direct = build_combined_direct_dfa(lex.specs)
+        eq_dir = check_dfa_equivalence(lex.minimized_dfa, combined_direct, check_token_names=True)
+        assert eq_dir.equivalent
+
         base_code = pinfo["samples"]["valid"]["code"]
         repeats = max(1, 10240 // max(1, len(base_code)))
         big_code = (base_code + "\n") * repeats
         t0 = time.perf_counter()
         res = lex.scan(big_code, use_minimized=True, record_traces=False)
         scan_ms = (time.perf_counter() - t0) * 1000.0
+        moore_ms = s["timings_ms"].get("minimize_ms", 0.0)
+        hop_ms = s["timings_ms"].get("hopcroft_ms", 0.0)
+        mn_pairs = f"{s['minimality']['distinguishable_pairs']}/{s['minimality']['total_pairs']}✓"
         print(
-            f"{pid:<12} {s['token_count']:>6} {s['nfa_states']:>7} {s['subset_dfa_states']:>7} "
-            f"{s['minimized_dfa_states']:>7} {-s['state_reduction_percent']:>7.1f}% "
-            f"{s['char_class_count']:>7} {s['timings_ms']['total_ms']:>12.2f} "
-            f"{scan_ms:>10.2f} ({len(res.visible_tokens)} tok)"
+            f"{pid:<10} {s['token_count']:>4} {s['nfa_states']:>6} {s['eps_free_nfa_states']:>6} "
+            f"{s['subset_dfa_states']:>7} {len(combined_direct.states):>7} {s['minimized_dfa_states']:>7} "
+            f"{moore_ms:>10.3f} {hop_ms:>10.3f} "
+            f"{scan_ms:>8.2f} ({len(res.visible_tokens):>4}t) {mn_pairs:>14}"
         )
-    print("=" * 86)
+
+    print("-" * 108)
+    ml = LexicalAnalyzer.from_preset("minilang")
+    for label, s_in in [
+        ("Anti-O(n²) Stress: 10k unclosed string (\" + 'a'*10000)", '"' + "a" * 10000),
+        ("Anti-O(n²) Stress: 10k unclosed comment (/* + 'x'*10000)", "/*" + "x" * 10000),
+        ("Anti-O(n²) Stress: 10k escaped quotes (\" + '\\\"'*5000)", '"' + '\\"' * 5000),
+    ]:
+        t0 = time.perf_counter()
+        r_p = ml.scan(s_in, record_traces=False, error_recovery="panic_char")
+        dt_p = (time.perf_counter() - t0) * 1000.0
+        t1 = time.perf_counter()
+        r_s = ml.scan(s_in, record_traces=False, error_recovery="smart_sync")
+        dt_s = (time.perf_counter() - t1) * 1000.0
+        print(
+            f"  {label:<56} -> panic_char: {dt_p:>6.2f} ms (cutoffs={r_p.memoized_cutoffs:>4}) | smart_sync: {dt_s:>6.2f} ms"
+        )
+    print("=" * 108)
     return 0
 
 
@@ -184,6 +227,8 @@ def cmd_export_jff(args: argparse.Namespace) -> int:
         nfa, _ = build_token_nfa(args.pattern, args.name)
         if args.stage == "nfa":
             xml_str = export_nfa_to_jflap(nfa, expand_char_classes=args.expand)
+        elif args.stage == "eps_free_nfa":
+            xml_str = export_nfa_to_jflap(eliminate_epsilon(nfa), expand_char_classes=args.expand)
         else:
             from lexer_engine.dfa_minimizer import minimize_dfa
             from lexer_engine.subset_construction import nfa_to_dfa
@@ -195,6 +240,8 @@ def cmd_export_jff(args: argparse.Namespace) -> int:
         lex = LexicalAnalyzer.from_preset(args.preset)
         if args.stage == "nfa":
             xml_str = export_nfa_to_jflap(lex.combined_nfa, expand_char_classes=args.expand)
+        elif args.stage == "eps_free_nfa":
+            xml_str = export_nfa_to_jflap(lex.eps_free_nfa, expand_char_classes=args.expand)
         elif args.stage == "subset_dfa":
             xml_str = export_dfa_to_jflap(lex.subset_dfa, expand_char_classes=args.expand)
         else:
@@ -232,6 +279,12 @@ def main(argv: List[str] | None = None) -> int:
     p_scan.add_argument("--unminimized", action="store_true", help="Use Subset DFA instead of Minimized DFA")
     p_scan.add_argument("--include-skipped", action="store_true", help="Show skipped tokens (whitespace/comments)")
     p_scan.add_argument("--trace", action="store_true", help="Record execution traces")
+    p_scan.add_argument(
+        "--error-recovery",
+        choices=["panic_char", "smart_sync"],
+        default="panic_char",
+        help="Lexical error recovery strategy (panic_char or smart_sync)",
+    )
     p_scan.add_argument("--json-out", help="Write full scan result to JSON file")
     p_scan.set_defaults(func=cmd_scan)
 
@@ -248,7 +301,7 @@ def main(argv: List[str] | None = None) -> int:
     p_jff.add_argument("--preset", choices=list(PRESETS.keys()), default="calclang")
     p_jff.add_argument("--pattern", help="Single RE pattern instead of preset")
     p_jff.add_argument("--name", default="TOKEN")
-    p_jff.add_argument("--stage", choices=["nfa", "subset_dfa", "min_dfa"], default="min_dfa")
+    p_jff.add_argument("--stage", choices=["nfa", "eps_free_nfa", "subset_dfa", "min_dfa"], default="min_dfa")
     p_jff.add_argument("--expand", action="store_true", help="Expand char classes to single-char transitions")
     p_jff.add_argument("--out", required=True, help="Output .jff path")
     p_jff.set_defaults(func=cmd_export_jff)

@@ -1220,6 +1220,23 @@ code {
 .alert-ok { background: var(--success-soft); color: var(--success); border: 1px solid rgba(5, 150, 105, 0.35); }
 .alert-warn { background: var(--warning-soft); color: var(--warning); border: 1px solid rgba(217, 119, 6, 0.35); }
 
+.inline-select {
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  padding: 3px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.row-shadowed {
+  background: var(--warning-soft) !important;
+  outline: 1.5px dashed var(--warning);
+  outline-offset: -1.5px;
+}
+
 .footer {
   border-top: 1px solid var(--border);
   background: var(--surface);

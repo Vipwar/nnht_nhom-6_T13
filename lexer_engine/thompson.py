@@ -215,3 +215,78 @@ def build_combined_nfa(specs: List[TokenSpec]) -> Tuple[NFA, List[Dict]]:
     combined.name = f"Combined ε-NFA ({len(specs)} tokens)"
     combined.pattern = " | ".join(spec.name for spec in specs)
     return combined, token_reports
+
+
+def eliminate_epsilon(nfa: NFA) -> NFA:
+    """
+    Convert an ε-NFA N = (Q, Σ, δ, q0, F) into an equivalent ε-free NFA N' = (Q', Σ, δ', q0, F')
+    following Theorem 2 (UEH Formal Languages Chap 3.1 Slides 21-22):
+      - E(q) = ε-closure({q})
+      - q ∈ F' iff E(q) ∩ F ≠ ∅ (inheriting the highest-priority AcceptInfo in E(q) ∩ F)
+      - For each non-ε transition p --C--> r with p ∈ E(q), add transition q --C--> r in δ'
+      - Prune states not reachable from q0 via non-ε transitions and renumber compactly 0..M-1.
+    """
+    closures: Dict[int, frozenset[int]] = {
+        q: nfa.epsilon_closure({q}) for q in nfa.states
+    }
+
+    # Build raw non-epsilon transitions and accept map over original state IDs
+    raw_transitions: Dict[int, List[Tuple[Optional[frozenset], int, str]]] = {}
+    raw_accept: Dict[int, AcceptInfo] = {}
+
+    for q in sorted(nfa.states):
+        eq = closures[q]
+        matched = [nfa.accept_states[p] for p in eq if p in nfa.accept_states]
+        if matched:
+            raw_accept[q] = min(matched, key=lambda info: (info.priority, info.token_name))
+
+        edges_out: List[Tuple[Optional[frozenset], int, str]] = []
+        seen_edges: set[Tuple[frozenset, int, str]] = set()
+        for p in sorted(eq):
+            for chars, dst, lbl in nfa.transitions.get(p, ()):
+                if chars is not None:
+                    key = (chars, dst, lbl)
+                    if key not in seen_edges:
+                        seen_edges.add(key)
+                        edges_out.append((chars, dst, lbl))
+        if edges_out:
+            raw_transitions[q] = edges_out
+
+    # BFS from start_state over non-epsilon edges to keep only active reachable states
+    reachable_order: List[int] = [nfa.start_state]
+    visited: set[int] = {nfa.start_state}
+    idx = 0
+    while idx < len(reachable_order):
+        cur = reachable_order[idx]
+        idx += 1
+        for _, dst, _ in raw_transitions.get(cur, ()):
+            if dst not in visited:
+                visited.add(dst)
+                reachable_order.append(dst)
+
+    mapping: Dict[int, int] = {old: new for new, old in enumerate(reachable_order)}
+    new_transitions: Dict[int, List[Tuple[Optional[frozenset], int, str]]] = {}
+    for old_src in reachable_order:
+        new_src = mapping[old_src]
+        edges = [
+            (chars, mapping[dst], lbl)
+            for chars, dst, lbl in raw_transitions.get(old_src, ())
+            if dst in mapping
+        ]
+        if edges:
+            new_transitions[new_src] = edges
+
+    new_accept: Dict[int, AcceptInfo] = {
+        mapping[q]: info for q, info in raw_accept.items() if q in mapping
+    }
+
+    eps_free = NFA(
+        states=set(mapping.values()),
+        start_state=0,
+        accept_states=new_accept,
+        transitions=new_transitions,
+        name=nfa.name.replace("ε-NFA", "ε-free NFA"),
+        pattern=nfa.pattern,
+    )
+    return eps_free
+

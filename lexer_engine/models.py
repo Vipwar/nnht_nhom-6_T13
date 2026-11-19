@@ -15,40 +15,68 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Dict, FrozenSet, List, Optional, Set, Tuple
 
-# Working finite alphabet Sigma: printable ASCII (32..126) + whitespace control chars (\t, \n, \r)
-SIGMA_LIST: Tuple[str, ...] = tuple(
+# Working finite alphabet Sigma:
+# - 98 standard ASCII characters: printable ASCII (32..126) + whitespace control chars (\t, \n, \r)
+# - NON_ASCII representative class (chr(128)) standing for all UTF-8 / Unicode characters (ord(c) >= 128)
+NON_ASCII: str = "\x80"
+
+ASCII_SIGMA_LIST: Tuple[str, ...] = tuple(
     ["\t", "\n", "\r"] + [chr(code) for code in range(32, 127)]
 )
+ASCII_SIGMA: FrozenSet[str] = frozenset(ASCII_SIGMA_LIST)
+
+SIGMA_LIST: Tuple[str, ...] = ASCII_SIGMA_LIST + (NON_ASCII,)
 SIGMA: FrozenSet[str] = frozenset(SIGMA_LIST)
 
 EPSILON: Optional[str] = None  # Symbolic marker for epsilon transitions
 
 
+def normalize_char(ch: str) -> str:
+    """Map any non-ASCII Unicode character (ord >= 128) to the NON_ASCII representative."""
+    return NON_ASCII if ord(ch) >= 128 else ch
+
+
 def escape_char_display(ch: str) -> str:
     """Format a single character for readable transition labels."""
+    if ch == NON_ASCII:
+        return "UTF-8"
     special = {
         "\n": "\\n",
         "\t": "\\t",
         "\r": "\\r",
+        "\v": "\\v",
+        "\f": "\\f",
         " ": "␣",
         "\\": "\\\\",
     }
-    return special.get(ch, ch)
+    if ch in special:
+        return special[ch]
+    if ord(ch) < 32 or ord(ch) == 127:
+        return f"\\x{ord(ch):02X}"
+    return ch
 
 
 def escape_char_in_class(ch: str) -> str:
     """Format a character inside [...] notation."""
+    if ch == NON_ASCII:
+        return "\\u0080+"
     special = {
         "\n": "\\n",
         "\t": "\\t",
         "\r": "\\r",
+        "\v": "\\v",
+        "\f": "\\f",
         " ": " ",
         "\\": "\\\\",
         "]": "\\]",
         "-": "\\-",
         "^": "\\^",
     }
-    return special.get(ch, ch)
+    if ch in special:
+        return special[ch]
+    if ord(ch) < 32 or ord(ch) == 127:
+        return f"\\x{ord(ch):02X}"
+    return ch
 
 
 def format_charset(chars: FrozenSet[str], max_len: int = 18) -> str:
@@ -76,9 +104,10 @@ def format_charset(chars: FrozenSet[str], max_len: int = 18) -> str:
 
     # Build contiguous ASCII ranges
     ordered = sorted(chars, key=lambda c: ord(c))
-    # Separate control whitespace from printable ASCII for cleaner ranges
+    # Separate control whitespace, printable ASCII, and NON_ASCII for cleaner ranges
     ctrl = [c for c in ordered if ord(c) < 32]
-    printable = [c for c in ordered if ord(c) >= 32]
+    printable = [c for c in ordered if 32 <= ord(c) < 127]
+    non_ascii = [c for c in ordered if ord(c) >= 128]
 
     parts: List[str] = []
     if ctrl:
@@ -101,6 +130,10 @@ def format_charset(chars: FrozenSet[str], max_len: int = 18) -> str:
         else:
             parts.append(escape_char_in_class(printable[start]))
         i += 1
+
+    if non_ascii:
+        for c in non_ascii:
+            parts.append(escape_char_in_class(c))
 
     label = "[" + "".join(parts) + "]"
     if len(label) > max_len:
@@ -257,10 +290,11 @@ class NFA:
 
     def move(self, state_set: FrozenSet[int], ch: str) -> Set[int]:
         """Compute Move(S, ch) = { p | exists q in S, p in delta(q, ch) }."""
+        norm_ch = NON_ASCII if ord(ch) >= 128 else ch
         result: Set[int] = set()
         for q in state_set:
             for chars, nxt, _ in self.transitions.get(q, ()):
-                if chars is not None and ch in chars:
+                if chars is not None and (ch in chars or norm_ch in chars):
                     result.add(nxt)
         return result
 
@@ -371,6 +405,8 @@ class DFA:
     def step(self, state: int, ch: str) -> Optional[int]:
         """O(1) deterministic transition delta(state, ch). Returns None if dead/undefined."""
         cid = self._char_to_class.get(ch)
+        if cid is None and ord(ch) >= 128:
+            cid = self._char_to_class.get(NON_ASCII)
         if cid is None:
             return None
         return self.transitions.get(state, {}).get(cid)
@@ -547,12 +583,27 @@ class LexicalError:
     message: str
     attempted_lexeme: str = ""
 
+    @property
+    def lexeme(self) -> str:
+        return self.char
+
+    @property
+    def start_pos(self) -> int:
+        return self.pos
+
+    @property
+    def end_pos(self) -> int:
+        return self.pos + len(self.char)
+
     def to_dict(self) -> Dict:
         return {
             "char": self.char,
+            "lexeme": self.char,
             "line": self.line,
             "col": self.col,
             "pos": self.pos,
+            "start_pos": self.pos,
+            "end_pos": self.pos + len(self.char),
             "message": self.message,
             "attempted_lexeme": self.attempted_lexeme,
         }
@@ -603,6 +654,8 @@ class ScanResult:
     elapsed_ms: float
     total_chars: int
     total_transitions: int
+    error_recovery_mode: str = "panic_char"
+    memoized_cutoffs: int = 0
 
     def to_dict(self) -> Dict:
         return {
@@ -620,5 +673,7 @@ class ScanResult:
                 "total_transitions": self.total_transitions,
                 "backtrack_events": sum(1 for t in self.tokens if t.backtrack_steps > 0),
                 "total_backtrack_chars": sum(t.backtrack_steps for t in self.tokens),
+                "error_recovery_mode": self.error_recovery_mode,
+                "memoized_cutoffs": self.memoized_cutoffs,
             },
         }

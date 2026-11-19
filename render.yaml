@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: t13-lexautomata-studio
+    runtime: python
+    plan: free
+    buildCommand: "python3 tests/test_suite.py"
+    startCommand: "python3 app.py --host 0.0.0.0 --port $PORT --no-browser"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.8

@@ -1,7 +1,7 @@
 {
   "metadata": {
     "topic": "T13 - Automata-based Lexical Analyzer",
-    "description": "Bộ test case chuẩn bao gồm trường hợp hợp lệ (valid), không hợp lệ (invalid) và trường hợp biên (edge cases) cho kiểm thử tự động và demo."
+    "description": "Bộ 62 test case có cấu trúc toàn diện bao gồm trường hợp hợp lệ (valid), không hợp lệ (invalid) và trường hợp biên (edge cases) cho bộ phân tích RE, chuỗi 6-chiều Automata và bộ quét từ vựng."
   },
   "single_regex_cases": [
     {
@@ -39,9 +39,9 @@
     {
       "id": "RE-05",
       "category": "edge",
-      "name": "Chuỗi có escape STRING_LIT",
+      "name": "Chuỗi có escape & tiếng Việt UTF-8 STRING_LIT",
       "pattern": "\"([^\"\\\\\\n]|\\\\.)*\"",
-      "accept": ["\"\"", "\"hello\"", "\"a \\\"quoted\\\" b\"", "\"path\\\\to\\\\file\""],
+      "accept": ["\"\"", "\"hello\"", "\"a \\\"quoted\\\" b\"", "\"path\\\\to\\\\file\"", "\"Xin chào UEH\""],
       "reject": ["", "\"", "\"unterminated", "\"line1\nline2\"", "hello"]
     },
     {
@@ -51,6 +51,86 @@
       "pattern": "(a|ε)b*",
       "accept": ["", "a", "b", "ab", "bbb", "abbb"],
       "reject": ["aa", "ba", "aba", "c"]
+    },
+    {
+      "id": "RE-07",
+      "category": "edge",
+      "name": "Bình luận nhiều dòng BLOCK_COMMENT /* ... */",
+      "pattern": "/\\*([^*]|\\*+[^*/])*\\*+/",
+      "accept": ["/**/", "/***/", "/*** a * b ***/", "/* a / b */", "/* line1\nline2 */", "/* Tiếng Việt UEH */"],
+      "reject": ["", "/*", "/*/", "/* unclosed", "/* a */ x", "/ * */"]
+    },
+    {
+      "id": "RE-08",
+      "category": "edge",
+      "name": "Định lượng đếm khoảng {m,n}: Số Hex 0x[0-9a-fA-F]{2,4}",
+      "pattern": "0[xX][0-9a-fA-F]{2,4}",
+      "accept": ["0xFF", "0x1a2", "0XDEAD", "0x00"],
+      "reject": ["0x", "0xF", "0x12345", "0xGG", "FF"]
+    },
+    {
+      "id": "RE-09",
+      "category": "edge",
+      "name": "Định lượng đếm cố định {m} & cận dưới {m,}: [0-9]{4}-[0-9]{2,}",
+      "pattern": "[0-9]{4}-[0-9]{2,}",
+      "accept": ["2026-04", "1999-12345", "0000-00"],
+      "reject": ["26-04", "2026-4", "20265-04", "2026-"]
+    },
+    {
+      "id": "RE-10",
+      "category": "edge",
+      "name": "Lớp ký tự biên chứa dấu gạch nối [-a], [a-], [-]",
+      "pattern": "[-a][a-][-]x",
+      "accept": ["-a-x", "a--x", "---x", "aa-x"],
+      "reject": ["b--x", "-aax", "--x", ""]
+    },
+    {
+      "id": "RE-11",
+      "category": "edge",
+      "name": "Lớp ký tự phủ định biên [^-] và [^^]",
+      "pattern": "[^-][^^]",
+      "accept": ["ab", "^a", "a-", "9_"],
+      "reject": ["--", "-a", "a^", "^^", "a"]
+    },
+    {
+      "id": "RE-12",
+      "category": "edge",
+      "name": "Lớp ký tự chứa ngoặc vuông escape [\\[\\]\\\\] và lớp viết tắt [\\d\\w]",
+      "pattern": "[\\[\\]\\\\][\\d\\w]+",
+      "accept": ["[a1", "]9_", "\\x", "[UEH_2026"],
+      "reject": ["a1", "[]", "\\", "[@"]
+    },
+    {
+      "id": "RE-13",
+      "category": "edge",
+      "name": "Khoảng suy biến [a-a] và các escape \\{, \\}, \\/, \\f, \\v",
+      "pattern": "[a-a]\\{\\/\\}[\\f\\v]",
+      "accept": ["a{/}\f", "a{/}\u000b"],
+      "reject": ["b{/}\f", "a{/} ", "a{/}"]
+    },
+    {
+      "id": "RE-14",
+      "category": "edge",
+      "name": "Toán tử lặp lồng nhau (a*)*, (c+)+, (e?)?, f+*",
+      "pattern": "(a*)*b(c+)+d(e?)?f+*",
+      "accept": ["bcd", "aaabccdefff", "bcdf", "abcccdef"],
+      "reject": ["", "b", "acd", "bcdeef"]
+    },
+    {
+      "id": "RE-15",
+      "category": "edge",
+      "name": "Ngoặc lồng sâu & hợp nhiều nhánh (((a))|b|c|d)+",
+      "pattern": "(((a))|b|c|d)+",
+      "accept": ["a", "bcd", "dcba", "aaabbb"],
+      "reject": ["", "e", "abcde"]
+    },
+    {
+      "id": "RE-16",
+      "category": "edge",
+      "name": "Tổ hợp chuỗi ε thuần túy và nullable (ε*|\\e+)(\\e|a)ε",
+      "pattern": "(ε*|\\e+)(\\e|a)ε",
+      "accept": ["", "a"],
+      "reject": ["aa", "b", "e"]
     }
   ],
   "invalid_regex_cases": [
@@ -59,10 +139,21 @@
     {"id": "RE-ERR-03", "name": "Ngoặc đóng dư thừa", "pattern": "ab)"},
     {"id": "RE-ERR-04", "name": "Ngoặc rỗng ()", "pattern": "a()b"},
     {"id": "RE-ERR-05", "name": "Toán tử * đầu biểu thức", "pattern": "*abc"},
-    {"id": "RE-ERR-06", "name": "Thiếu vế phải toán tử |", "pattern": "a|"},
-    {"id": "RE-ERR-07", "name": "Lớp ký tự chưa đóng", "pattern": "[a-z"},
-    {"id": "RE-ERR-08", "name": "Khoảng ký tự ngược [z-a]", "pattern": "[z-a]"},
-    {"id": "RE-ERR-09", "name": "Dấu escape cuối chuỗi", "pattern": "abc\\"}
+    {"id": "RE-ERR-06", "name": "Toán tử + đầu biểu thức", "pattern": "+abc"},
+    {"id": "RE-ERR-07", "name": "Toán tử ? đầu biểu thức", "pattern": "?abc"},
+    {"id": "RE-ERR-08", "name": "Thiếu vế phải toán tử |", "pattern": "a|"},
+    {"id": "RE-ERR-09", "name": "Thiếu vế trái | trong ngoặc (|a)", "pattern": "(|a)"},
+    {"id": "RE-ERR-10", "name": "Thiếu vế phải | trong ngoặc (a|)", "pattern": "(a|)"},
+    {"id": "RE-ERR-11", "name": "Hai toán tử hợp liên tiếp a||b", "pattern": "a||b"},
+    {"id": "RE-ERR-12", "name": "Lớp ký tự chưa đóng [a-z", "pattern": "[a-z"},
+    {"id": "RE-ERR-13", "name": "Khoảng ký tự ngược [z-a]", "pattern": "[z-a]"},
+    {"id": "RE-ERR-14", "name": "Lớp ký tự rỗng []", "pattern": "[]"},
+    {"id": "RE-ERR-15", "name": "Lớp ký tự phủ định rỗng [^]", "pattern": "[^]"},
+    {"id": "RE-ERR-16", "name": "Lớp phủ định phủ kín toàn bộ ASCII_SIGMA", "pattern": "[^\\t\\n\\r\\v\\f -~]"},
+    {"id": "RE-ERR-17", "name": "Dấu escape \\ cuối chuỗi", "pattern": "abc\\"},
+    {"id": "RE-ERR-18", "name": "Định lượng đếm m > n: a{5,2}", "pattern": "a{5,2}"},
+    {"id": "RE-ERR-19", "name": "Định lượng đếm không phải số: a{abc}", "pattern": "a{abc}"},
+    {"id": "RE-ERR-20", "name": "Định lượng đếm vượt ngưỡng an toàn: a{100}", "pattern": "a{100}"}
   ],
   "scanner_cases": [
     {
@@ -174,7 +265,7 @@
       "id": "SCAN-07",
       "preset": "minilang",
       "category": "edge",
-      "name": "Đầu vào rỗng và chỉ gồm khoảng trắng/bình luận",
+      "name": "Đầu vào chỉ gồm khoảng trắng và bình luận đơn dòng",
       "input": "   \t\n  // chi co binh luan\n  ",
       "expected_tokens": [],
       "expected_errors": 0
@@ -299,7 +390,7 @@
       "id": "SCAN-14",
       "preset": "minilang",
       "category": "invalid",
-      "name": "Ký tự Unicode ngoài bảng chữ cái ASCII Σ",
+      "name": "Ký tự Unicode ngoài chuỗi/bình luận báo lỗi U+20AC",
       "input": "let gia = 100€;",
       "expected_tokens": [
         ["KW_LET", "let"],
@@ -309,6 +400,168 @@
         ["SEMICOLON", ";"]
       ],
       "expected_errors": 1
+    },
+    {
+      "id": "SCAN-15",
+      "preset": "minilang",
+      "category": "edge",
+      "name": "Đầu vào hoàn toàn rỗng \"\"",
+      "input": "",
+      "expected_tokens": [],
+      "expected_errors": 0
+    },
+    {
+      "id": "SCAN-16",
+      "preset": "minilang",
+      "category": "edge",
+      "name": "Token 1 ký tự duy nhất sát EOF không có \\n",
+      "input": "x",
+      "expected_tokens": [
+        ["IDENTIFIER", "x"]
+      ],
+      "expected_errors": 0
+    },
+    {
+      "id": "SCAN-17",
+      "preset": "minilang",
+      "category": "edge",
+      "name": "Bình luận nhiều dòng /* ... */ xen kẽ toán tử chia và bình luận //",
+      "input": "a/**/b/*** * / ***/c/* multi\nline */ / d // end",
+      "expected_tokens": [
+        ["IDENTIFIER", "a"],
+        ["IDENTIFIER", "b"],
+        ["IDENTIFIER", "c"],
+        ["OP_DIV", "/"],
+        ["IDENTIFIER", "d"]
+      ],
+      "expected_errors": 0
+    },
+    {
+      "id": "SCAN-18",
+      "preset": "minilang",
+      "category": "invalid",
+      "name": "Bình luận nhiều dòng chưa đóng /* ở cuối file không nhầm thành OP_DIV",
+      "input": "let a = 1; /*",
+      "expected_tokens": [
+        ["KW_LET", "let"],
+        ["IDENTIFIER", "a"],
+        ["OP_ASSIGN", "="],
+        ["INT_LIT", "1"],
+        ["SEMICOLON", ";"],
+        ["OP_MUL", "*"]
+      ],
+      "expected_errors": 1
+    },
+    {
+      "id": "SCAN-19",
+      "preset": "minilang",
+      "category": "valid",
+      "name": "Hỗ trợ UTF-8 tiếng Việt an toàn trong STRING_LIT và bình luận",
+      "input": "// Tính tổng điểm UEH\nlet msg = \"Xin chào ĐH Kinh tế TP.HCM (UEH)\"; /* Đồ án T13 */",
+      "expected_tokens": [
+        ["KW_LET", "let"],
+        ["IDENTIFIER", "msg"],
+        ["OP_ASSIGN", "="],
+        ["STRING_LIT", "\"Xin chào ĐH Kinh tế TP.HCM (UEH)\""],
+        ["SEMICOLON", ";"]
+      ],
+      "expected_errors": 0
+    },
+    {
+      "id": "SCAN-20",
+      "preset": "minilang",
+      "category": "edge",
+      "name": "Quay lui số thực & tiền tố số (1.5e+, 1.5e-, .5, 0.0.0, 123abc)",
+      "input": "1.5e+ 1.5e- .5 0.0.0 123abc",
+      "expected_tokens": [
+        ["FLOAT_LIT", "1.5"],
+        ["IDENTIFIER", "e"],
+        ["OP_PLUS", "+"],
+        ["FLOAT_LIT", "1.5"],
+        ["IDENTIFIER", "e"],
+        ["OP_MINUS", "-"],
+        ["INT_LIT", "5"],
+        ["FLOAT_LIT", "0.0"],
+        ["INT_LIT", "0"],
+        ["INT_LIT", "123"],
+        ["IDENTIFIER", "abc"]
+      ],
+      "expected_errors": 2
+    },
+    {
+      "id": "SCAN-21",
+      "preset": "minilang",
+      "category": "invalid",
+      "name": "Chuỗi có dấu escape \\ ngay sát EOF (\"abc\\)",
+      "input": "\"abc\\",
+      "expected_tokens": [
+        ["IDENTIFIER", "abc"]
+      ],
+      "expected_errors": 2
+    },
+    {
+      "id": "SCAN-22",
+      "preset": "minilang",
+      "category": "invalid",
+      "name": "Chuỗi ký tự lỗi liên tiếp @@@$$$",
+      "input": "@@@$$$",
+      "expected_tokens": [],
+      "expected_errors": 6
+    },
+    {
+      "id": "SCAN-23",
+      "preset": "minilang",
+      "category": "invalid",
+      "name": "Ký tự Unicode lạ (™, €) và ký tự điều khiển (\\x00, \\x07) ngoài chuỗi",
+      "input": "€ ™ \u0000 \u0007",
+      "expected_tokens": [],
+      "expected_errors": 4
+    },
+    {
+      "id": "SCAN-24",
+      "preset": "minilang",
+      "category": "edge",
+      "name": "Ghép nối các từ khóa thành định danh (ifelse, while_1, true_false, for_each)",
+      "input": "ifelse while_1 true_false for_each func_1 let_x print_all",
+      "expected_tokens": [
+        ["IDENTIFIER", "ifelse"],
+        ["IDENTIFIER", "while_1"],
+        ["IDENTIFIER", "true_false"],
+        ["IDENTIFIER", "for_each"],
+        ["IDENTIFIER", "func_1"],
+        ["IDENTIFIER", "let_x"],
+        ["IDENTIFIER", "print_all"]
+      ],
+      "expected_errors": 0
+    },
+    {
+      "id": "SCAN-25",
+      "preset": "minilang",
+      "category": "edge",
+      "name": "Xuống dòng hỗn hợp Windows CRLF (\\r\\n) và Tab (\\t)",
+      "input": "let a = 1;\r\n\t// comment CRLF\r\nlet b = 2;",
+      "expected_tokens": [
+        ["KW_LET", "let"],
+        ["IDENTIFIER", "a"],
+        ["OP_ASSIGN", "="],
+        ["INT_LIT", "1"],
+        ["SEMICOLON", ";"],
+        ["KW_LET", "let"],
+        ["IDENTIFIER", "b"],
+        ["OP_ASSIGN", "="],
+        ["INT_LIT", "2"],
+        ["SEMICOLON", ";"]
+      ],
+      "expected_errors": 0
+    },
+    {
+      "id": "SCAN-26",
+      "preset": "minilang",
+      "category": "edge",
+      "name": "Đầu vào chỉ gồm bình luận nhiều dòng và CRLF",
+      "input": "/* header\r\ncomment */\r\n/**/\t/***/",
+      "expected_tokens": [],
+      "expected_errors": 0
     }
   ]
 }

@@ -47,8 +47,11 @@ def _dot_escape(s: str) -> str:
     return s.replace("\\", "\\\\").replace('"', '\\"')
 
 
-def _render_dot(dot_src: str, out_png: Path, dpi: int = 240) -> None:
+def _render_dot(dot_src: str, out_png: Path, dpi: int = 240) -> bool:
     if not DOT_BIN:
+        if out_png.exists():
+            print(f"  [INFO] Graphviz `dot` not in PATH; keeping existing {out_png.name}")
+            return False
         raise RuntimeError("Graphviz `dot` binary not found in PATH.")
     dot_file = out_png.with_suffix(".dot")
     dot_file.write_text(dot_src, encoding="utf-8")
@@ -57,6 +60,7 @@ def _render_dot(dot_src: str, out_png: Path, dpi: int = 240) -> None:
         check=True,
     )
     dot_file.unlink(missing_ok=True)
+    return True
 
 
 def fig1_architecture_pipeline() -> None:
@@ -82,11 +86,11 @@ def fig1_architecture_pipeline() -> None:
 
     # Top main compile pipeline (5 boxes)
     stages = [
-        (0.45, 2.55, 1.85, 1.35, "#EFF6FF", "#2563EB", "1. Đặc tả Token", "Tập RE: R₁, R₂, ..., Rₖ\n+ Độ ưu tiên (Priority)\n+ Cờ bỏ qua (Skip)"),
-        (2.65, 2.55, 1.85, 1.35, "#EEF2FF", "#4F46E5", "2. Regex Parser", "Đệ quy đoán nhận\n(Zero `re`) → AST,\nInfix & Postfix"),
-        (4.85, 2.55, 1.85, 1.35, "#F0FDF4", "#16A34A", "3. Thompson NFA", "Xây N(Rᵢ) & hợp nhất\nCombined ε-NFA\n(gắn nhãn đích Fᵢ)"),
-        (7.05, 2.55, 1.95, 1.35, "#FFFBEB", "#D97706", "4. Subset DFA", "ε-closure & Move\nPhân hoạch bảng chữ Σ\nGiải xung đột ưu tiên"),
-        (9.35, 2.55, 1.80, 1.35, "#ECFDF5", "#059669", "5. Min-DFA", "Tinh chỉnh phân hoạch\nΠ₀ tách theo loại token\nLoại Dead State"),
+        (0.45, 2.55, 1.85, 1.35, "#EFF6FF", "#2563EB", "1. Đặc tả Token", "Tập RE: R₁..Rₖ + Priority\n+ Cờ Skip + Phát hiện\nLuật bị che khuất"),
+        (2.65, 2.55, 1.85, 1.35, "#EEF2FF", "#4F46E5", "2. Regex Parser", "Đệ quy (Zero `re`)\nHỗ trợ {m,n}, UTF-8\n→ AST, Infix & Postfix"),
+        (4.85, 2.55, 1.85, 1.35, "#F0FDF4", "#16A34A", "3. Thompson & Khử ε", "Combined ε-NFA (ĐL 1)\n→ NFA không ε (ĐL 2)\nGắn nhãn đích Fᵢ"),
+        (7.05, 2.55, 1.95, 1.35, "#FFFBEB", "#D97706", "4. Subset DFA", "Định lý 3: ε-closure & Move\nPhân hoạch bảng chữ Σ\nGiải xung đột ưu tiên"),
+        (9.35, 2.55, 1.80, 1.35, "#ECFDF5", "#059669", "5. Min-DFA", "Định lý 4: Moore Π₀..Πₙ\n& Hopcroft O(E|Q|log|Q|)\nBảo toàn phân loại token"),
     ]
 
     for x, y, w, h, fc, ec, title, desc in stages:
@@ -97,8 +101,8 @@ def fig1_architecture_pipeline() -> None:
                 facecolor=fc, edgecolor=ec, linewidth=1.8,
             )
         )
-        ax.text(x + w / 2, y + h - 0.28, title, ha="center", va="center", fontsize=9.2, fontweight="bold", color=ec)
-        ax.text(x + w / 2, y + 0.50, desc, ha="center", va="center", fontsize=7.6, color="#1E293B", linespacing=1.35)
+        ax.text(x + w / 2, y + h - 0.28, title, ha="center", va="center", fontsize=9.1, fontweight="bold", color=ec)
+        ax.text(x + w / 2, y + 0.50, desc, ha="center", va="center", fontsize=7.5, color="#1E293B", linespacing=1.35)
 
     # Arrows between top boxes
     for i in range(len(stages) - 1):
@@ -109,9 +113,9 @@ def fig1_architecture_pipeline() -> None:
 
     # Bottom row: Verification branch, Direct RE->DFA branch, and Runtime Scanner
     bottom_boxes = [
-        (0.45, 0.48, 2.85, 1.32, "#F5F3FF", "#7C3AED", "Nhánh Đối Chứng: Direct RE → DFA", "Cây gia tố r·# · nullable, FP, LP, followpos\n+ Xuất JFLAP (.jff) đối chứng độc lập"),
-        (3.75, 0.48, 3.15, 1.32, "#ECFDF5", "#047857", "Chứng Minh Tương Đương (Verifier)", "Product Automaton (Subset ≡ Min ≡ Direct)\nĐảm bảo 0 phản ví dụ trên mọi w ∈ Σ*"),
-        (7.35, 0.48, 3.80, 1.32, "#FEF2F2", "#DC2626", "6. Bộ Quét Từ Vựng (DFA Scanner)", "Maximal Munch (khớp dài nhất) + Quay lui (Backtrack)\nTheo dõi (Line, Col) + Phục hồi lỗi Panic-mode → Tokens"),
+        (0.45, 0.48, 2.85, 1.32, "#F5F3FF", "#7C3AED", "Nhánh Đối Chứng: Direct RE → DFA", "Cây gia tố r·# & Đa-Token (Rᵢ·#ᵢ)\nfollowpos + Khứ hồi JFLAP (.jff)"),
+        (3.75, 0.48, 3.15, 1.32, "#ECFDF5", "#047857", "Chứng Minh Toán Học (Verifier)", "Product Automaton 6-Chiều (0 phản ví dụ)\n+ Chứng minh tối giản Myhill-Nerode"),
+        (7.35, 0.48, 3.80, 1.32, "#FEF2F2", "#DC2626", "6. Bộ Quét Từ Vựng (O(n) Scanner)", "Maximal Munch + Reps Memoization chống O(n²)\nPhục hồi lỗi Panic-mode / Smart-Sync → Tokens"),
     ]
     for x, y, w, h, fc, ec, title, desc in bottom_boxes:
         ax.add_patch(
@@ -122,15 +126,12 @@ def fig1_architecture_pipeline() -> None:
             )
         )
         ax.text(x + w / 2, y + h - 0.28, title, ha="center", va="center", fontsize=9.0, fontweight="bold", color=ec)
-        ax.text(x + w / 2, y + 0.46, desc, ha="center", va="center", fontsize=7.6, color="#1E293B", linespacing=1.35)
+        ax.text(x + w / 2, y + 0.46, desc, ha="center", va="center", fontsize=7.5, color="#1E293B", linespacing=1.35)
 
     # Connectors from top row to bottom row
-    # Parser -> Direct RE->DFA
     ax.annotate("", xy=(2.2, 1.86), xytext=(3.55, 2.49), arrowprops=dict(arrowstyle="-|>", color="#7C3AED", lw=1.5, ls="--"))
-    # Subset & Min -> Verifier
     ax.annotate("", xy=(5.1, 1.86), xytext=(7.8, 2.49), arrowprops=dict(arrowstyle="-|>", color="#047857", lw=1.5, ls="--"))
     ax.annotate("", xy=(5.6, 1.86), xytext=(9.9, 2.49), arrowprops=dict(arrowstyle="-|>", color="#047857", lw=1.5, ls="--"))
-    # Min-DFA -> Scanner
     ax.annotate("", xy=(9.6, 1.86), xytext=(10.25, 2.49), arrowprops=dict(arrowstyle="-|>", color="#DC2626", lw=2.0))
 
     plt.tight_layout(pad=0.2)
@@ -140,6 +141,10 @@ def fig1_architecture_pipeline() -> None:
 
 def fig2_slide38_pipeline() -> None:
     """Render exact Thompson NFA -> Subset DFA -> Minimized DFA for (a|b)*abb via Graphviz + compose side-by-side."""
+    out_path = FIG_DIR / "fig2_slide38_pipeline.png"
+    if not DOT_BIN and out_path.exists():
+        print("  [INFO] Graphviz `dot` not in PATH; keeping existing fig2_slide38_pipeline.png")
+        return
     nfa, _ = build_token_nfa("(a|b)*abb", "SLIDE38")
     sub_dfa, _ = nfa_to_dfa(nfa, record_steps=False)
     min_dfa = minimize_dfa(sub_dfa).minimized_dfa
@@ -216,7 +221,7 @@ def fig2_slide38_pipeline() -> None:
     ax3.axis("off")
     ax3.set_title("(c) Minimized DFA — 4 trạng thái (tối giản, gộp D0 ≡ D2)", fontsize=10.2, fontweight="bold", color="#059669", pad=6)
 
-    plt.savefig(FIG_DIR / "fig2_slide38_pipeline.png", dpi=280, bbox_inches="tight", facecolor="white")
+    plt.savefig(out_path, dpi=280, bbox_inches="tight", facecolor="white")
     plt.close(fig)
     for p in (p_nfa, p_sub, p_min):
         p.unlink(missing_ok=True)
@@ -224,6 +229,10 @@ def fig2_slide38_pipeline() -> None:
 
 def fig3_calclang_combined_dfa() -> None:
     """Render the complete 20-state Minimized Combined DFA of CalcLang using Graphviz."""
+    out_path = FIG_DIR / "fig3_calclang_combined_dfa.png"
+    if not DOT_BIN and out_path.exists():
+        print("  [INFO] Graphviz `dot` not in PATH; keeping existing fig3_calclang_combined_dfa.png")
+        return
     lex = LexicalAnalyzer.from_preset("calclang")
     d = lex.minimized_dfa
 
@@ -264,20 +273,21 @@ def fig3_calclang_combined_dfa() -> None:
         lines.append(f'  D{src} -> D{dst} [label=" {_dot_escape(lbl)} "];')
 
     lines.append("}")
-    _render_dot("\n".join(lines), FIG_DIR / "fig3_calclang_combined_dfa.png", dpi=240)
+    _render_dot("\n".join(lines), out_path, dpi=240)
 
 
 def fig4_benchmark_comparison() -> None:
-    """Publication-grade dual chart: (a) State Count Reduction across Pipeline, (b) Compile & 10KB Scan ms."""
+    """Publication-grade dual chart: (a) State Count Reduction across 4-Theorem Pipeline, (b) Compile & 10KB Scan ms."""
     presets = ["minilang", "calclang", "minisql"]
-    labels = ["MiniLang\n(38 token)", "CalcLang\n(12 token)", "MiniSQL\n(14 token)"]
-    nfa_counts, sub_counts, min_counts = [], [], []
+    labels = ["MiniLang\n(39 token)", "CalcLang\n(12 token)", "MiniSQL\n(14 token)"]
+    nfa_counts, eps_free_counts, sub_counts, min_counts = [], [], [], []
     compile_ms, scan_ms = [], []
 
     for pid in presets:
         lex = LexicalAnalyzer.from_preset(pid)
         s = lex.summary_dict()
         nfa_counts.append(s["nfa_states"])
+        eps_free_counts.append(s["eps_free_nfa_states"])
         sub_counts.append(s["subset_dfa_states"])
         min_counts.append(s["minimized_dfa_states"])
         compile_ms.append(s["timings_ms"]["total_ms"])
@@ -288,26 +298,27 @@ def fig4_benchmark_comparison() -> None:
         lex.scan(big, use_minimized=True, record_traces=False)
         scan_ms.append((time.perf_counter() - t0) * 1000.0)
 
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(11.2, 4.3), dpi=300)
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(11.4, 4.3), dpi=300)
     x = np.arange(len(labels))
-    w = 0.25
+    w = 0.20
 
-    b1 = ax1.bar(x - w, nfa_counts, width=w, label="Combined ε-NFA", color="#60A5FA", edgecolor="#1D4ED8", lw=0.8)
-    b2 = ax1.bar(x, sub_counts, width=w, label="Subset DFA", color="#FBBF24", edgecolor="#B45309", lw=0.8)
-    b3 = ax1.bar(x + w, min_counts, width=w, label="Minimized DFA", color="#34D399", edgecolor="#047857", lw=0.8)
+    b1 = ax1.bar(x - 1.5 * w, nfa_counts, width=w, label="ε-NFA (ĐL 1)", color="#60A5FA", edgecolor="#1D4ED8", lw=0.8)
+    b2 = ax1.bar(x - 0.5 * w, eps_free_counts, width=w, label="NFA Khử ε (ĐL 2)", color="#A78BFA", edgecolor="#6D28D9", lw=0.8)
+    b3 = ax1.bar(x + 0.5 * w, sub_counts, width=w, label="Subset DFA (ĐL 3)", color="#FBBF24", edgecolor="#B45309", lw=0.8)
+    b4 = ax1.bar(x + 1.5 * w, min_counts, width=w, label="Min-DFA (ĐL 4)", color="#34D399", edgecolor="#047857", lw=0.8)
 
-    for bars in (b1, b2, b3):
+    for bars in (b1, b2, b3, b4):
         for bar in bars:
             h = bar.get_height()
-            ax1.text(bar.get_x() + bar.get_width() / 2, h + 2.5, f"{int(h)}", ha="center", va="bottom", fontsize=8.5, fontweight="bold", color="#0F172A")
+            ax1.text(bar.get_x() + bar.get_width() / 2, h + 2.2, f"{int(h)}", ha="center", va="bottom", fontsize=7.8, fontweight="bold", color="#0F172A")
 
     ax1.set_xticks(x)
     ax1.set_xticklabels(labels, fontsize=9.5, fontweight="bold")
     ax1.set_ylabel("Số lượng trạng thái (States)", fontsize=9.5, fontweight="bold")
-    ax1.set_title("(a) So sánh số trạng thái qua đường ống Automata", fontsize=10.5, fontweight="bold", color="#1E3A8A", pad=10)
+    ax1.set_title("(a) Số trạng thái qua 4 Định lý Chương 3.1", fontsize=10.5, fontweight="bold", color="#1E3A8A", pad=10)
     ax1.set_ylim(0, max(nfa_counts) * 1.18)
     ax1.grid(axis="y", linestyle="--", alpha=0.4)
-    ax1.legend(frameon=True, fontsize=8.5)
+    ax1.legend(frameon=True, fontsize=8.0, ncol=2)
 
     w2 = 0.32
     c1 = ax2.bar(x - w2 / 2, compile_ms, width=w2, label="Biên dịch toàn pipeline (ms)", color="#818CF8", edgecolor="#4338CA", lw=0.8)
@@ -333,6 +344,10 @@ def fig4_benchmark_comparison() -> None:
 
 def fig5_direct_dfa_slide46() -> None:
     """Render the Direct DFA for UEH Slide 46-57 example (a|ba)(a|b)*ba via Graphviz."""
+    out_path = FIG_DIR / "fig5_direct_dfa_slide46.png"
+    if not DOT_BIN and out_path.exists():
+        print("  [INFO] Graphviz `dot` not in PATH; keeping existing fig5_direct_dfa_slide46.png")
+        return
     res = build_direct_dfa("(a|ba)(a|b)*ba", "SLIDE46")
     d = res.dfa
     lines = [
@@ -359,7 +374,7 @@ def fig5_direct_dfa_slide46() -> None:
     for src, dst, _, lbl in d.compressed_edges():
         lines.append(f'  D{src} -> D{dst} [label=" {_dot_escape(lbl)} ", penwidth=1.6];')
     lines.append("}")
-    _render_dot("\n".join(lines), FIG_DIR / "fig5_direct_dfa_slide46.png", dpi=260)
+    _render_dot("\n".join(lines), out_path, dpi=260)
 
 
 if __name__ == "__main__":

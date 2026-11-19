@@ -19,6 +19,7 @@ from typing import Dict, FrozenSet, List, Optional, Set, Tuple
 from .models import (
     DFA,
     AcceptInfo,
+    TokenSpec,
     compute_alphabet_partition,
 )
 from .regex_parser import (
@@ -318,3 +319,167 @@ def build_direct_dfa(
         end_marker_pos=end_pos,
         followpos=followpos_sorted,
     )
+
+
+def build_combined_direct_dfa(specs: List[TokenSpec]) -> DFA:
+    """
+    Construct a Combined Multi-token Direct DFA directly from:
+        (R_1 · #_1) | (R_2 · #_2) | ... | (R_k · #_k)
+    without constructing any intermediate NFA (Dragon Book Section 3.9.5).
+
+    If a Direct DFA state (set of positions S) contains multiple end-markers #_i,
+    the token rule with the highest priority (smallest priority integer) wins.
+    """
+    if not specs:
+        raise ValueError("Danh sách đặc tả token không được rỗng")
+
+    pos_counter = 0
+    leaf_chars: Dict[int, FrozenSet[str]] = {}
+    followpos_sets: Dict[int, Set[int]] = {}
+    end_marker_map: Dict[int, AcceptInfo] = {}
+
+    def next_pos() -> int:
+        nonlocal pos_counter
+        pos_counter += 1
+        followpos_sets[pos_counter] = set()
+        return pos_counter
+
+    def eval_node(node: RegexNode) -> Tuple[bool, FrozenSet[int], FrozenSet[int]]:
+        """Return (nullable, firstpos, lastpos) and populate followpos_sets."""
+        if isinstance(node, EpsilonNode):
+            return True, frozenset(), frozenset()
+
+        if isinstance(node, CharSetNode):
+            p = next_pos()
+            leaf_chars[p] = node.chars
+            s = frozenset({p})
+            return False, s, s
+
+        if isinstance(node, UnionNode):
+            n1, fp1, lp1 = eval_node(node.left)
+            n2, fp2, lp2 = eval_node(node.right)
+            return (n1 or n2), (fp1 | fp2), (lp1 | lp2)
+
+        if isinstance(node, ConcatNode):
+            n1, fp1, lp1 = eval_node(node.left)
+            n2, fp2, lp2 = eval_node(node.right)
+            for p in lp1:
+                followpos_sets[p].update(fp2)
+            fp = (fp1 | fp2) if n1 else fp1
+            lp = (lp1 | lp2) if n2 else lp2
+            return (n1 and n2), fp, lp
+
+        if isinstance(node, StarNode):
+            _, fp1, lp1 = eval_node(node.child)
+            for p in lp1:
+                followpos_sets[p].update(fp1)
+            return True, fp1, lp1
+
+        if isinstance(node, PlusNode):
+            n1, fp1, lp1 = eval_node(node.child)
+            for p in lp1:
+                followpos_sets[p].update(fp1)
+            return n1, fp1, lp1
+
+        if isinstance(node, OptionalNode):
+            _, fp1, lp1 = eval_node(node.child)
+            return True, fp1, lp1
+
+        raise TypeError(f"Unsupported AST node: {type(node)}")
+
+    root_firstpos: Set[int] = set()
+
+    for idx, spec in enumerate(specs):
+        effective_priority = spec.priority if spec.priority is not None else idx
+        ast = parse_regex(spec.pattern)
+        n_body, fp_body, lp_body = eval_node(ast)
+
+        end_p = next_pos()
+        end_marker_map[end_p] = AcceptInfo(
+            token_name=spec.name,
+            priority=effective_priority,
+            skip=spec.skip,
+            category=spec.category,
+        )
+
+        for p in lp_body:
+            followpos_sets[p].add(end_p)
+
+        branch_fp = (fp_body | {end_p}) if n_body else fp_body
+        root_firstpos.update(branch_fp)
+
+    char_classes = compute_alphabet_partition(list(leaf_chars.values()))
+    representatives = [next(iter(cs)) for cs in char_classes]
+
+    pos_to_classes: Dict[int, List[int]] = {}
+    for p, cset in leaf_chars.items():
+        pos_to_classes[p] = [
+            cid for cid, rep in enumerate(representatives) if rep in cset
+        ]
+
+    def resolve_direct_accept(pos_set: FrozenSet[int]) -> Tuple[Optional[AcceptInfo], List[str]]:
+        matched = [end_marker_map[p] for p in pos_set if p in end_marker_map]
+        if not matched:
+            return None, []
+        matched.sort(key=lambda info: (info.priority, info.token_name))
+        seen: Set[str] = set()
+        all_names: List[str] = []
+        for info in matched:
+            if info.token_name not in seen:
+                seen.add(info.token_name)
+                all_names.append(info.token_name)
+        return matched[0], all_names
+
+    start_set = frozenset(root_firstpos)
+    set_to_id: Dict[FrozenSet[int], int] = {start_set: 0}
+    queue: deque[FrozenSet[int]] = deque([start_set])
+
+    transitions: Dict[int, Dict[int, int]] = {}
+    accept_states: Dict[int, AcceptInfo] = {}
+    state_subsets: Dict[int, List[int]] = {0: sorted(start_set)}
+    all_matched_tokens: Dict[int, List[str]] = {}
+
+    acc0, matched0 = resolve_direct_accept(start_set)
+    if acc0 is not None:
+        accept_states[0] = acc0
+        all_matched_tokens[0] = matched0
+
+    while queue:
+        cur_set = queue.popleft()
+        cur_id = set_to_id[cur_set]
+        transitions.setdefault(cur_id, {})
+
+        class_follow: Dict[int, Set[int]] = {}
+        for p in cur_set:
+            if p in end_marker_map:
+                continue
+            for cid in pos_to_classes.get(p, ()):
+                class_follow.setdefault(cid, set()).update(followpos_sets[p])
+
+        for cid in sorted(class_follow.keys()):
+            nxt_set = frozenset(class_follow[cid])
+            if not nxt_set:
+                continue
+            if nxt_set not in set_to_id:
+                new_id = len(set_to_id)
+                set_to_id[nxt_set] = new_id
+                state_subsets[new_id] = sorted(nxt_set)
+                acc, matched = resolve_direct_accept(nxt_set)
+                if acc is not None:
+                    accept_states[new_id] = acc
+                    all_matched_tokens[new_id] = matched
+                queue.append(nxt_set)
+            transitions[cur_id][cid] = set_to_id[nxt_set]
+
+    return DFA(
+        states=set(range(len(set_to_id))),
+        start_state=0,
+        accept_states=accept_states,
+        char_classes=char_classes,
+        transitions=transitions,
+        state_subsets=state_subsets,
+        all_matched_tokens=all_matched_tokens,
+        name=f"Combined Direct DFA ({len(specs)} tokens)",
+        pattern=" | ".join(s.name for s in specs),
+    )
+

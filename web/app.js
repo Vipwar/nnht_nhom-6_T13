@@ -13,9 +13,11 @@
     presets: {},
     singleExamples: [],
     activePreset: "minilang",
+    lastPresetId: "minilang",
     automataData: null,
     scanData: null,
     currentAutoView: "min_dfa",
+    graphCategoryFilter: "all",
     selectedTraceIdx: 0,
     animStepIdx: 0,
     animTimer: null,
@@ -180,19 +182,52 @@
   }
 
   // ==================== AUTOMATA GRAPH SVG RENDERER ====================
-  function renderAutomataSVG(svgNode, viewportEl, graph, pzKey, onSelectNode = null) {
+  function renderAutomataSVG(svgNode, viewportEl, graph, pzKey, onSelectNode = null, categoryFilter = "all") {
     svgNode.innerHTML = "";
     if (!graph || !graph.nodes || graph.nodes.length === 0) return;
 
     const nodes = graph.nodes;
     const edges = graph.edges || [];
-    const nodeById = new Map(nodes.map((n) => [n.id, n]));
 
-    // Build adjacency for BFS layering
+    // Build adjacency and reverse adjacency for BFS layering & category path filtering
     const adj = new Map();
-    for (const n of nodes) adj.set(n.id, []);
+    const revAdj = new Map();
+    for (const n of nodes) {
+      adj.set(n.id, []);
+      revAdj.set(n.id, []);
+    }
     for (const e of edges) {
       if (adj.has(e.from)) adj.get(e.from).push(e.to);
+      if (revAdj.has(e.to)) revAdj.get(e.to).push(e.from);
+    }
+
+    // Compute active node set when filtering by token category
+    let activeNodeIds = null;
+    if (categoryFilter && categoryFilter !== "all" && AppState.automataData?.specs) {
+      const catByToken = new Map(AppState.automataData.specs.map((s) => [s.name, s.category]));
+      const matchCat = (tokName) => {
+        const c = catByToken.get(tokName) || "other";
+        if (categoryFilter === "comment") return c === "comment" || c === "whitespace";
+        return c === categoryFilter;
+      };
+      activeNodeIds = new Set();
+      const rQueue = [];
+      for (const n of nodes) {
+        if (n.is_accept && n.accept_token && matchCat(n.accept_token)) {
+          activeNodeIds.add(n.id);
+          rQueue.push(n.id);
+        }
+      }
+      while (rQueue.length > 0) {
+        const v = rQueue.shift();
+        for (const u of revAdj.get(v) || []) {
+          if (!activeNodeIds.has(u)) {
+            activeNodeIds.add(u);
+            rQueue.push(u);
+          }
+        }
+      }
+      activeNodeIds.add(graph.start_state);
     }
 
     const level = new Map();
@@ -224,18 +259,17 @@
 
     // Order within layers to keep branches tidy (sort by parent average y)
     const maxNodesPerCol = Math.max(...Array.from(layers.values()).map((a) => a.length));
-    const xGap = nodes.length > 40 ? 155 : 145;
-    const yGap = nodes.length > 40 ? 84 : 96;
+    const xGap = nodes.length > 40 ? 185 : 152;
+    const yGap = nodes.length > 40 ? 96 : 98;
     const R = nodes.length > 40 ? 21 : 24;
 
     const pos = new Map();
-    const totalH = Math.max(240, (maxNodesPerCol - 1) * yGap + 150);
+    const totalH = Math.max(240, (maxNodesPerCol - 1) * yGap + 160);
     const orderedLevels = Array.from(layers.keys()).sort((a, b) => a - b);
 
     for (const l of orderedLevels) {
       const ids = layers.get(l);
       if (l > 0) {
-        // Compute parent barycenter
         const parents = new Map();
         for (const e of edges) {
           if (level.get(e.from) === l - 1 && level.get(e.to) === l) {
@@ -258,7 +292,7 @@
       });
     }
 
-    const maxX = Math.max(...Array.from(pos.values()).map((p) => p.x)) + 110;
+    const maxX = Math.max(...Array.from(pos.values()).map((p) => p.x)) + 120;
     const maxY = totalH + 60;
 
     // SVG defs (arrowheads)
@@ -279,10 +313,9 @@
     const rootG = svgEl("g", { class: "pz-root" });
     svgNode.appendChild(rootG);
 
-    // Quick lookup for bidirectional edges
     const edgeSet = new Set(edges.map((e) => `${e.from}->${e.to}`));
 
-    // Group edges sharing same (from, to) (relevant in NFA)
+    // Group edges sharing same (from, to)
     const multiEdgeGroups = new Map();
     for (const e of edges) {
       const k = `${e.from}->${e.to}`;
@@ -297,19 +330,51 @@
     rootG.appendChild(labelLayer);
     rootG.appendChild(nodeLayer);
 
-    const drawLabelPill = (x, y, text, isEps) => {
+    // Collision-avoiding label placement
+    const placedBoxes = [];
+    for (const p of pos.values()) {
+      placedBoxes.push({ x1: p.x - R - 4, y1: p.y - R - 4, x2: p.x + R + 24, y2: p.y + R + 22 });
+    }
+
+    const drawLabelPill = (x, y, text, isEps, isDimmed) => {
+      if (isDimmed) return;
       const clean = text.length > 16 ? text.slice(0, 14) + "…" : text;
       const w = Math.max(20, clean.length * 7.2 + 10);
       const h = 18;
+      let bestX = x;
+      let bestY = y;
+      const offsets = [0, -19, 19, -36, 36, -54, 54];
+      for (const dy of offsets) {
+        const cy = y + dy;
+        const bx1 = x - w / 2 - 2;
+        const by1 = cy - h / 2 - 2;
+        const bx2 = x + w / 2 + 2;
+        const by2 = cy + h / 2 + 2;
+        const collides = placedBoxes.some(
+          (b) => !(bx2 < b.x1 || bx1 > b.x2 || by2 < b.y1 || by1 > b.y2)
+        );
+        if (!collides) {
+          bestY = cy;
+          break;
+        }
+      }
+      placedBoxes.push({
+        x1: bestX - w / 2,
+        y1: bestY - h / 2,
+        x2: bestX + w / 2,
+        y2: bestY + h / 2,
+      });
+
       const g = svgEl("g");
+      g.appendChild(svgEl("title", {}, text));
       g.appendChild(svgEl("rect", {
-        x: x - w / 2, y: y - h / 2, width: w, height: h, rx: 5,
+        x: bestX - w / 2, y: bestY - h / 2, width: w, height: h, rx: 5,
         fill: isEps ? "#eff6ff" : "#ffffff",
         stroke: isEps ? "#93c5fd" : "#cbd5e1",
         "stroke-width": 1,
       }));
       g.appendChild(svgEl("text", {
-        x, y: y + 4,
+        x: bestX, y: bestY + 4,
         "text-anchor": "middle",
         "font-family": "var(--mono)",
         "font-size": 11,
@@ -328,22 +393,26 @@
       const p2 = pos.get(first.to);
       if (!p1 || !p2) continue;
 
+      const isEdgeActive = !activeNodeIds || (activeNodeIds.has(first.from) && activeNodeIds.has(first.to));
       const strokeColor = isEps ? "#3b82f6" : "#64748b";
       const markerUrl = `url(#${isEps ? "arrow-eps" : "arrow-std"}-${pzKey})`;
+      const edgeOpacity = isEdgeActive ? "1" : "0.14";
 
       if (first.from === first.to) {
-        // Self-loop above circle
         const x0 = p1.x - R * 0.45;
         const y0 = p1.y - R * 0.88;
         const x1 = p1.x + R * 0.45;
         const y1 = p1.y - R * 0.88;
         const d = `M ${x0} ${y0} C ${p1.x - 32} ${p1.y - R - 46}, ${p1.x + 32} ${p1.y - R - 46}, ${x1} ${y1}`;
-        edgeLayer.appendChild(svgEl("path", {
+        const pathEl = svgEl("path", {
           d, fill: "none", stroke: strokeColor, "stroke-width": 1.6,
           "stroke-dasharray": isEps ? "5,3" : "none",
           "marker-end": markerUrl,
-        }));
-        drawLabelPill(p1.x, p1.y - R - 34, combinedLabel, isEps);
+          opacity: edgeOpacity,
+        });
+        pathEl.appendChild(svgEl("title", {}, `${first.from} → ${first.to}: ${combinedLabel}`));
+        edgeLayer.appendChild(pathEl);
+        drawLabelPill(p1.x, p1.y - R - 34, combinedLabel, isEps, !isEdgeActive);
         continue;
       }
 
@@ -359,10 +428,8 @@
       if (hasReverse) {
         curveOffset = 28;
       } else if (lvlDiff < 0) {
-        // Back edge: arc cleanly BELOW nodes so it never collides with top self-loops
         curveOffset = -Math.min(92, 42 + Math.abs(lvlDiff) * 16);
       } else if (lvlDiff > 1 && Math.abs(dy) < 25) {
-        // Skip-layer horizontal edge: arc gently below
         curveOffset = 38;
       }
 
@@ -373,23 +440,27 @@
 
       const mx = (sx + ex) / 2;
       const my = (sy + ey) / 2;
-      // Normal vector
       const nx = -uy;
       const ny = ux;
       const cx = mx + nx * curveOffset;
       const cy = my + ny * curveOffset;
 
       const d = `M ${sx.toFixed(1)} ${sy.toFixed(1)} Q ${cx.toFixed(1)} ${cy.toFixed(1)} ${ex.toFixed(1)} ${ey.toFixed(1)}`;
-      edgeLayer.appendChild(svgEl("path", {
+      const pathEl = svgEl("path", {
         d, fill: "none", stroke: strokeColor, "stroke-width": 1.6,
         "stroke-dasharray": isEps ? "5,3" : "none",
         "marker-end": markerUrl,
-      }));
+        opacity: edgeOpacity,
+      });
+      pathEl.appendChild(svgEl("title", {}, `${first.from} → ${first.to}: ${combinedLabel}`));
+      edgeLayer.appendChild(pathEl);
 
-      // Point at t=0.5 on quadratic Bezier
-      const lx = 0.25 * sx + 0.5 * cx + 0.25 * ex;
-      const ly = 0.25 * sy + 0.5 * cy + 0.25 * ey;
-      drawLabelPill(lx, ly, combinedLabel, isEps);
+      // Place label at t=0.44 or t=0.56 depending on source parity to stagger labels along parallel corridors
+      const t = (first.from % 2 === 0) ? 0.44 : 0.56;
+      const omt = 1 - t;
+      const lx = omt * omt * sx + 2 * omt * t * cx + t * t * ex;
+      const ly = omt * omt * sy + 2 * omt * t * cy + t * t * ey;
+      drawLabelPill(lx, ly, combinedLabel, isEps, !isEdgeActive);
     }
 
     // Start incoming arrow
@@ -410,7 +481,12 @@
     for (const n of nodes) {
       const p = pos.get(n.id);
       if (!p) continue;
-      const g = svgEl("g", { class: "state-node", style: "cursor:pointer" });
+      const isNodeActive = !activeNodeIds || activeNodeIds.has(n.id);
+      const g = svgEl("g", {
+        class: "state-node",
+        style: "cursor:pointer",
+        opacity: isNodeActive ? "1" : "0.18",
+      });
 
       const fill = n.is_accept ? "#ecfdf5" : n.is_start ? "#eff6ff" : "#ffffff";
       const stroke = n.is_accept ? "#059669" : n.is_start ? "#2563eb" : "#334155";
@@ -575,8 +651,13 @@
     stopAnimation();
     const code = $("#source-input").value;
     const useMin = $("#chk-use-min").checked;
+    const errorRecovery = $("#sel-error-recovery")?.value || "panic_char";
     try {
-      const data = await apiPost("/api/scan", { code, use_minimized: useMin });
+      const data = await apiPost("/api/scan", {
+        code,
+        use_minimized: useMin,
+        error_recovery: errorRecovery,
+      });
       AppState.scanData = data;
       renderScanResults();
       // Select first visible token or first error trace automatically
@@ -603,14 +684,18 @@
 
     // Errors Box
     const errBox = $("#errors-box");
+    const recModeLabel = data.stats.error_recovery_mode === "smart_sync"
+      ? "Smart-Sync (gom cụm chuỗi/comment lỗi)"
+      : "Panic-mode cổ điển (tiến 1 ký tự)";
     if (data.errors.length > 0) {
       errBox.classList.remove("hidden");
       errBox.innerHTML =
-        `<strong>⚠ Phát hiện ${data.errors.length} lỗi từ vựng (đã phục hồi Panic-mode):</strong>` +
+        `<strong>⚠ Phát hiện ${data.errors.length} lỗi từ vựng (Chế độ: ${escHtml(recModeLabel)}):</strong>` +
         data.errors
           .map((e) => {
             const trIdx = data.traces.findIndex((tr) => tr.kind === "ERROR" && tr.start_pos === e.pos);
-            return `<div class="err-item" data-trace-idx="${trIdx}">• [Dòng ${e.line}, Cột ${e.col}] ${escHtml(e.message)}</div>`;
+            const lexInfo = e.lexeme && e.lexeme.length > 1 ? ` [Lexeme thu hồi: "${formatLexeme(e.lexeme)}"]` : "";
+            return `<div class="err-item" data-trace-idx="${trIdx}">• [Dòng ${e.line}, Cột ${e.col}] ${escHtml(e.message)}${escHtml(lexInfo)}</div>`;
           })
           .join("");
       errBox.querySelectorAll(".err-item").forEach((el) => {
@@ -629,7 +714,7 @@
     data.traces.forEach((tr, idx) => {
       const cat = tr.kind === "ERROR" ? "error" : (data.tokens.find((t) => t.start_pos === tr.start_pos)?.category || "other");
       const title = tr.kind === "ERROR"
-        ? `LEXICAL_ERROR tại ${tr.line}:${tr.col}`
+        ? `LEXICAL_ERROR tại ${tr.line}:${tr.col} (${formatLexeme(tr.lexeme)})`
         : `${tr.token_type} (${tr.line}:${tr.col}) · Trạng thái D${tr.final_accept_state}` + (tr.backtrack_steps > 0 ? ` · Quay lui ${tr.backtrack_steps}` : "");
       if (cat === "whitespace") {
         fragments.push(`<span class="hl-tok hl-cat-whitespace" data-trace-idx="${idx}" title="${escHtml(title)}">${escHtml(tr.lexeme)}</span>`);
@@ -737,7 +822,7 @@
     const narr = $("#anim-narration");
     narr.className = "anim-narration";
     if (curStep.status === "start") {
-      narr.innerHTML = `Khởi đầu tại trạng thái <code>D${curStep.to_state}</code> (vị trí ${curStep.pos}). Sẵn sàng đọc ký tự đầu tiên theo nguyên tắc Maximal Munch.`;
+      narr.innerHTML = `Khởi đầu tại trạng thái <code>D${curStep.to_state}</code> (vị trí ${curStep.pos}). Sẵn sàng đọc ký tự đầu tiên theo nguyên tắc Maximal Munch (Reps O(n)).`;
     } else if (curStep.status === "accept") {
       narr.classList.add("narr-accept");
       narr.innerHTML =
@@ -757,9 +842,12 @@
             : `Dừng và xuất token dài nhất tại <code>D${tr.final_accept_state}</code> → <strong>${escHtml(tr.token_type)}</strong>(<code>${escHtml(formatLexeme(tr.lexeme))}</code>)!`);
       } else {
         narr.classList.add("narr-err");
+        const recMode = AppState.scanData?.stats?.error_recovery_mode === "smart_sync"
+          ? `phục hồi <strong>Smart-Sync</strong> (thu hồi <code>${escHtml(formatLexeme(tr.lexeme))}</code>)`
+          : `phục hồi <strong>Panic-mode</strong> (bỏ qua 1 ký tự <code>${escHtml(formatLexeme(tr.lexeme))}</code>)`;
         narr.innerHTML =
           `Gặp ký tự <code>${escHtml(curStep.char_display)}</code> tại <code>D${curStep.from_state}</code>: <strong>DEAD</strong> và chưa từng đi qua trạng thái kết thúc nào! ` +
-          `Báo <strong>LEXICAL_ERROR</strong> tại (${tr.line}:${tr.col}) và phục hồi Panic-mode (bỏ qua 1 ký tự).`;
+          `Báo <strong>LEXICAL_ERROR</strong> tại (${tr.line}:${tr.col}) và ${recMode}.`;
       }
     }
 
@@ -931,8 +1019,9 @@
     const s = AppState.automataData?.summary;
     if (!s) return;
     const eqMark = s.equivalence.equivalent ? "✓ Eq" : "✗ Eq";
+    const epsFree = s.eps_free_nfa_states ? ` → NFA(${s.eps_free_nfa_states})` : "";
     $("#pipeline-pill").textContent =
-      `RE(${s.token_count}) → ε-NFA(${s.nfa_states}) → DFA(${s.subset_dfa_states}) → Min(${s.minimized_dfa_states}, -${s.state_reduction_percent}%) · ${eqMark}`;
+      `RE(${s.token_count}) → ε-NFA(${s.nfa_states})${epsFree} → DFA(${s.subset_dfa_states}) → Min(${s.minimized_dfa_states}, -${s.state_reduction_percent}%) · ${eqMark}`;
   }
 
   function renderAutomataTab() {
@@ -940,17 +1029,19 @@
     if (!data) return;
     const s = data.summary;
 
-    // Equivalence Proof Banner
+    // Equivalence & Minimality Proof Banner
     const eq = s.equivalence;
+    const mhEq = s.moore_vs_hopcroft?.equivalent !== false;
+    const minProof = s.minimality;
     const banner = $("#eq-proof-banner");
-    banner.style.background = eq.equivalent ? "var(--success-soft)" : "var(--danger-soft)";
-    banner.style.color = eq.equivalent ? "var(--success)" : "var(--danger)";
+    banner.style.background = eq.equivalent && mhEq ? "var(--success-soft)" : "var(--danger-soft)";
+    banner.style.color = eq.equivalent && mhEq ? "var(--success)" : "var(--danger)";
     banner.innerHTML = `
-      <span>${eq.equivalent ? "✅" : "❌"} <strong>Kiểm chứng tương đương toán học (Subset DFA ≡ Minimized DFA):</strong> ${escHtml(eq.message)}</span>
-      <span>Biên dịch toàn pipeline: <strong>${s.timings_ms.total_ms.toFixed(2)} ms</strong> · Lớp ký tự tương đương: <strong>${s.char_class_count}</strong></span>
+      <span>${eq.equivalent && mhEq ? "✅" : "❌"} <strong>Kiểm chứng Toán học:</strong> Subset DFA ≡ Moore Min-DFA ≡ Hopcroft Min-DFA (${s.minimized_dfa_states} trạng thái) · <strong>Myhill-Nerode:</strong> ${minProof ? `${minProof.distinguishable_pairs}/${minProof.total_pairs} cặp phân biệt (100% tối giản)` : escHtml(eq.message)}</span>
+      <span>Biên dịch: <strong>${s.timings_ms.total_ms.toFixed(2)} ms</strong> · Lớp Σ: <strong>${s.char_class_count}</strong></span>
     `;
 
-    // Warnings if any nullable token
+    // Warnings (shadowed rules or nullable tokens)
     if (s.warnings && s.warnings.length > 0) {
       showGlobalAlert(s.warnings.join(" | "), "warn");
     } else {
@@ -961,16 +1052,26 @@
     $("#auto-stats-list").innerHTML = `
       <div class="stat-chip"><div class="sc-val">${s.token_count}</div><div class="sc-lbl">Quy tắc Token</div></div>
       <div class="stat-chip"><div class="sc-val">${s.nfa_states}</div><div class="sc-lbl">Trạng thái ε-NFA</div></div>
-      <div class="stat-chip"><div class="sc-val">${s.subset_dfa_states}</div><div class="sc-lbl">Trạng thái Subset DFA</div></div>
-      <div class="stat-chip"><div class="sc-val">${s.minimized_dfa_states}</div><div class="sc-lbl">Trạng thái Min-DFA</div></div>
-      <div class="stat-chip"><div class="sc-val">-${s.state_reduction_percent}%</div><div class="sc-lbl">Giảm trạng thái</div></div>
+      <div class="stat-chip"><div class="sc-val">${s.eps_free_nfa_states || "—"}</div><div class="sc-lbl">NFA Khử ε (ĐL 2)</div></div>
+      <div class="stat-chip"><div class="sc-val">${s.subset_dfa_states}</div><div class="sc-lbl">Subset DFA</div></div>
+      <div class="stat-chip"><div class="sc-val">${s.minimized_dfa_states}</div><div class="sc-lbl">Min-DFA (-${s.state_reduction_percent}%)</div></div>
       <div class="stat-chip"><div class="sc-val">${s.char_class_count}</div><div class="sc-lbl">Lớp tương đương Σ</div></div>
     `;
 
-    // Priority conflicts resolved
+    // Priority conflicts resolved & shadowed warnings
     const confBox = $("#conflicts-list");
     const confs = s.priority_conflicts_resolved || [];
-    confBox.innerHTML = confs.length
+    const shad = data.shadowed_rules || [];
+    let confHtml = "";
+    if (shad.length > 0) {
+      confHtml += shad
+        .map(
+          (sr) =>
+            `<div class="conflict-item" style="border-left:3px solid var(--danger);background:var(--danger-soft)">⚠ <strong>LUẬT BỊ CHE KHUẤT:</strong> <code>${escHtml(sr.token_name || sr.rule_name)}</code> bị che khuất hoàn toàn bởi [${(sr.shadowed_by || []).map(escHtml).join(", ")}]</div>`
+        )
+        .join("");
+    }
+    confHtml += confs.length
       ? confs
           .map(
             (c) =>
@@ -978,6 +1079,7 @@
           )
           .join("")
       : '<p class="muted">Không có xung đột ưu tiên token.</p>';
+    confBox.innerHTML = confHtml;
 
     renderActiveAutoSubView();
   }
@@ -987,8 +1089,9 @@
     if (!data) return;
     const view = AppState.currentAutoView;
 
-    const isGraph = view === "min_dfa" || view === "subset_dfa" || view === "combined_nfa";
+    const isGraph = view === "min_dfa" || view === "subset_dfa" || view === "eps_free_nfa" || view === "combined_nfa";
     $("#auto-graph-layout").classList.toggle("hidden", !isGraph);
+    $("#graph-cat-filter-bar")?.classList.toggle("hidden", !isGraph);
     $("#auto-table-view").classList.toggle("hidden", view !== "table");
     $("#auto-min-view").classList.toggle("hidden", view !== "minimization");
     ["#btn-zoom-in", "#btn-zoom-out", "#btn-zoom-fit", "#btn-export-svg"].forEach((sel) => {
@@ -996,25 +1099,40 @@
     });
 
     if (isGraph) {
-      const graph = view === "min_dfa" ? data.minimized_dfa : view === "subset_dfa" ? data.subset_dfa : data.combined_nfa;
-      renderAutomataSVG($("#main-automata-svg"), $("#main-graph-viewport"), graph, "main", (node, g) => {
-        const outEdges = g.edges.filter((e) => e.from === node.id);
-        let html = `<div><strong>Trạng thái:</strong> <code>${node.label}</code> ${node.is_start ? '<span class="tok-badge badge-identifier">START</span>' : ""} ${node.is_accept ? `<span class="tok-badge badge-pass">ACCEPT: ${escHtml(node.accept_token)}</span>` : ""}</div>`;
-        if (node.conflicts && node.conflicts.length > 1) {
-          html += `<div style="margin-top:5px"><strong>Xung đột đã giải quyết:</strong> ${node.conflicts.map((x) => `<code>${escHtml(x)}</code>`).join(" &gt; ")}</div>`;
-        }
-        if (node.subset && node.subset.length) {
-          html += `<div style="margin-top:5px"><strong>Tập con NFA:</strong> <code>{${node.subset.slice(0, 20).join(", ")}${node.subset.length > 20 ? ", …" : ""}}</code></div>`;
-        }
-        if (node.merged_from && node.merged_from.length) {
-          html += `<div style="margin-top:5px"><strong>Gộp từ Subset DFA:</strong> <code>{${node.merged_from.map((x) => "D" + x).join(", ")}}</code></div>`;
-        }
-        html += `<div style="margin-top:6px"><strong>Chuyển tiếp ra (${outEdges.length}):</strong><br/>` +
-          (outEdges.slice(0, 12).map((e) => `<code>${escHtml(e.label)}</code> → <code>${g.kind === "NFA" ? "q" : "D"}${e.to}</code>`).join("<br/>") || '<span class="muted">Không có</span>') +
-          (outEdges.length > 12 ? `<br/><span class="muted">… và ${outEdges.length - 12} cạnh khác</span>` : "") +
-          `</div>`;
-        $("#node-inspector").innerHTML = html;
-      });
+      const graph =
+        view === "min_dfa"
+          ? data.minimized_dfa
+          : view === "subset_dfa"
+          ? data.subset_dfa
+          : view === "eps_free_nfa"
+          ? data.eps_free_nfa
+          : data.combined_nfa;
+      renderAutomataSVG(
+        $("#main-automata-svg"),
+        $("#main-graph-viewport"),
+        graph,
+        "main",
+        (node, g) => {
+          const outEdges = g.edges.filter((e) => e.from === node.id);
+          let html = `<div><strong>Trạng thái:</strong> <code>${node.label}</code> ${node.is_start ? '<span class="tok-badge badge-identifier">START</span>' : ""} ${node.is_accept ? `<span class="tok-badge badge-pass">ACCEPT: ${escHtml(node.accept_token)}</span>` : ""}</div>`;
+          if (node.conflicts && node.conflicts.length > 1) {
+            html += `<div style="margin-top:5px"><strong>Xung đột đã giải quyết:</strong> ${node.conflicts.map((x) => `<code>${escHtml(x)}</code>`).join(" &gt; ")}</div>`;
+          }
+          if (node.subset && node.subset.length) {
+            html += `<div style="margin-top:5px"><strong>Tập con NFA:</strong> <code>{${node.subset.slice(0, 20).join(", ")}${node.subset.length > 20 ? ", …" : ""}}</code></div>`;
+          }
+          if (node.merged_from && node.merged_from.length) {
+            html += `<div style="margin-top:5px"><strong>Gộp từ Subset DFA:</strong> <code>{${node.merged_from.map((x) => "D" + x).join(", ")}}</code></div>`;
+          }
+          html +=
+            `<div style="margin-top:6px"><strong>Chuyển tiếp ra (${outEdges.length}):</strong><br/>` +
+            (outEdges.slice(0, 12).map((e) => `<code>${escHtml(e.label)}</code> → <code>${g.kind === "NFA" ? "q" : "D"}${e.to}</code>`).join("<br/>") || '<span class="muted">Không có</span>') +
+            (outEdges.length > 12 ? `<br/><span class="muted">… và ${outEdges.length - 12} cạnh khác</span>` : "") +
+            `</div>`;
+          $("#node-inspector").innerHTML = html;
+        },
+        AppState.graphCategoryFilter
+      );
     } else if (view === "table") {
       renderTransitionMatrix();
     } else if (view === "minimization") {
@@ -1060,15 +1178,36 @@
   }
 
   function renderMinimizationView() {
-    const m = AppState.automataData?.minimization;
+    const data = AppState.automataData;
+    const m = data?.minimization;
     if (!m) return;
+    const hop = data?.hopcroft_minimization;
+    const minProof = data?.summary?.minimality;
+    const mhEq = data?.summary?.moore_vs_hopcroft;
+
     $("#min-summary-cards").innerHTML = `
       <div class="kpi-box"><div class="kpi-val">${m.original_state_count}</div><div class="kpi-lbl">Trạng thái trước tối giản</div></div>
-      <div class="kpi-box"><div class="kpi-val kpi-ok">${m.minimized_state_count}</div><div class="kpi-lbl">Trạng thái sau tối giản</div></div>
+      <div class="kpi-box"><div class="kpi-val kpi-ok">${m.minimized_state_count}</div><div class="kpi-lbl">Moore Min-DFA (${m.iterations} vòng)</div></div>
+      <div class="kpi-box"><div class="kpi-val kpi-ok">${hop ? hop.minimized_state_count : m.minimized_state_count}</div><div class="kpi-lbl">Hopcroft O(E·|Q|log|Q|)</div></div>
       <div class="kpi-box"><div class="kpi-val kpi-warn">-${m.reduction_count} (-${m.reduction_percent}%)</div><div class="kpi-lbl">Giảm được</div></div>
-      <div class="kpi-box"><div class="kpi-val">${m.iterations}</div><div class="kpi-lbl">Số vòng lặp phân hoạch</div></div>
-      <div class="kpi-box"><div class="kpi-val">${m.removed_unreachable.length + m.removed_dead_states.length}</div><div class="kpi-lbl">Trạng thái thừa/chết đã loại</div></div>
+      <div class="kpi-box"><div class="kpi-val kpi-ok">${minProof ? `${minProof.distinguishable_pairs}/${minProof.total_pairs}` : "100%"}</div><div class="kpi-lbl">Myhill-Nerode cặp phân biệt</div></div>
     `;
+
+    const mnBox = $("#min-myhill-nerode-box");
+    if (mnBox && minProof) {
+      const witnesses = (minProof.sample_witnesses || [])
+        .slice(0, 6)
+        .map((w) => {
+          const pairLabel = Array.isArray(w.pair) ? `(${w.pair[0]}, ${w.pair[1]})` : `(D${w.state_p}, D${w.state_q})`;
+          const wDisp = !w.witness ? "ε" : `"${formatLexeme(w.witness)}"`;
+          return `<code>${escHtml(pairLabel)}</code> phân biệt bởi chuỗi <code>${escHtml(wDisp)}</code>`;
+        })
+        .join(" · ");
+      mnBox.innerHTML = `
+        <div><strong>✅ Định lý Myhill-Nerode & Đối chiếu Song song Moore ≡ Hopcroft:</strong> ${escHtml(minProof.message)} (${mhEq?.equivalent ? "Moore Min-DFA ≡ Hopcroft Min-DFA: 0 phản ví dụ" : "Không khớp"})</div>
+        <div style="margin-top:4px;font-size:12px" class="muted"><strong>Mẫu chuỗi nhân chứng phân tách cặp trạng thái (Distinguishing Witnesses):</strong> ${witnesses}</div>
+      `;
+    }
 
     $("#min-partitions-container").innerHTML = (m.partition_history || [])
       .map((step) => {
@@ -1142,14 +1281,17 @@
     if (!info) return;
     const eq1 = info.equivalence.subset_vs_minimized.equivalent;
     const eq2 = info.equivalence.subset_vs_direct.equivalent;
+    const eq3 = info.equivalence.moore_vs_hopcroft?.equivalent !== false;
+    const epsFreeCount = info.eps_free_nfa ? info.eps_free_nfa.state_count : info.nfa.state_count;
 
     $("#re-summary-strip").innerHTML = `
       <div class="kpi-box"><div class="kpi-val" style="font-size:13px">${escHtml(info.postfix)}</div><div class="kpi-lbl">Hậu tố (Postfix)</div></div>
       <div class="kpi-box"><div class="kpi-val">${info.nfa.state_count}</div><div class="kpi-lbl">Thompson ε-NFA</div></div>
+      <div class="kpi-box"><div class="kpi-val">${epsFreeCount}</div><div class="kpi-lbl">NFA Khử ε (ĐL 2)</div></div>
       <div class="kpi-box"><div class="kpi-val">${info.subset_dfa.state_count}</div><div class="kpi-lbl">Subset DFA</div></div>
       <div class="kpi-box"><div class="kpi-val">${info.direct_dfa.dfa.state_count}</div><div class="kpi-lbl">Direct DFA (r#)</div></div>
-      <div class="kpi-box"><div class="kpi-val kpi-ok">${info.minimized_dfa.state_count}</div><div class="kpi-lbl">Minimized DFA</div></div>
-      <div class="kpi-box"><div class="kpi-val ${eq1 && eq2 ? "kpi-ok" : "kpi-err"}">${eq1 && eq2 ? "✓ 100%" : "✗"}</div><div class="kpi-lbl">Subset ≡ Direct ≡ Min</div></div>
+      <div class="kpi-box"><div class="kpi-val kpi-ok">${info.minimized_dfa.state_count}</div><div class="kpi-lbl">Min-DFA (Moore/Hopcroft)</div></div>
+      <div class="kpi-box"><div class="kpi-val ${eq1 && eq2 && eq3 ? "kpi-ok" : "kpi-err"}">${eq1 && eq2 && eq3 ? "✓ 100%" : "✗"}</div><div class="kpi-lbl">Tương đương & Tối giản</div></div>
     `;
 
     $("#re-string-tests").innerHTML = (info.string_tests || [])
@@ -1185,11 +1327,16 @@
 
     const extra = $("#re-extra-panel");
     if (v === "nfa") {
-      $("#re-stage-caption").textContent = `Thompson ε-NFA: ${info.nfa.state_count} trạng thái, ${info.nfa.edge_count} cung (${info.nfa.epsilon_edge_count} ε-chuyển tiếp)`;
+      $("#re-stage-caption").textContent = `Thompson ε-NFA (Định lý 1): ${info.nfa.state_count} trạng thái, ${info.nfa.edge_count} cung (${info.nfa.epsilon_edge_count} ε-chuyển tiếp)`;
       renderAutomataSVG($("#re-automata-svg"), $("#re-graph-viewport"), info.nfa, "single-re");
       extra.innerHTML = `<div class="muted">Biểu thức trung tố tường minh: <code>${escHtml(info.explicit_infix)}</code> · Hậu tố: <code>${escHtml(info.postfix)}</code></div>`;
+    } else if (v === "eps_free") {
+      const ef = info.eps_free_nfa || info.nfa;
+      $("#re-stage-caption").textContent = `NFA Không ε (Định lý 2 Slide 21-22): ${ef.state_count} trạng thái, ${ef.edge_count} cung (0 ε-chuyển tiếp)`;
+      renderAutomataSVG($("#re-automata-svg"), $("#re-graph-viewport"), ef, "single-re");
+      extra.innerHTML = `<div class="muted">Khử toàn bộ ε-chuyển tiếp bằng bao đóng ε-closure(q) và tích hợp trạng thái kết thúc theo đúng Định lý 2 (Chương 3.1).</div>`;
     } else if (v === "subset") {
-      $("#re-stage-caption").textContent = `Subset Construction DFA: ${info.subset_dfa.state_count} trạng thái từ ε-closure & Move`;
+      $("#re-stage-caption").textContent = `Subset Construction DFA (Định lý 3): ${info.subset_dfa.state_count} trạng thái từ ε-closure & Move`;
       renderAutomataSVG($("#re-automata-svg"), $("#re-graph-viewport"), info.subset_dfa, "single-re");
       extra.innerHTML = `
         <h4 style="margin-bottom:6px;font-size:13px">Nhật ký xây dựng tập con (Subset Construction Steps):</h4>
@@ -1203,12 +1350,23 @@
         </div>
       `;
     } else if (v === "min") {
-      $("#re-stage-caption").textContent = `Minimized DFA: ${info.minimized_dfa.state_count} trạng thái (giảm từ ${info.subset_dfa.state_count} trạng thái)`;
+      const mp = info.minimality;
+      $("#re-stage-caption").textContent = `Minimized DFA (Định lý 4 — Moore & Hopcroft): ${info.minimized_dfa.state_count} trạng thái (giảm từ ${info.subset_dfa.state_count} trạng thái)`;
       renderAutomataSVG($("#re-automata-svg"), $("#re-graph-viewport"), info.minimized_dfa, "single-re");
+      const witnessHtml = mp && mp.sample_witnesses && mp.sample_witnesses.length
+        ? `<div style="margin-top:6px;font-size:12px" class="muted"><strong>Chứng minh tối giản Myhill-Nerode (${mp.distinguishable_pairs}/${mp.total_pairs} cặp phân biệt):</strong> ` +
+          mp.sample_witnesses
+            .map((w) => {
+              const pLbl = Array.isArray(w.pair) ? `(${w.pair[0]}, ${w.pair[1]})` : `(D${w.state_p}, D${w.state_q})`;
+              return `<code>${escHtml(pLbl)}</code> bởi <code>"${escHtml(w.witness || "ε")}"</code>`;
+            })
+            .join(" · ") +
+          `</div>`
+        : "";
       extra.innerHTML = `
         <div class="proof-banner" style="margin-bottom:8px">
-          <span>✅ Subset ≡ Minimized: ${escHtml(info.equivalence.subset_vs_minimized.message)}</span>
-          <span>✅ Subset ≡ Direct: ${escHtml(info.equivalence.subset_vs_direct.message)}</span>
+          <span>✅ Subset ≡ Moore Min ≡ Hopcroft Min: ${escHtml(info.equivalence.subset_vs_minimized.message)}</span>
+          <span>✅ Subset ≡ Direct (r#): ${escHtml(info.equivalence.subset_vs_direct.message)}</span>
         </div>
         <div class="partitions-list">${(info.minimization.partition_history || [])
           .map(
@@ -1218,7 +1376,31 @@
                 .join(" ")}</div>`
           )
           .join("")}</div>
+        ${witnessHtml}
       `;
+    }
+  }
+
+  async function runRegexCompare() {
+    const patA = $("#cmp-re-a").value.trim();
+    const patB = $("#cmp-re-b").value.trim();
+    const box = $("#cmp-re-result");
+    if (!patA || !patB) return;
+    try {
+      const res = await apiPost("/api/compare-regex", { pattern_a: patA, pattern_b: patB });
+      box.classList.remove("hidden");
+      if (res.equivalent) {
+        box.className = "alert-inline alert-ok";
+        box.innerHTML = `✅ <strong>TƯƠNG ĐƯƠNG TOÁN HỌC:</strong> <code>L(${escHtml(patA)}) ≡ L(${escHtml(patB)})</code> (Product DFA đã duyệt ${res.visited_pairs ?? res.checked_pairs} cặp trạng thái; Min-DFA: ${res.min_dfa_a_states ?? res.pattern_a_min_states} vs ${res.min_dfa_b_states ?? res.pattern_b_min_states} trạng thái, 0 phản ví dụ).`;
+      } else {
+        box.className = "alert-inline alert-err";
+        const ce = res.counterexample === "" ? "ε (chuỗi rỗng)" : `"${res.counterexample}"`;
+        box.innerHTML = `❌ <strong>KHÔNG TƯƠNG ĐƯƠNG:</strong> <code>L(${escHtml(patA)}) ≠ L(${escHtml(patB)})</code> — Phản ví dụ ngắn nhất (BFS): <code>w = ${escHtml(ce)}</code> (${escHtml(res.message)}).`;
+      }
+    } catch (err) {
+      box.classList.remove("hidden");
+      box.className = "alert-inline alert-err";
+      box.textContent = `Lỗi kiểm tra tương đương: ${err.message}`;
     }
   }
 
@@ -1226,10 +1408,32 @@
   function renderSpecEditor() {
     const tbody = $("#spec-editor-tbody");
     const cats = ["keyword", "identifier", "literal", "operator", "delimiter", "comment", "whitespace", "other"];
+    const shadowedMap = new Map();
+    (AppState.automataData?.shadowed_rules || []).forEach((sr) => {
+      shadowedMap.set(sr.token_name || sr.rule_name, sr);
+    });
+
+    // Update shadowed warning box in Tab 4
+    const shBox = $("#shadowed-warning-box");
+    if (shBox) {
+      if (shadowedMap.size > 0) {
+        shBox.classList.remove("hidden");
+        shBox.innerHTML =
+          `<strong>⚠ CẢNH BÁO PHÁT HIỆN ${shadowedMap.size} QUY TẮC BỊ CHE KHUẤT (SHADOWED / DEAD RULES):</strong><br/>` +
+          Array.from(shadowedMap.values())
+            .map((sr) => `• ${escHtml(sr.message)}`)
+            .join("<br/>");
+      } else {
+        shBox.classList.add("hidden");
+      }
+    }
+
     tbody.innerHTML = AppState.editorSpecs
-      .map(
-        (sp, idx) => `
-      <tr data-idx="${idx}">
+      .map((sp, idx) => {
+        const isShadowed = shadowedMap.has(sp.name);
+        const shInfo = shadowedMap.get(sp.name);
+        return `
+      <tr data-idx="${idx}" class="${isShadowed ? "row-shadowed" : ""}" title="${isShadowed ? escHtml(shInfo.message) : ""}">
         <td><input type="number" class="ed-prio" value="${sp.priority}" min="1" /></td>
         <td><input type="text" class="ed-name mono-cell" value="${escHtml(sp.name)}" /></td>
         <td><input type="text" class="ed-pat mono-cell" value="${escHtml(sp.pattern)}" /></td>
@@ -1246,8 +1450,8 @@
           <button class="btn-danger-sm ed-del" title="Xóa">✕</button>
         </td>
       </tr>
-    `
-      )
+    `;
+      })
       .join("");
 
     tbody.querySelectorAll("tr").forEach((tr) => {
@@ -1308,10 +1512,12 @@
       await runScan();
 
       const s = compiled.summary;
-      fb.className = "alert-inline alert-ok";
+      const shCount = (compiled.shadowed_rules || []).length;
+      fb.className = shCount > 0 ? "alert-inline alert-warn" : "alert-inline alert-ok";
       fb.textContent =
         `✅ Biên dịch thành công ${s.token_count} quy tắc token trong ${s.timings_ms.total_ms.toFixed(2)} ms! ` +
-        `ε-NFA (${s.nfa_states}) → Subset DFA (${s.subset_dfa_states}) → Minimized DFA (${s.minimized_dfa_states}, -${s.state_reduction_percent}%).`;
+        `ε-NFA (${s.nfa_states}) → NFA Khử ε (${s.eps_free_nfa_states}) → Subset DFA (${s.subset_dfa_states}) → Minimized DFA (${s.minimized_dfa_states}, -${s.state_reduction_percent}%).` +
+        (shCount > 0 ? ` ⚠ Phát hiện ${shCount} quy tắc bị che khuất!` : "");
       fb.classList.remove("hidden");
     } catch (err) {
       fb.className = "alert-inline alert-err";
@@ -1369,17 +1575,38 @@
           <td><strong>${escHtml(b.preset.toUpperCase())}</strong></td>
           <td>${b.tokens}</td>
           <td>${b.nfa_states}</td>
+          <td>${b.eps_free_nfa_states}</td>
           <td>${b.subset_dfa_states}</td>
-          <td><strong>${b.minimized_dfa_states}</strong></td>
-          <td><span class="tok-badge badge-pass">-${b.reduction_percent}%</span></td>
-          <td>${b.char_classes}</td>
-          <td>${b.compile_ms.toFixed(2)} ms</td>
+          <td>${b.combined_direct_dfa_states}</td>
+          <td><strong>${b.minimized_dfa_states} / ${b.hopcroft_dfa_states}</strong> <span class="tok-badge badge-pass">-${b.reduction_percent}%</span></td>
+          <td>${b.moore_ms.toFixed(2)} / ${b.hopcroft_ms.toFixed(2)} ms</td>
           <td>${b.scan_10kb_ms.toFixed(2)} ms (${b.scan_10kb_tokens} tok)</td>
-          <td><span class="tok-badge ${b.equivalent ? "badge-pass" : "badge-fail"}">${b.equivalent ? "✓ Product Eq" : "✗"}</span></td>
+          <td><span class="tok-badge ${b.equivalent && b.is_minimal ? "badge-pass" : "badge-fail"}">${b.equivalent && b.is_minimal ? `✓ 6-Chiều (${b.minimality_pairs})` : "✗"}</span></td>
         </tr>
       `
         )
         .join("");
+
+      const stressTbody = $("#stress-tbody");
+      if (stressTbody && data.stress_tests) {
+        stressTbody.innerHTML = data.stress_tests
+          .map((st) => {
+            const pMs = Number(st.panic_ms ?? st.panic_char_ms ?? 0);
+            const sMs = Number(st.smart_ms ?? st.smart_sync_ms ?? 0);
+            const ok = Boolean(st.passed ?? st.linear_verified);
+            return `
+          <tr>
+            <td><strong>${escHtml(st.name)}</strong></td>
+            <td><code>${st.length.toLocaleString()} ký tự</code></td>
+            <td><strong>${pMs.toFixed(2)} ms</strong> (${st.panic_errors} lỗi)</td>
+            <td><strong>${sMs.toFixed(2)} ms</strong> (${st.smart_errors} lỗi)</td>
+            <td><code>${st.memoized_cutoffs.toLocaleString()} lần cắt tỉa</code></td>
+            <td><span class="tok-badge ${ok ? "badge-pass" : "badge-fail"}">${ok ? "✓ O(n) Tuyến tính" : "✗"}</span></td>
+          </tr>
+        `;
+          })
+          .join("");
+      }
     } catch (err) {
       showGlobalAlert(`Lỗi benchmark: ${err.message}`, "err");
     }
@@ -1390,6 +1617,7 @@
     try {
       const data = await apiPost("/api/compile", { preset_id: presetId });
       AppState.activePreset = presetId;
+      AppState.lastPresetId = presetId;
       AppState.automataData = data;
       AppState.editorSpecs = data.specs.map((s) => ({ ...s }));
       $("#preset-select").value = presetId;
@@ -1449,7 +1677,7 @@
     // Tab 1 controls
     $$(".sample-pills .pill-btn").forEach((btn) => {
       btn.addEventListener("click", () => {
-        const p = AppState.presets[AppState.activePreset] || AppState.presets.minilang;
+        const p = AppState.presets[AppState.activePreset] || AppState.presets[AppState.lastPresetId] || AppState.presets.minilang;
         const sampleKey = btn.dataset.sample;
         if (p?.samples?.[sampleKey]) {
           $("#source-input").value = p.samples[sampleKey].code;
@@ -1461,6 +1689,7 @@
 
     $("#btn-scan").addEventListener("click", runScan);
     $("#chk-use-min").addEventListener("change", runScan);
+    $("#sel-error-recovery")?.addEventListener("change", runScan);
     $("#chk-show-skipped").addEventListener("change", renderScanResults);
     $("#btn-export-tokens").addEventListener("click", () => {
       if (!AppState.scanData) return;
@@ -1496,11 +1725,46 @@
     });
     $("#btn-step-play").addEventListener("click", togglePlayAnimation);
 
-    // Tab 2 Automata subtabs & zoom
+    // Global keyboard shortcuts for Tab 1
+    document.addEventListener("keydown", (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+        e.preventDefault();
+        runScan();
+        return;
+      }
+      const tag = (e.target?.tagName || "").toUpperCase();
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      const isScannerTab = $("#tab-scanner")?.classList.contains("active");
+      if (!isScannerTab) return;
+      if (e.key === " ") {
+        e.preventDefault();
+        togglePlayAnimation();
+      } else if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        stopAnimation();
+        AppState.animStepIdx = Math.max(0, AppState.animStepIdx - 1);
+        renderAnimator();
+      } else if (e.key === "ArrowRight") {
+        e.preventDefault();
+        stopAnimation();
+        const max = (AppState.scanData?.traces?.[AppState.selectedTraceIdx]?.steps?.length || 1) - 1;
+        AppState.animStepIdx = Math.min(max, AppState.animStepIdx + 1);
+        renderAnimator();
+      }
+    });
+
+    // Tab 2 Automata subtabs, category filter & zoom
     $$("#auto-subtabs .subtab-btn").forEach((btn) => {
       btn.addEventListener("click", () => {
         $$("#auto-subtabs .subtab-btn").forEach((b) => b.classList.toggle("active", b === btn));
         AppState.currentAutoView = btn.dataset.view;
+        renderActiveAutoSubView();
+      });
+    });
+    $$("#graph-cat-filter-bar .pill-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        $$("#graph-cat-filter-bar .pill-btn").forEach((b) => b.classList.toggle("active", b === btn));
+        AppState.graphCategoryFilter = btn.dataset.gcat || "all";
         renderActiveAutoSubView();
       });
     });
@@ -1512,13 +1776,20 @@
       downloadBlob(svgText, `${AppState.activePreset}_${AppState.currentAutoView}.svg`, "image/svg+xml");
     });
     $("#btn-export-jff-view").addEventListener("click", () => {
-      const stage = AppState.currentAutoView === "combined_nfa" ? "nfa" : AppState.currentAutoView === "subset_dfa" ? "subset_dfa" : "min_dfa";
+      const stage =
+        AppState.currentAutoView === "combined_nfa"
+          ? "nfa"
+          : AppState.currentAutoView === "eps_free_nfa"
+          ? "eps_free_nfa"
+          : AppState.currentAutoView === "subset_dfa"
+          ? "subset_dfa"
+          : "min_dfa";
       window.location.href = `/api/export-jflap?stage=${stage}`;
     });
     $("#table-search").addEventListener("input", renderTransitionMatrix);
     $$('input[name="table-source"]').forEach((r) => r.addEventListener("change", renderTransitionMatrix));
 
-    // Tab 3 Single-RE Lab
+    // Tab 3 Single-RE Lab & Equivalence Checker
     $("#btn-inspect-re").addEventListener("click", runSingleRegexInspect);
     $("#re-input").addEventListener("keydown", (e) => { if (e.key === "Enter") runSingleRegexInspect(); });
     $$("#re-subtabs .subtab-btn").forEach((btn) => {
@@ -1530,8 +1801,23 @@
     });
     $("#btn-re-jff").addEventListener("click", () => {
       const pat = encodeURIComponent($("#re-input").value);
-      const stage = AppState.singleReView === "nfa" ? "nfa" : AppState.singleReView === "subset" ? "subset_dfa" : "min_dfa";
+      const stage =
+        AppState.singleReView === "nfa"
+          ? "nfa"
+          : AppState.singleReView === "eps_free"
+          ? "eps_free_nfa"
+          : AppState.singleReView === "subset"
+          ? "subset_dfa"
+          : "min_dfa";
       window.location.href = `/api/export-jflap?pattern=${pat}&stage=${stage}&expand=true`;
+    });
+    $("#btn-compare-re")?.addEventListener("click", runRegexCompare);
+    $$("[data-cmp-a]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        $("#cmp-re-a").value = btn.dataset.cmpA;
+        $("#cmp-re-b").value = btn.dataset.cmpB;
+        runRegexCompare();
+      });
     });
 
     // Tab 4 Spec Editor
@@ -1550,7 +1836,6 @@
     $("#btn-add-hex-demo").addEventListener("click", () => {
       syncEditorFromDOM();
       if (!AppState.editorSpecs.some((s) => s.name === "HEX_LIT")) {
-        // Insert before INT_LIT so HEX_LIT (0x...) gets matched cleanly
         const intIdx = AppState.editorSpecs.findIndex((s) => s.name.includes("INT") || s.name.includes("FLOAT"));
         const insertAt = intIdx >= 0 ? intIdx : 2;
         AppState.editorSpecs.splice(insertAt, 0, {
@@ -1564,6 +1849,21 @@
         renumberPriorities();
         renderSpecEditor();
       }
+    });
+    $("#btn-demo-shadow")?.addEventListener("click", async () => {
+      syncEditorFromDOM();
+      const idIdx = AppState.editorSpecs.findIndex((s) => s.name === "IDENTIFIER");
+      const kwIdx = AppState.editorSpecs.findIndex((s) => s.name.startsWith("KW_"));
+      if (idIdx >= 0 && kwIdx >= 0 && idIdx > kwIdx) {
+        const [idSpec] = AppState.editorSpecs.splice(idIdx, 1);
+        AppState.editorSpecs.splice(kwIdx, 0, idSpec);
+        renumberPriorities();
+        renderSpecEditor();
+        await recompileCustomSpecs();
+      }
+    });
+    $("#btn-reset-preset")?.addEventListener("click", async () => {
+      await loadPreset(AppState.lastPresetId || "minilang");
     });
     $("#btn-recompile").addEventListener("click", recompileCustomSpecs);
     $("#btn-export-spec").addEventListener("click", () => {

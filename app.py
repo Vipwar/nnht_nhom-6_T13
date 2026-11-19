@@ -4,7 +4,7 @@ Web Server & REST API for Topic T13: Automata-based Lexical Analyzer Studio.
 Zero third-party dependencies (uses Python standard library `http.server` only).
 Run:
     python app.py
-Opens interactive studio at http://127.0.0.1:8000
+Opens interactive studio at http://127.0.0.1:8000 (or cloud PORT/HOST automatically).
 """
 
 from __future__ import annotations
@@ -12,8 +12,10 @@ from __future__ import annotations
 import argparse
 import json
 import mimetypes
+import os
 import sys
 import threading
+import time
 import webbrowser
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -32,6 +34,10 @@ from lexer_engine import (  # noqa: E402
     LexicalAnalyzer,
     RegexSyntaxError,
     TokenSpec,
+    build_combined_direct_dfa,
+    check_dfa_equivalence,
+    compare_regex_equivalence,
+    eliminate_epsilon,
     export_dfa_to_jflap,
     export_nfa_to_jflap,
     inspect_single_regex,
@@ -115,21 +121,31 @@ def _automata_payload(analyzer: LexicalAnalyzer) -> Dict[str, Any]:
         "specs": [s.to_dict() for s in analyzer.specs],
         "summary": analyzer.summary_dict(),
         "minimization": analyzer.minimization.to_dict(),
+        "hopcroft_minimization": analyzer.hopcroft_minimization.to_dict(),
+        "minimality": analyzer.minimality_proof.to_dict(),
+        "moore_vs_hopcroft": analyzer.moore_vs_hopcroft_equivalence.to_dict(),
+        "shadowed_rules": analyzer.shadowed_rules,
+        "warnings": analyzer.warnings,
         "minimized_dfa": analyzer.minimized_dfa.to_graph_dict(),
         "minimized_table": analyzer.minimized_dfa.to_transition_table(),
         "subset_dfa": analyzer.subset_dfa.to_graph_dict(),
         "subset_table": analyzer.subset_dfa.to_transition_table(),
         "combined_nfa": analyzer.combined_nfa.to_graph_dict(),
+        "eps_free_nfa": analyzer.eps_free_nfa.to_graph_dict(),
     }
 
 
 def _benchmark_payload() -> Dict[str, Any]:
-    import time
-
     rows = []
     for pid, pinfo in PRESETS.items():
         lex = LexicalAnalyzer.from_preset(pid)
         s = lex.summary_dict()
+
+        t_dir0 = time.perf_counter()
+        combined_direct = build_combined_direct_dfa(lex.specs)
+        direct_ms = round((time.perf_counter() - t_dir0) * 1000.0, 3)
+        eq_direct = check_dfa_equivalence(lex.minimized_dfa, combined_direct, check_token_names=True)
+
         base = pinfo["samples"]["valid"]["code"]
         repeats = max(1, 10240 // max(1, len(base)))
         big = (base + "\n") * repeats
@@ -142,17 +158,58 @@ def _benchmark_payload() -> Dict[str, Any]:
                 "name": pinfo["name"],
                 "tokens": s["token_count"],
                 "nfa_states": s["nfa_states"],
+                "eps_free_nfa_states": s["eps_free_nfa_states"],
                 "subset_dfa_states": s["subset_dfa_states"],
+                "combined_direct_dfa_states": len(combined_direct.states),
                 "minimized_dfa_states": s["minimized_dfa_states"],
+                "hopcroft_dfa_states": s["hopcroft_dfa_states"],
                 "reduction_percent": s["state_reduction_percent"],
                 "char_classes": s["char_class_count"],
+                "moore_ms": s["timings_ms"].get("minimize_ms", 0.0),
+                "hopcroft_ms": s["timings_ms"].get("hopcroft_ms", 0.0),
+                "direct_ms": direct_ms,
                 "compile_ms": s["timings_ms"]["total_ms"],
                 "scan_10kb_ms": scan_ms,
                 "scan_10kb_tokens": len(res.visible_tokens),
-                "equivalent": s["equivalence"]["equivalent"],
+                "equivalent": s["equivalence"]["equivalent"] and eq_direct.equivalent,
+                "moore_hopcroft_equivalent": s["moore_vs_hopcroft"]["equivalent"],
+                "direct_equivalent": eq_direct.equivalent,
+                "is_minimal": s["minimality"]["is_minimal"],
+                "minimality_pairs": f"{s['minimality']['distinguishable_pairs']}/{s['minimality']['total_pairs']}",
             }
         )
-    return {"benchmarks": rows}
+
+    # Anti-O(n^2) Linear-Time Maximal Munch Stress Tests on MiniLang
+    ml = LexicalAnalyzer.from_preset("minilang")
+    stress_cases = [
+        ("Chuỗi chưa đóng 10.000 ký tự (\" + 'a'×10000)", '"' + "a" * 10000),
+        ("Bình luận khối chưa đóng 10.000 ký tự (/* + 'x'×10000)", "/*" + "x" * 10000),
+        ("Chuỗi escape bệnh lý chống O(n²) (\" + '\\\"'×5000)", '"' + '\\"' * 5000),
+    ]
+    stress_rows = []
+    for label, payload_str in stress_cases:
+        t0 = time.perf_counter()
+        res_panic = ml.scan(payload_str, record_traces=False, error_recovery="panic_char")
+        panic_ms = round((time.perf_counter() - t0) * 1000.0, 2)
+
+        t1 = time.perf_counter()
+        res_smart = ml.scan(payload_str, record_traces=False, error_recovery="smart_sync")
+        smart_ms = round((time.perf_counter() - t1) * 1000.0, 2)
+
+        stress_rows.append(
+            {
+                "name": label,
+                "length": len(payload_str),
+                "panic_ms": panic_ms,
+                "smart_ms": smart_ms,
+                "memoized_cutoffs": res_panic.memoized_cutoffs,
+                "panic_errors": len(res_panic.errors),
+                "smart_errors": len(res_smart.errors),
+                "passed": panic_ms < 200.0 and smart_ms < 200.0,
+            }
+        )
+
+    return {"benchmarks": rows, "stress_tests": stress_rows}
 
 
 class LexerHTTPHandler(BaseHTTPRequestHandler):
@@ -224,6 +281,8 @@ class LexerHTTPHandler(BaseHTTPRequestHandler):
                     nfa, _ = build_token_nfa(pattern, "TOKEN")
                     if stage == "nfa":
                         xml_str = export_nfa_to_jflap(nfa, expand_char_classes=expand)
+                    elif stage == "eps_free_nfa":
+                        xml_str = export_nfa_to_jflap(eliminate_epsilon(nfa), expand_char_classes=expand)
                     else:
                         sub_dfa, _ = nfa_to_dfa(nfa, record_steps=False)
                         target = minimize_dfa(sub_dfa).minimized_dfa if stage == "min_dfa" else sub_dfa
@@ -233,6 +292,8 @@ class LexerHTTPHandler(BaseHTTPRequestHandler):
                     lex = STATE.get_analyzer()
                     if stage == "nfa":
                         xml_str = export_nfa_to_jflap(lex.combined_nfa, expand_char_classes=expand)
+                    elif stage == "eps_free_nfa":
+                        xml_str = export_nfa_to_jflap(lex.eps_free_nfa, expand_char_classes=expand)
                     elif stage == "subset_dfa":
                         xml_str = export_dfa_to_jflap(lex.subset_dfa, expand_char_classes=expand)
                     else:
@@ -285,8 +346,16 @@ class LexerHTTPHandler(BaseHTTPRequestHandler):
             if path == "/api/scan":
                 code = str(body.get("code", ""))
                 use_minimized = bool(body.get("use_minimized", True))
+                error_recovery = str(body.get("error_recovery", "panic_char"))
+                if error_recovery not in ("panic_char", "smart_sync"):
+                    error_recovery = "panic_char"
                 lex = STATE.get_analyzer()
-                res = lex.scan(code, use_minimized=use_minimized, record_traces=True)
+                res = lex.scan(
+                    code,
+                    use_minimized=use_minimized,
+                    record_traces=True,
+                    error_recovery=error_recovery,
+                )
                 self._send_json(res.to_dict())
                 return
 
@@ -302,6 +371,12 @@ class LexerHTTPHandler(BaseHTTPRequestHandler):
                     test_strings=[str(s) for s in test_strings],
                 )
                 self._send_json(info)
+                return
+
+            if path == "/api/compare-regex":
+                pattern_a = str(body.get("pattern_a", ""))
+                pattern_b = str(body.get("pattern_b", ""))
+                self._send_json(compare_regex_equivalence(pattern_a, pattern_b))
                 return
 
             self.send_error(HTTPStatus.NOT_FOUND, "Unknown API endpoint")
@@ -331,9 +406,13 @@ def run_server(host: str = "127.0.0.1", port: int = 8000, open_browser: bool = T
 
 
 if __name__ == "__main__":
+    is_cloud = bool(os.environ.get("PORT") or os.environ.get("CODESPACES") or os.environ.get("RENDER"))
+    default_host = os.environ.get("HOST", "0.0.0.0" if is_cloud else "127.0.0.1")
+    default_port = int(os.environ.get("PORT", "8000"))
+
     parser = argparse.ArgumentParser(description="Run T13 Automata-based Lexical Analyzer Web Studio")
-    parser.add_argument("--host", default="127.0.0.1")
-    parser.add_argument("--port", type=int, default=8000)
+    parser.add_argument("--host", default=default_host)
+    parser.add_argument("--port", type=int, default=default_port)
     parser.add_argument("--no-browser", action="store_true", help="Do not auto-open web browser")
     args = parser.parse_args()
-    run_server(host=args.host, port=args.port, open_browser=not args.no_browser)
+    run_server(host=args.host, port=args.port, open_browser=(not args.no_browser and not is_cloud))

@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LexAutomata Studio — T13 Automata-based Lexical Analyzer (UEH)</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 36 36'%3E%3Ccircle cx='18' cy='18' r='16' fill='%231e3a8a'/%3E%3Ccircle cx='12' cy='18' r='5' fill='none' stroke='%23ffffff' stroke-width='2'/%3E%3Ccircle cx='24' cy='18' r='5' fill='none' stroke='%2338bdf8' stroke-width='2'/%3E%3C/svg%3E" />
   <link rel="stylesheet" href="/styles.css" />
 </head>
 <body>
@@ -29,13 +30,13 @@
       <div class="control-group">
         <label for="preset-select">Ngôn ngữ:</label>
         <select id="preset-select" class="select-input">
-          <option value="minilang">MiniLang (38 token — Đầy đủ)</option>
+          <option value="minilang">MiniLang (39 token — Đầy đủ)</option>
           <option value="calclang">CalcLang (12 token — DFA gọn)</option>
           <option value="minisql">MiniSQL (14 token — Truy vấn)</option>
         </select>
       </div>
 
-      <div id="pipeline-pill" class="pipeline-pill" title="Trạng thái đường ống RE → ε-NFA → DFA → Min-DFA">
+      <div id="pipeline-pill" class="pipeline-pill" title="Trạng thái đường ống RE → ε-NFA → NFA → DFA → Min-DFA">
         Đang biên dịch Automata...
       </div>
 
@@ -79,7 +80,7 @@
           <div class="card-header">
             <div>
               <h2>Mã Nguồn Đầu Vào</h2>
-              <p class="muted">Nhập mã nguồn bất kỳ hoặc chọn bộ dữ liệu mẫu (hợp lệ, trường hợp biên, lỗi từ vựng)</p>
+              <p class="muted">Nhập mã nguồn bất kỳ hoặc chọn bộ dữ liệu mẫu (hợp lệ, trường hợp biên, lỗi từ vựng · <code>Ctrl+Enter</code> để quét)</p>
             </div>
             <div class="sample-pills">
               <button class="pill-btn active" data-sample="valid">✓ Hợp lệ</button>
@@ -101,6 +102,13 @@
               <label class="toggle-label">
                 <input type="checkbox" id="chk-show-skipped" />
                 <span>Hiện token bỏ qua (WS/Comment)</span>
+              </label>
+              <label class="toggle-label" title="Chế độ phục hồi lỗi từ vựng khi gặp ký tự lạ hoặc chuỗi/comment chưa đóng">
+                <span>Phục hồi lỗi:</span>
+                <select id="sel-error-recovery" class="inline-select">
+                  <option value="panic_char">Panic-mode (1 ký tự)</option>
+                  <option value="smart_sync">Smart Sync (Chuỗi/Comment)</option>
+                </select>
               </label>
             </div>
             <div class="toolbar-right">
@@ -167,16 +175,16 @@
         <div class="card-header">
           <div>
             <h2>Mô Phỏng Quá Trình Chạy DFA Từng Bước (Maximal Munch &amp; Backtracking)</h2>
-            <p id="anim-subtitle" class="muted">Chọn một token hoặc lỗi ở trên để quan sát băng ký tự và đường đi qua các trạng thái DFA</p>
+            <p id="anim-subtitle" class="muted">Chọn một token hoặc lỗi ở trên để quan sát băng ký tự và đường đi qua các trạng thái DFA (Phím tắt: <code>Space</code> chạy/dừng · <code>←/→</code> lùi/tiến bước)</p>
           </div>
           <div class="anim-controls">
             <button id="btn-tok-prev" class="btn btn-outline btn-sm" title="Token trước">« Token</button>
             <button id="btn-tok-next" class="btn btn-outline btn-sm" title="Token sau">Token »</button>
             <span class="divider-v"></span>
             <button id="btn-step-first" class="btn btn-outline btn-sm" title="Bước đầu">⏮</button>
-            <button id="btn-step-prev" class="btn btn-outline btn-sm" title="Lùi 1 bước">◀</button>
-            <button id="btn-step-play" class="btn btn-primary btn-sm">▶ Chạy</button>
-            <button id="btn-step-next" class="btn btn-outline btn-sm" title="Tiến 1 bước">▶</button>
+            <button id="btn-step-prev" class="btn btn-outline btn-sm" title="Lùi 1 bước (←)">◀</button>
+            <button id="btn-step-play" class="btn btn-primary btn-sm" title="Chạy / Dừng (Space)">▶ Chạy</button>
+            <button id="btn-step-next" class="btn btn-outline btn-sm" title="Tiến 1 bước (→)">▶</button>
             <button id="btn-step-last" class="btn btn-outline btn-sm" title="Bước cuối">⏭</button>
             <label class="speed-control">
               <span>Tốc độ</span>
@@ -211,9 +219,10 @@
           <div class="subtab-group" id="auto-subtabs">
             <button class="subtab-btn active" data-view="min_dfa">Minimized Combined DFA</button>
             <button class="subtab-btn" data-view="subset_dfa">Subset Combined DFA</button>
+            <button class="subtab-btn" data-view="eps_free_nfa">Combined NFA (Khử ε — ĐL 2)</button>
             <button class="subtab-btn" data-view="combined_nfa">Combined ε-NFA</button>
             <button class="subtab-btn" data-view="table">Bảng Chuyển Trạng Thái</button>
-            <button class="subtab-btn" data-view="minimization">Quá Trình Tối Thiểu Hóa (Π₀ → Πₙ)</button>
+            <button class="subtab-btn" data-view="minimization">Tối Thiểu Hóa (Moore &amp; Hopcroft)</button>
           </div>
           <div class="toolbar-right">
             <button id="btn-zoom-in" class="btn btn-outline btn-sm">＋</button>
@@ -222,6 +231,18 @@
             <button id="btn-export-svg" class="btn btn-outline btn-sm">⬇ SVG</button>
             <button id="btn-export-jff-view" class="btn btn-outline btn-sm">⬇ JFLAP .jff</button>
           </div>
+        </div>
+
+        <!-- Category Highlight Filter Bar for Graph View -->
+        <div id="graph-cat-filter-bar" class="filter-bar" style="margin-bottom: 10px;">
+          <span class="muted small" style="font-weight:700;">Lọc nhánh đồ thị theo nhóm Token:</span>
+          <button class="pill-btn active" data-gcat="all">Tất cả nhánh</button>
+          <button class="pill-btn" data-gcat="keyword">Từ khóa (Keyword)</button>
+          <button class="pill-btn" data-gcat="identifier">Định danh (Identifier)</button>
+          <button class="pill-btn" data-gcat="literal">Hằng số &amp; Chuỗi (Literal)</button>
+          <button class="pill-btn" data-gcat="operator">Toán tử (Operator)</button>
+          <button class="pill-btn" data-gcat="delimiter">Phân cách (Delimiter)</button>
+          <button class="pill-btn" data-gcat="comment">Bình luận &amp; WS</button>
         </div>
 
         <!-- Graph View + Side Inspector -->
@@ -264,6 +285,7 @@
         <!-- Minimization Partitions View -->
         <div id="auto-min-view" class="hidden">
           <div id="min-summary-cards" class="kpi-strip"></div>
+          <div id="min-myhill-nerode-box" class="proof-banner" style="margin-bottom:12px;"></div>
           <div id="min-partitions-container" class="partitions-list"></div>
         </div>
       </div>
@@ -274,10 +296,10 @@
       <div class="card">
         <div class="card-header">
           <div>
-            <h2>Phòng Thí Nghiệm Biểu Thức Chính Quy Đơn Lẻ</h2>
+            <h2>Phòng Thí Nghiệm Biểu Thức Chính Quy Đơn Lẻ (6-Chiều Automata)</h2>
             <p class="muted">
-              So sánh trực tiếp 2 phương pháp xây dựng DFA trong bài giảng Chương 3.1 (UEH):
-              <strong>(1) RE → Thompson ε-NFA → Subset DFA → Min-DFA</strong> và
+              Đối chiếu toàn diện chuỗi Định lý Chương 3.1 (UEH):
+              <strong>(1) RE → Thompson ε-NFA → NFA khử ε (Định lý 2) → Subset DFA → Moore/Hopcroft Min-DFA</strong> và
               <strong>(2) Direct RE → Cây phân tích r# (nullable, firstpos, lastpos, followpos) → Direct DFA</strong>
             </p>
           </div>
@@ -285,8 +307,8 @@
 
         <div class="re-lab-form">
           <div class="input-col grow">
-            <label for="re-input">Biểu thức chính quy (RE):</label>
-            <input type="text" id="re-input" class="code-input" value="(a|ba)(a|b)*ba" placeholder="VD: (a|b)*abb hoặc [0-9]+\.[0-9]+" />
+            <label for="re-input">Biểu thức chính quy (RE — hỗ trợ cả <code>{m,n}</code>, <code>[^...]</code>, UTF-8):</label>
+            <input type="text" id="re-input" class="code-input" value="(a|ba)(a|b)*ba" placeholder="VD: (a|b)*abb hoặc 0[xX][0-9a-fA-F]{2,4}" />
           </div>
           <div class="input-col">
             <label for="re-name">Tên Token:</label>
@@ -312,9 +334,10 @@
 
         <div class="subtab-group" id="re-subtabs">
           <button class="subtab-btn active" data-review="nfa">1. Thompson ε-NFA</button>
-          <button class="subtab-btn" data-review="subset">2. Subset DFA &amp; Trace</button>
-          <button class="subtab-btn" data-review="direct">3. Direct RE → DFA (Cây r# &amp; Followpos)</button>
-          <button class="subtab-btn" data-review="min">4. Minimized DFA &amp; Phân Hoạch</button>
+          <button class="subtab-btn" data-review="eps_free">2. NFA Khử ε (Định lý 2)</button>
+          <button class="subtab-btn" data-review="subset">3. Subset DFA &amp; Trace</button>
+          <button class="subtab-btn" data-review="direct">4. Direct RE → DFA (Cây r# &amp; Followpos)</button>
+          <button class="subtab-btn" data-review="min">5. Minimized DFA (Moore &amp; Hopcroft)</button>
         </div>
 
         <!-- Single-RE Stage Display -->
@@ -359,6 +382,39 @@
           </div>
         </div>
       </div>
+
+      <!-- Interactive Regex Equivalence Checker Card (R1 == R2?) -->
+      <div class="card" style="margin-top: 16px;">
+        <div class="card-header">
+          <div>
+            <h2>Bộ Kiểm Chứng Tương Đương Hai Biểu Thức Chính Quy (<code>L(R₁) = L(R₂)?</code>)</h2>
+            <p class="muted">
+              Sử dụng <strong>Product Automaton BFS</strong> trên <code>MinDFA(R₁) × MinDFA(R₂)</code> để chứng minh hai RE sinh cùng ngôn ngữ chính quy hoặc tìm <strong>phản ví dụ ngắn nhất</strong>
+            </p>
+          </div>
+          <div class="sample-pills">
+            <button class="pill-btn" data-cmp-a="(a|b)*abb" data-cmp-b="(b|a)*a[b]{2}">VD 1: Tương đương</button>
+            <button class="pill-btn" data-cmp-a="(a*b*)*" data-cmp-b="(a|b)*">VD 2: Luật Kleene (a*b*)* ≡ (a|b)*</button>
+            <button class="pill-btn" data-cmp-a="(a|b)*abb" data-cmp-b="(a|b)+abb">VD 3: Khác biệt (Tìm phản ví dụ)</button>
+          </div>
+        </div>
+
+        <div class="re-lab-form">
+          <div class="input-col grow">
+            <label for="cmp-re-a">Biểu thức chính quy R₁:</label>
+            <input type="text" id="cmp-re-a" class="code-input" value="(a|b)*abb" />
+          </div>
+          <div class="input-col grow">
+            <label for="cmp-re-b">Biểu thức chính quy R₂:</label>
+            <input type="text" id="cmp-re-b" class="code-input" value="(b|a)*a[b]{2}" />
+          </div>
+          <div class="input-col btn-col">
+            <button id="btn-compare-re" class="btn btn-primary">⚖ Kiểm Chứng R₁ ≡ R₂</button>
+          </div>
+        </div>
+
+        <div id="cmp-re-result" class="proof-banner hidden"></div>
+      </div>
     </section>
 
     <!-- ==================== TAB 4: LIVE TOKEN SPEC EDITOR ==================== -->
@@ -369,17 +425,20 @@
             <h2>Trình Soạn Thảo Đặc Tả Token Bằng Biểu Thức Chính Quy</h2>
             <p class="muted">
               Thêm, xóa, chỉnh sửa RE hoặc thay đổi thứ tự ưu tiên rồi nhấn <strong>Biên Dịch Lại Automata</strong> —
-              toàn bộ Combined ε-NFA, Subset DFA, Minimized DFA và Bộ Quét sẽ cập nhật ngay lập tức!
+              hệ thống tự động phát hiện <strong>Quy tắc bị che khuất (Shadowed Rules)</strong> nếu xảy ra xung đột thứ tự ưu tiên!
             </p>
           </div>
           <div class="toolbar-right">
-            <button id="btn-add-hex-demo" class="btn btn-outline btn-sm">+ Thêm nhanh HEX_LIT (0x...)</button>
-            <button id="btn-add-rule" class="btn btn-outline btn-sm">+ Thêm quy tắc mới</button>
+            <button id="btn-demo-shadow" class="btn btn-outline btn-sm" title="Đưa IDENTIFIER lên trên KW_IF để minh họa phát hiện luật bị che khuất">⚠ Thử Che Khuất (IDENTIFIER &gt; KW_IF)</button>
+            <button id="btn-add-hex-demo" class="btn btn-outline btn-sm">+ Thêm HEX_LIT (0x{2,4})</button>
+            <button id="btn-add-rule" class="btn btn-outline btn-sm">+ Thêm quy tắc</button>
+            <button id="btn-reset-preset" class="btn btn-outline btn-sm">↺ Khôi phục Preset gốc</button>
             <button id="btn-export-spec" class="btn btn-outline btn-sm">⬇ Lưu Spec JSON</button>
             <button id="btn-recompile" class="btn btn-primary">⚙ Biên Dịch Lại Automata</button>
           </div>
         </div>
 
+        <div id="shadowed-warning-box" class="alert-inline alert-warn hidden"></div>
         <div id="editor-feedback" class="alert-inline hidden"></div>
 
         <div class="table-scroll editor-table-scroll">
@@ -406,8 +465,8 @@
       <div class="card">
         <div class="card-header">
           <div>
-            <h2>Bộ Kiểm Thử Tự Động (Hợp Lệ · Trường Hợp Biên · Lỗi)</h2>
-            <p class="muted">Kiểm chứng chéo ε-NFA ≡ Subset DFA ≡ Direct DFA ≡ Minimized DFA và kiểm tra toàn diện bộ quét từ vựng</p>
+            <h2>Bộ Kiểm Thử Tự Động (62 Test Case Có Cấu Trúc: Hợp Lệ · Trường Hợp Biên · Lỗi)</h2>
+            <p class="muted">Kiểm chứng 6-chiều ε-NFA ≡ NFA khử ε ≡ Subset DFA ≡ Direct DFA ≡ Moore Min-DFA ≡ Hopcroft Min-DFA &amp; Bất biến Bảo toàn Từ tố (Zero-Loss)</p>
           </div>
           <div class="toolbar-right">
             <button id="btn-run-tests" class="btn btn-primary">▶ Chạy Toàn Bộ Kiểm Thử</button>
@@ -444,8 +503,8 @@
       <div class="card" style="margin-top: 16px;">
         <div class="card-header">
           <div>
-            <h2>Đánh Giá Hiệu Năng &amp; So Sánh Số Trạng Thái Trên Các Bộ Ngôn Ngữ</h2>
-            <p class="muted">Đo thực nghiệm biên dịch RE → ε-NFA → Subset DFA → Minimized DFA và thông lượng quét 10 KB mã nguồn</p>
+            <h2>Đánh Giá Hiệu Năng &amp; Đối Chiếu 6-Chiều Automata Trên Các Bộ Ngôn Ngữ</h2>
+            <p class="muted">So sánh Thompson ε-NFA, NFA khử ε (ĐL 2), Subset DFA, Combined Direct DFA, Moore vs Hopcroft Min-DFA và Chứng minh Tối giản Myhill-Nerode</p>
           </div>
           <button id="btn-run-bench" class="btn btn-outline btn-sm">↻ Chạy lại Benchmark</button>
         </div>
@@ -455,18 +514,35 @@
             <thead>
               <tr>
                 <th>Bộ Ngôn Ngữ</th>
-                <th>Số Token</th>
-                <th>ε-NFA (trạng thái)</th>
+                <th>Token</th>
+                <th>ε-NFA</th>
+                <th>NFA (Khử ε)</th>
                 <th>Subset DFA</th>
+                <th>Direct DFA</th>
                 <th>Min DFA</th>
-                <th>Giảm trạng thái</th>
-                <th>Lớp ký tự</th>
-                <th>Thời gian biên dịch</th>
-                <th>Quét 10 KB mã nguồn</th>
-                <th>Chứng minh tương đương</th>
+                <th>Moore / Hopcroft</th>
+                <th>Quét 10 KB</th>
+                <th>Tương đương &amp; Tối giản</th>
               </tr>
             </thead>
             <tbody id="bench-tbody"></tbody>
+          </table>
+        </div>
+
+        <h3 style="font-size:14px; margin: 16px 0 8px;">Kiểm Thử Chống Tấn Công Quay Lui Bậc Hai O(n²) — Reps (1998) Linear-Time Maximal Munch Stress Test</h3>
+        <div class="table-scroll">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Mẫu Đầu Vào Bệnh Lý (10.000+ ký tự)</th>
+                <th>Độ dài</th>
+                <th>Panic-mode (1 ký tự)</th>
+                <th>Smart Sync</th>
+                <th>Số lần cắt tỉa Memoized Cutoffs</th>
+                <th>Đánh giá O(n) (&lt; 200 ms)</th>
+              </tr>
+            </thead>
+            <tbody id="stress-tbody"></tbody>
           </table>
         </div>
       </div>

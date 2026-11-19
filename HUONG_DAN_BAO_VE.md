@@ -1,84 +1,228 @@
-# CẨM NANG THUYẾT TRÌNH, DEMO & BẢO VỆ ĐẠT 10/10 — ĐỀ TÀI T13
+# CẨM NANG THUYẾT TRÌNH, DEMO & PHẢN BIỆN ĐẠT 10/10 TUYỆT ĐỐI — ĐỀ TÀI T13
 
-> Tài liệu ôn tập nội bộ cho nhóm trước buổi bảo vệ (15 phút: **8–10 phút trình bày + demo**, **5–7 phút hỏi đáp**).  
-> Mục tiêu: Mọi thành viên hiểu sâu từng thuật toán, giải thích trôi chảy phần code phụ trách và trả lời xuất sắc câu hỏi phản biện của Giảng viên (cô Hồ Thị Thanh Tuyến).
+> **Học phần:** Ngôn ngữ hình thức (*Introduction to Formal Languages*) — UEH  
+> **Giảng viên hướng dẫn:** ThS. Hồ Thị Thanh Tuyến  
+> **Đề tài T13:** Automata-based Lexical Analyzer (`LexAutomata Studio`)  
+> **Mục tiêu:** Mọi thành viên trong nhóm nắm chắc lý thuyết Chương 1–3, chỉ đúng từng hàm trong mã nguồn và trả lời sắc bén mọi câu hỏi xoáy của Giảng viên trong buổi bảo vệ (15 phút: **8–10 phút trình bày + demo**, **5–7 phút hỏi đáp**).
 
 ---
 
-## PHẦN 1: KỊCH BẢN TRÌNH BÀY & DEMO 9.5 PHÚT (CHUẨN RUBRIC)
+## PHẦN 1: KỊCH BẢN TRÌNH BÀY & LIVE DEMO 9.5 PHÚT (ĂN TRỌN 100% RUBRIC)
 
-*(Điều chỉnh linh hoạt theo 4 hoặc 5 thành viên)*
-
-| Thời lượng | Thành viên | Nội dung trình bày / Thao tác Demo | Điểm ăn điểm tối đa |
+| Thời lượng | Thành viên | Nội dung trình bày & Thao tác Live Demo | Điểm nhấn ăn điểm tuyệt đối với Cô Tuyến |
 |---|---|---|---|
-| **0:00 – 1:30** | **TV 1** (Trưởng nhóm & Lý thuyết) | Giới thiệu bài toán Lexical Analysis trong trình biên dịch; liên hệ môn Ngôn ngữ hình thức (Định lý Kleene: `RE ≡ ε-NFA ≡ DFA`); mô hình hình thức 5-bộ & giả định bảng chữ cái $\Sigma$ (98 ký tự ASCII). | Nêu rõ **không dùng `import re`** — toàn bộ cốt lõi 100% cài đặt từ lý thuyết Automata. |
-| **1:30 – 3:30** | **TV 2** (Regex Parser & Thompson / Direct DFA) | Trình bày pipeline biến đổi `RE → AST → Thompson ε-NFA` và **mở Tab 3 Web Studio**: chạy trực tiếp 2 ví dụ trên slide Chương 3.1 của cô là `(a|b)*abb` (11 trạng thái NFA) và `(a|ba)(a|b)*ba` (Cây phân tích `r#`, `nullable`, `FP`, `LP`, bảng `followpos` y hệt Slide 52–54!). | Cô thấy ví dụ slide bài giảng chạy sống động ngay trên đồ thị SVG → ấn tượng cực mạnh! |
-| **3:30 – 5:30** | **TV 3** (Subset Construction, Tối thiểu hóa & Equivalence) | Giải thích mở rộng **Multi-token Combined ε-NFA → Subset DFA** (giải quyết xung đột ưu tiên `KW_IF` vs `IDENTIFIER`) + **Tối thiểu hóa Multi-token DFA** (khởi tạo $\Pi_0$ tách riêng từng loại token!) + tối ưu **Alphabet Partitioning**. **Mở Tab 2 (chọn CalcLang)** để chiếu toàn bộ đồ thị Combined DFA 20 trạng thái, bảng chuyển, các bước $\Pi_0 \to \Pi_n$ và chứng minh tương đương bằng **Product Automaton**. | Nhấn mạnh khác biệt cốt lõi giữa tối giản 1-token ($\Pi_0 = \{Q\setminus F, F\}$) và tối giản đa-token ($\Pi_0 = \{Q\setminus F, F_{t_1}, \dots, F_{t_k}\}$). |
-| **5:30 – 8:00** | **TV 4** (Scanner Maximal Munch & Live Demo) | **Mở Tab 1 (chọn MiniLang)**:<br>1. Quét mẫu **Hợp lệ** → chỉ bảng token & tô màu trực tiếp.<br>2. Chuyển sang mẫu **Biên (Maximal Munch)**: bấm vào token `ifx` hoặc `1.5` trong `1.5e` / `3.` → bấm nút **▶ Chạy** trên bộ mô phỏng từng bước để chiếu hoạt ảnh đọc ký tự, gặp `DEAD`, và **quay lui (backtrack)**!<br>3. Chuyển sang mẫu **Lỗi & Phục hồi** → chỉ 4 lỗi có tọa độ `(dòng:cột)` và chương trình vẫn quét tiếp được dòng cuối (`let okAfterError = 42;`).<br>4. **Mở Tab 4**: bấm `+ Thêm nhanh HEX_LIT` → `Biên Dịch Lại` → quay lại Tab 1 gõ `let c = 0xFF;` và quét ra `HEX_LIT` ngay lập tức! | Chứng minh chương trình là **Lexical Analyzer Generator tổng quát**, không hề hardcode từ khóa hay token! |
-| **8:00 – 9:30** | **TV 5** (hoặc TV 1) (Kiểm thử, Đánh giá & Kết luận) | **Mở Tab 5**: chạy 29/29 test case PASS (100%) + bảng Benchmark 3 ngôn ngữ (`MiniLang`, `CalcLang`, `MiniSQL`) + giới thiệu file `.jff` xuất sang JFLAP đối chứng; nêu trung thực hạn chế (panic-mode 1 ký tự với chuỗi chưa đóng, chưa hỗ trợ bảng chữ cái Unicode đầy đủ, trạng thái bùng nổ mũ $2^n$ ở RE bệnh lý) và hướng phát triển. | Đạt trọn vẹn 100% tiêu chí **Kiểm thử & đánh giá (10%)**! |
+| **0:00 – 1:30** | **TV 1** (Trưởng nhóm & Lý thuyết) | **Slide 1–3:** Giới thiệu vai trò Lexical Analyzer; liên hệ Chuỗi 4 Định lý Chương 3.1 (`RE → Thompson ε-NFA → NFA Khử ε → Subset DFA → Moore & Hopcroft Min-DFA`) và nhánh trực tiếp Mục 2.5 (`r·#`, `followpos`); giải thích bảng chữ cái mở rộng UTF-8 hữu hạn $\|\Sigma\| = 99$ (98 ASCII + `NON_ASCII` `0x80`). | Nhấn mạnh **Zero `import re`** trong lõi và giải thích làm sao DFA vẫn hữu hạn 99 ký hiệu mà quét được tiếng Việt `"Xin chào UEH"` nhưng bắt đúng lỗi `100€` (`U+20AC`)! |
+| **1:30 – 3:45** | **TV 2** (Regex Parser, Thompson, Khử ε & Direct DFA) | **Slide 4–6 + Mở Tab 3 Web Studio:**<br>1. Bấm chip `(a\|b)*abb (Slide 38)` → chỉ rõ 5 con số: Thompson ε-NFA = **11 TT**, NFA Khử ε (ĐL 2) = **6 TT**, Subset DFA = **5 TT**, Direct DFA = **4 TT**, Moore/Hopcroft Min-DFA = **4 TT**.<br>2. Bấm chip `(a\|ba)(a\|b)*ba (Slide 54)` → chỉ cây cú pháp gia tố `r·#` 8 vị trí lá, bảng `followpos` khớp từng con số với Slide 54 của Cô và đồ thị Direct DFA 5 trạng thái `A..E`.<br>3. Nhập thử 2 RE `(a\|b)*` và `(a*b*)*` vào ô **Kiểm chứng Tương đương 2 RE** → máy chứng minh `R₁ ≡ R₂` tức thì! | Cô thấy cả 2 ví dụ trên slide bài giảng Chương 3.1 + Định lý 2 Khử ε chạy sống động ngay trên Web Studio! |
+| **3:45 – 5:45** | **TV 3** (Subset, Moore/Hopcroft, Myhill–Nerode & Shadowed Rules) | **Slide 7 + Mở Tab 2 & Tab 4 Web Studio:**<br>1. Trên **Tab 2 (chọn CalcLang hoặc MiniLang)**: chuyển đổi giữa 6 mô hình (`Moore Min-DFA`, `Hopcroft Min-DFA`, `Subset DFA`, `Combined Direct DFA`, `NFA Khử ε`, `Thompson ε-NFA`).<br>2. Chỉ vào bảng **Chứng minh Tối giản Tuyệt đối Myhill–Nerode**: mọi cặp trạng thái (`3003/3003` trên MiniLang, `190/190` trên CalcLang) đều có chuỗi phân biệt ngắn nhất $w$!<br>3. Qua **Tab 4**: bấm nút mũi tên đưa `IDENTIFIER` lên trên `KW_IF` → bấm `Biên Dịch` → chỉ vào **Biểu ngữ Cảnh báo Đỏ** phát hiện `KW_IF` bị che khuất hoàn toàn (*Shadowed Rule*)! | Chứng minh sâu sắc Định lý Myhill–Nerode bằng chuỗi phân biệt cụ thể và tự động bắt lỗi thiết kế đặc tả từ vựng (*Shadowed Rule*). |
+| **5:45 – 8:00** | **TV 4** (Scanner Maximal Munch O(n), Smart-Sync & Live Demo) | **Slide 8–9 + Mở Tab 1 Web Studio (chọn MiniLang 39 token):**<br>1. Quét mã hợp lệ có cả chuỗi tiếng Việt `"Xin chào UEH"` và bình luận nhiều dòng `/* ... */`.<br>2. Chọn mẫu **Biên Maximal Munch**: bấm vào token `1.5` trong `1.5e + 2` → bấm **▶ Chạy** để chiếu hoạt ảnh DFA đọc `1.5e`, gặp `DEAD` và **quay lui 1 ký tự** về `FLOAT_LIT('1.5')`.<br>3. Chọn mẫu **Lỗi & Phục hồi**: gạt công tắc chuyển giữa **`Panic-mode (1 ký tự)`** và **`Smart-Sync`** để Cô thấy chuỗi chưa đóng `"Chuỗi quên đóng` được gom gọn thành 1 lỗi duy nhất thay vì vỡ thành nhiều token rác! | Trình diễn trực quan sự khác biệt giữa `Panic-mode` và `Smart-Sync`, kèm kỹ thuật Memoization `failed_states` (Reps, 1998) chống quay lui bậc hai $O(n^2)$. |
+| **8:00 – 9:30** | **TV 1 / TV 4** (Kiểm thử Bất biến, Bổ đề Bơm & Kết luận) | **Slide 10–13 + Mở Tab 5 Web Studio:**<br>1. Bấm chạy **62/62 Test Cases PASS (100%)** và chỉ bảng **Stress Test 10.000 ký tự lỗi** (`"aaaa...`, `/*xxxx...`, `"\"\"...` quét < 25 ms với 5.000 lần cắt nhánh `memoized_cutoffs`).<br>2. Nêu rõ giới hạn lý thuyết của DFA theo **Bổ đề Bơm (Pumping Lemma Chương 3.2)**: tại sao bình luận lồng nhau sâu tùy ý `/* /* ... */ */` tương đương $L = \{a^n b^n \mid n \ge 1\}$ thuộc lớp CFL chứ không phải Regular Language. | Khép lại bằng kiến thức Bổ đề Bơm Chương 3.2 cực kỳ chuẩn xác về mặt học thuật! |
 
 ---
 
-## PHẦN 2: BẢN ĐỒ CODE ĐỂ TỪNG THÀNH VIÊN TỰ TIN GIẢI THÍCH
+## PHẦN 2: BẢN ĐỒ MÃ NGUỒN (`lexer_engine/`) ĐỂ CHỈ TRỰC TIẾP KHI CÔ HỎI
 
-- **Parse RE không dùng `re`**: `lexer_engine/regex_parser.py` — lớp `RegexParser` dùng đệ quy đoán nhận trước (Recursive Descent) với 4 mức ưu tiên: `_parse_expr` (`|`) → `_parse_concat` (nối kết ẩn) → `_parse_repeat` (`*`, `+`, `?`) → `_parse_atom` (`(...)`, `[...]`, `.`, `\escape`, ký tự đơn).
-- **Thompson ε-NFA & Hợp nhất đa-token**: `lexer_engine/thompson.py` — `_ThompsonBuilder.build_node()` đảm bảo bất biến Thompson (`in-degree(start)=0`, `out-degree(end)=0`) nên phép nối kết ghép trực tiếp `l_e` với `r_s` không sinh chu trình giả. `build_combined_nfa()` tạo trạng thái đầu `q0 = 0` nối ε tới từng NFA con và gắn `AcceptInfo(token_name, priority, skip)` lên đỉnh kết thúc.
-- **Subset Construction + Alphabet Partitioning**: `lexer_engine/subset_construction.py` — `compute_alphabet_partition()` (trong `models.py`) phân hoạch 98 ký tự ASCII thành các lớp tương đương nhỏ nhất (VD: MiniLang còn 43 lớp). `_resolve_accept()` chọn token có `priority` nhỏ nhất (ưu tiên cao nhất) khi tập con NFA chứa nhiều trạng thái kết thúc.
-- **Direct RE → DFA**: `lexer_engine/direct_dfa.py` — bổ sung nút kết thúc `#` (`r·#`), đánh số lá `1..n`, đệ quy hậu tố tính `nullable`, `firstpos`, `lastpos`, cập nhật `followpos` tại các nút `·`, `*`, `+`, rồi BFS tạo trạng thái DFA từ `firstpos(root)`.
-- **Tối thiểu hóa Multi-token DFA**: `lexer_engine/dfa_minimizer.py` — loại trạng thái không đạt tới (BFS), thêm trạng thái chết ảo `DEAD = -1` để hàm chuyển đầy đủ, khởi tạo $\Pi_0$ tách riêng `Q \ F` và từng loại `token_name`, lặp chia nhóm theo chữ ký vector chuyển tiếp cho đến điểm bất động, cuối cùng loại khối `DEAD` (khớp Slide 58 Bước 5).
-- **Bộ quét Maximal Munch**: `lexer_engine/scanner.py` — `scan_source()` giữ cặp `last_accept = (cursor, state, accept_info)`. Khi `dfa.step(cur, ch)` trả về `None` (DEAD) hoặc hết chuỗi, quay lui về `last_accept[0]`. Nếu `last_accept is None`, ghi nhận `LexicalError` và tiến `pos += 1` (Panic-mode recovery).
-- **Chứng minh tương đương**: `lexer_engine/verifier.py` — `check_dfa_equivalence()` chạy BFS trên Product Automaton $A \times B$ với bảng chữ cái phân hoạch chung; nếu gặp cặp $(q_A, q_B)$ khác nhãn chấp nhận thì truy vết ngược cha để trả về **phản ví dụ ngắn nhất**.
+1. **Bảng chữ cái 99 ký hiệu (`ASCII_SIGMA` + `NON_ASCII` UTF-8) & Alphabet Partitioning**: [`lexer_engine/models.py`](file:///home/antigravity/Vipwar/nnht_nhom-6_T13/lexer_engine/models.py) — hằng số `NON_ASCII = "\x80"` đại diện cho mọi ký tự `ord(c) >= 128`; hàm `compute_alphabet_partition()` chia $\Sigma$ thành các lớp tương đương rời nhau nhỏ nhất (MiniLang: 43 lớp).
+2. **Bộ phân tích cú pháp RE tự viết (Hỗ trợ `{m,n}`, `[-a]`, `[a-]`, `[^^]`, Zero `import re`)**: [`lexer_engine/regex_parser.py`](file:///home/antigravity/Vipwar/nnht_nhom-6_T13/lexer_engine/regex_parser.py) — lớp `RegexParser` đệ quy 4 mức ưu tiên; hàm `_apply_counted_quantifier()` khai triển `R{m,n}` thành cây `ConcatNode` / `OptionalNode` / `StarNode` thuần túy với giới hạn an toàn `MAX_QUANTIFIER_BOUND = 64`.
+3. **Cấu trúc Thompson & Định lý 2 Khử chuyển tiếp $\varepsilon$ (`ε-NFA → NFA không ε`)**: [`lexer_engine/thompson.py`](file:///home/antigravity/Vipwar/nnht_nhom-6_T13/lexer_engine/thompson.py) — lớp `_ThompsonBuilder` dựng mảnh ε-NFA theo Định lý 3; hàm `eliminate_epsilon(nfa)` cài đặt Định lý 2 (Slide 21–22 Chương 3.1).
+4. **Đơn định hóa Tập con (Subset Construction) & Giải quyết Xung đột Ưu tiên**: [`lexer_engine/subset_construction.py`](file:///home/antigravity/Vipwar/nnht_nhom-6_T13/lexer_engine/subset_construction.py) — hàm `epsilon_closure()`, `move()` và `nfa_to_dfa()` chọn token có `priority` nhỏ nhất khi một trạng thái DFA chứa nhiều trạng thái kết thúc NFA.
+5. **Direct RE → DFA cho Biểu thức Đơn lẻ (`r·#`) & Đa-Token Kết hợp (`(R₁·#₁)|...|(R_k·#_k)`)**: [`lexer_engine/direct_dfa.py`](file:///home/antigravity/Vipwar/nnht_nhom-6_T13/lexer_engine/direct_dfa.py) — hàm `build_direct_dfa()` và `build_combined_direct_dfa()` tính `nullable`, `firstpos`, `lastpos`, `followpos`.
+6. **Tối thiểu hóa Song song Moore & Hopcroft $O(p \cdot |Q| \log |Q|)$**: [`lexer_engine/dfa_minimizer.py`](file:///home/antigravity/Vipwar/nnht_nhom-6_T13/lexer_engine/dfa_minimizer.py) — hàm `minimize_dfa()` (Moore xuất vết $\Pi_0 \to \Pi_k$) và `minimize_dfa_hopcroft()` (Hopcroft dùng đồ thị ngược `inv_delta` và hàng đợi `W` luôn đẩy khối nhỏ hơn).
+7. **Kiểm chứng Tương đương 6-Chiều & Chứng minh Tối giản Tuyệt đối Myhill–Nerode**: [`lexer_engine/verifier.py`](file:///home/antigravity/Vipwar/nnht_nhom-6_T13/lexer_engine/verifier.py) — hàm `check_dfa_equivalence()`, `verify_dfa_is_minimal()` (sinh chuỗi phân biệt ngắn nhất $w$ cho mọi cặp trạng thái) và `compare_regex_equivalence()`.
+8. **Bộ quét Maximal Munch Tuyến tính $O(n)$ (Reps, 1998) & Phục hồi lỗi Kép**: [`lexer_engine/scanner.py`](file:///home/antigravity/Vipwar/nnht_nhom-6_T13/lexer_engine/scanner.py) — tập `failed_states` ghi nhớ các cặp `(state, cursor)` thất bại để cắt nhánh $O(1)$; hỗ trợ `error_recovery="panic_char"` và `"smart_sync"`.
+9. **Xuất & Đọc ngược Khứ hồi JFLAP 7.x (`.jff`)**: [`lexer_engine/jflap_export.py`](file:///home/antigravity/Vipwar/nnht_nhom-6_T13/lexer_engine/jflap_export.py) — hàm `export_dfa_to_jflap()` và `import_jflap_to_dfa()`.
 
 ---
 
-## PHẦN 3: 20 CÂU HỎI BẢO VỆ CÁ NHÂN (Q&A) THƯỜNG GẶP NHẤT
+## PHẦN 3: 32 CÂU HỎI PHẢN BIỆN CHUYÊN SÂU & ĐÁP ÁN MẪU (CHỐNG MỌI CÂU HỎI XOÁY)
 
-### Nhóm A — Kiến thức lý thuyết Automata & Ngôn ngữ hình thức
-1. **Tại sao phân tích từ vựng lại dùng Ngôn ngữ chính quy / Finite Automata mà không dùng CFG / PDA?**
-   > Vì cấu trúc từ vựng (từ khóa, định danh, hằng số, toán tử) không đòi hỏi lồng ngoặc đệ quy không giới hạn (như $a^n b^n$). Ngôn ngữ chính quy đủ mạnh để mô tả mọi quy tắc từ vựng, và DFA quét đầu vào trong thời gian tuyến tính $O(|w|)$ với bộ nhớ hằng số $O(1)$ (mỗi ký tự chỉ tra bảng 1 lần).
-2. **Mối liên hệ giữa RE, ε-NFA và DFA là gì?**
-   > Theo Định lý Kleene, ba mô hình có sức mạnh biểu diễn tương đương (cùng mô tả lớp Ngôn ngữ chính quy). RE dễ cho con người viết đặc tả token; ε-NFA dễ xây dựng máy móc từ RE bằng cấu trúc Thompson; DFA loại bỏ tính không đơn định để thực thi cực nhanh $O(1)$ mỗi bước chuyển khi quét mã nguồn.
-3. **Tại sao khi hợp nhất nhiều token lại có thể xảy ra xung đột ở trạng thái kết thúc của DFA? Nhóm giải quyết ra sao?**
-   > Ví dụ chuỗi `"if"` vừa khớp `KW_IF` (`if`) vừa khớp `IDENTIFIER` (`[a-zA-Z_][a-zA-Z0-9_]*`). Khi chạy Subset Construction, tập con NFA của trạng thái nhận `"if"` chứa đồng thời trạng thái kết thúc của cả hai NFA con. Ta giải quyết bằng **Quy tắc ưu tiên (Rule Priority)**: chọn quy tắc xuất hiện trước (priority nhỏ hơn), tức là `KW_IF` thắng `IDENTIFIER`.
-4. **Điểm khác biệt quan trọng nhất giữa tối thiểu hóa DFA đơn ngôn ngữ (trong bài giảng) và tối thiểu hóa Multi-token DFA của Lexical Analyzer là gì?**
-   > Trong DFA đơn ngôn ngữ, phân hoạch khởi đầu chỉ có 2 nhóm $\Pi_0 = \{Q \setminus F, F\}$. Nhưng trong Lexical Analyzer, hai trạng thái kết thúc nhận hai loại token khác nhau (VD: `KW_IF` và `IDENTIFIER`) **không tương đương về đầu ra** nên tuyệt đối không được gộp chung. Vì vậy ta khởi tạo $\Pi_0 = \{Q \setminus F\} \cup \{F_{T_1}, F_{T_2}, \dots, F_{T_m}\}$, mỗi loại token một nhóm riêng (mở rộng Định lý Myhill–Nerode cho máy đầu ra Moore).
-5. **Tại sao trước khi tối thiểu hóa DFA ta cần bổ sung trạng thái chết ảo `DEAD` (làm đầy đủ hàm chuyển)?**
-   > Vì nếu bỏ qua các chuyển tiếp không xác định, hai trạng thái $s, t$ cùng nhóm nhưng $s$ có chuyển tiếp trên ký tự `a` sang trạng thái khác trong khi $t$ không có chuyển tiếp trên `a` (đi vào `DEAD`) phải bị tách riêng. Bổ sung trạng thái chết ảo `DEAD` làm hàm chuyển toàn phần giúp phép so sánh chữ ký phân hoạch chính xác 100%, sau đó ở bước cuối ta loại bỏ khối `DEAD` đi (đúng Bước 5 Giải thuật 3.6).
-6. **Chứng minh tính tương đương trước và sau tối thiểu hóa hoạt động như thế nào?**
-   > Dùng **Product Automaton** $A \times B$: duyệt BFS các cặp trạng thái đạt tới được từ $(q_{0,A}, q_{0,B})$ trên các lớp ký tự chung. Nếu tồn tại bất kỳ cặp $(q_A, q_B)$ nào mà nhãn token chấp nhận của $A$ khác $B$, BFS lập tức truy ngược ra **chuỗi phản ví dụ ngắn nhất**. Nếu duyệt hết không có sai khác → chứng minh toán học $A$ và $B$ cho đầu ra giống hệt nhau trên **vô hạn chuỗi** $w \in \Sigma^*$ (mạnh hơn kiểm thử bằng mẫu hữu hạn!).
+### Nhóm A — Nền tảng Lý thuyết Chương 1, 2, 3 & Mô hình Toán học
 
-### Nhóm B — Thuật toán cài đặt & Xử lý biên
-7. **Maximal Munch (Longest Match) là gì? Cho ví dụ cụ thể cần quay lui (backtracking)?**
-   > Maximal Munch luôn chọn tiền tố dài nhất có thể tạo thành một token hợp lệ. Ví dụ:
-   > - `ifx` → đọc `i`, `f` (chấp nhận `KW_IF`), nhưng vẫn đọc tiếp `x` (chấp nhận `IDENTIFIER`) → xuất `IDENTIFIER("ifx")`.
-   > - **Trường hợp phải quay lui**: `1.5e` trong `MiniLang`! DFA đọc `1` (`INT`), `.` (trung gian), `5` (`FLOAT`, lưu `last_accept = 3`), đọc tiếp `e` (trung gian vì mong chờ số mũ như `1.5e-2`), gặp hết chuỗi/khoảng trắng → DEAD! Lúc đó scanner phải **quay lui 1 ký tự** về `last_accept = 3`, xuất `FLOAT("1.5")`, rồi vòng lặp mới quét `e` thành `IDENTIFIER("e")`.
-8. **Nếu người dùng định nghĩa một quy tắc token có thể khớp chuỗi rỗng $\varepsilon$ (như `a*`), điều gì xảy ra?**
-   > Nếu bộ quét chấp nhận độ dài lexeme = 0, con trỏ `pos` sẽ không tăng và bộ quét rơi vào **vòng lặp vô hạn**! Chương trình xử lý bằng 2 lớp bảo vệ: (1) dùng `ast.is_nullable()` phát hiện & cảnh báo ngay lúc biên dịch; (2) điều kiện xuất token trong `scanner.py` bắt buộc `last_accept[0] > pos` (độ dài ≥ 1), nếu không sẽ kích hoạt báo lỗi và tiến 1 ký tự.
-9. **Alphabet Partitioning (Lớp tương đương ký tự) là gì và tại sao nó không làm sai kết quả?**
-   > Trong bảng chữ cái 98 ký tự ASCII, nhiều ký tự có hành vi giống hệt nhau trên mọi quy tắc (VD: các chữ số `'0'..'9'` đều thuộc `[0-9]` và không xuất hiện lẻ trong từ khóa nào). Ta phân hoạch $\Sigma$ thành các tập con rời nhau nhỏ nhất (min-terms) sao cho mọi ký tự trong cùng một lớp có tập chuyển tiếp NFA giống hệt nhau. Nhờ vậy MiniLang giảm từ 98 cột xuống 43 cột, biên dịch nhanh dưới 10 ms mà **chính xác toán học 100%**.
-10. **So sánh phương pháp Thompson → Subset Construction và Direct RE → DFA (`r#`, `followpos`)?**
-    > - Thompson → Subset dễ mở rộng cho **nhiều token cùng lúc** (chỉ cần thêm `q0` với ε-cạnh nối tất cả NFA con) và cấu trúc đơn giản.
-    > - Direct RE → DFA bỏ qua bước NFA trung gian và thường tạo ra DFA có số trạng thái gần tối giản ngay (VD: với `(a|ba)(a|b)*ba`, Subset tạo 7 trạng thái còn Direct tạo ngay 5 trạng thái tối giản!). Tuy nhiên với đa-token cần nhiều ký hiệu kết thúc `#_1, #_2, ..., #_k`.
-11. **Độ phức tạp thời gian & không gian của từng giai đoạn?**
-    > - Parse RE + Thompson NFA: $O(|R|)$ thời gian và $O(|R|)$ trạng thái (mỗi toán tử thêm tối đa 2 trạng thái).
-    > - Subset Construction: Trường hợp xấu nhất $O(2^{|Q_N|} \cdot |\mathcal{E}|)$ (bùng nổ lũy thừa lý thuyết), nhưng với đặc tả token thực tế chỉ tuyến tính $O(|Q_D| \cdot |\mathcal{E}|)$ (MiniLang: 153 NFA → 81 DFA!).
-    > - Tối thiểu hóa (Partition Refinement): $O(|Q_D|^2 \cdot |\mathcal{E}|)$ (với số trạng thái vài chục–vài trăm chạy < 4 ms).
-    > - Quét văn bản độ dài $n$: Trường hợp thông thường $O(n)$ (mỗi ký tự tra bảng `dict` $O(1)$); trường hợp xấu nhất khi phải quay lui liên tục (như `"aaaa...` chưa đóng lặp lại) có thể lên $O(n^2)$ nếu dùng panic-mode 1 ký tự — đây cũng là hạn chế nhóm đã phân tích rõ!
-12. **Tại sao trong `scanner.py` khi gặp chuỗi chưa đóng `"chuoi chua dong;` lại sinh thêm các token `chuoi`, `chua`, `dong` sau lỗi?**
-    > Vì hiện tại nhóm cài đặt phục hồi lỗi **Panic-mode đơn giản (tiến 1 ký tự)** khi gặp lỗi từ vựng tại dấu `"`. Sau khi bỏ qua `"`, phần còn lại `chuoi chua dong;` hợp lệ như các `IDENTIFIER`. Hướng cải tiến (như Flex/GCC): thêm quy tắc bắt lỗi chuyên biệt `UNTERMINATED_STRING = "[^"\n]*` đặt ở mức ưu tiên thấp hơn `STRING_LIT` để nuốt trọn cả chuỗi lỗi và báo 1 thông báo gọn gàng duy nhất!
-13. **Trong Regex của nhóm, phép hợp dùng ký hiệu `|` thay vì `+` như trên slide lý thuyết, vì sao?**
-    > Trong lý thuyết thuần túy (Slide 23), `r + s` là phép hợp, nhưng trong đặc tả từ vựng thực tế (POSIX/Flex) ký hiệu `+` là **bao đóng dương** ($r^+ = r r^*$, rất hay dùng như `[0-9]+`) và `|` là phép hợp (tuyển). Chương trình hỗ trợ chuẩn thực tế (`|`, `*`, `+`, `?`, `[a-z]`, `[^...]`, `\escape`, `ε`) và đã giải thích rõ quy ước ký hiệu trong báo cáo.
-14. **Làm sao chứng minh chương trình KHÔNG gian lận bằng cách gọi thư viện `re` của Python?**
-    > Có thể kiểm tra trực tiếp thư mục `lexer_engine/` (không một file nào `import re`), thậm chí có hẳn test tự động `test_zero_re_in_engine()` trong `tests/test_suite.py` quét mã nguồn mọi file trong `lexer_engine/` để khẳng định! Thư viện `re` chỉ được dùng duy nhất làm **đối chứng độc lập (oracle)** trong file kiểm thử `tests/test_suite.py`.
-15. **JFLAP đóng vai trò gì trong dự án này?**
-    > Đúng yêu cầu đề bài: nhóm tự cài đặt 100% thuật toán cốt lõi, còn JFLAP dùng làm công cụ **đối chứng độc lập**. Nhóm còn viết luôn module `jflap_export.py` để xuất thẳng NFA/DFA ra file `.jff` mở trực tiếp trên JFLAP 7.x kiểm tra chéo!
-16. **Thứ tự các quy tắc trong Token Spec có quan trọng không? Điều gì xảy ra nếu đặt `IDENTIFIER` lên trên `KW_IF`?**
-    > Cực kỳ quan trọng! Nếu đặt `IDENTIFIER` có ưu tiên cao hơn `KW_IF`, thì trạng thái DFA nhận chuỗi `"if"` sẽ chọn `IDENTIFIER` thay vì `KW_IF`, khiến mọi từ khóa bị nuốt thành định danh (trạng thái `KW_IF` thậm chí bị che khuất hoàn toàn — *shadowed rule*). Ta có thể minh họa trực tiếp ngay trên **Tab 4 (Live RE Editor)** bằng cách bấm mũi tên đổi thứ tự!
-17. **Phép nối kết trong Thompson của nhóm gộp trạng thái kết thúc của $N(r)$ với trạng thái đầu của $N(s)$ (không thêm cạnh ε nối), liệu có bao giờ sinh ra ngôn ngữ sai không?**
-    > Không bao giờ! Nhờ bất biến cấu trúc Thompson: mọi mảnh NFA con do `build_node()` sinh ra đều có **bậc vào của `start` bằng 0** và **bậc ra của `accept` bằng 0** (kể cả `StarNode` và `PlusNode`, vì vòng lặp quay về `c_s` nằm bên trong, còn `s` và `e` mới tạo ở ngoài). Do đó việc gộp `l_e` với `r_s` không thể tạo bất kỳ đường đi thừa nào.
-18. **Tại sao `MiniSQL` tối thiểu hóa giảm tới 18.8% trạng thái trong khi `MiniLang` chỉ giảm 7.4%?**
-    > Vì `MiniSQL` cho phép từ khóa cả chữ hoa lẫn chữ thường (`SELECT|select`, `WHERE|where`, `FROM|from`...), tạo ra hai nhánh song song dài trong Subset DFA (`S-E-L-E-C-T` và `s-e-l-e-c-t`). Tuy nhiên sau các tiền tố khác nhau, các phần đuôi hoặc các trạng thái chỉ còn nối tiếp thành `IDENT` có hành vi tương lai giống hệt nhau nên thuật toán phân hoạch gộp lại được nhiều hơn đáng kể!
-19. **Nếu đầu vào có ký tự tiếng Việt có dấu (như `ă`, `đ`) hoặc `€` thì bộ quét xử lý thế nào?**
-    > Do bảng chữ cái $\Sigma$ được giới hạn trong 98 ký tự ASCII (32..126 + `\t\n\r`), ký tự ngoài $\Sigma$ không thuộc lớp tương đương nào (`_char_to_class.get(ch)` trả về `None`), nên `dfa.step()` trả `None` (DEAD) ngay tại `D0` và scanner báo `LEXICAL_ERROR` kèm mã Unicode (VD: `U+20AC`) rồi phục hồi quét tiếp.
-20. **Hướng mở rộng tiếp theo của đồ án nếu có thêm thời gian là gì?**
-    > (1) Hỗ trợ bình luận nhiều dòng `/* ... */` bằng chính biểu thức chính quy hoặc chế độ Start Conditions (nhiều trạng thái ngữ cảnh như Flex); (2) Hỗ trợ UTF-8/Unicode bằng bảng phân hoạch theo khoảng mã điểm (range-based DFA transitions); (3) Thêm quy tắc bắt lỗi chuỗi chưa đóng riêng để phục hồi thông minh hơn; (4) Kết nối luồng token đầu ra vào một bộ phân tích cú pháp LL(1) / Recursive-Descent Parser hoàn chỉnh!
+**Câu 1. Tại sao bộ phân tích từ vựng lại dùng Otomat hữu hạn (DFA/NFA) và Biểu thức chính quy mà không dùng Văn phạm phi ngữ cảnh (CFG) hay Otomat đẩy xuống (PDA)?**
+> **Trả lời:** Vì hầu hết các cấu trúc từ vựng của ngôn ngữ lập trình (từ khóa, định danh, số nguyên, số thực, chuỗi ký tự, bình luận không lồng nhau) không có cấu trúc đệ quy tự lồng sâu tùy ý nên đều thuộc lớp **Ngôn ngữ chính quy (Regular Languages)**. Theo Định lý Kleene, mọi ngôn ngữ chính quy đều nhận diện được bằng một DFA trong thời gian tuyến tính chặt $O(n)$ với chi phí bộ nhớ $O(1)$ (mỗi ký tự chỉ tra bảng chuyển trạng thái 1 lần), nhanh hơn và đơn giản hơn rất nhiều so với các thuật toán phân tích CFG như CYK $O(n^3)$ hay Earley/LR.
+
+**Câu 2. Trong bài giảng Chương 3.1 của cô có 4 định lý chuyển đổi giữa FA và RE. Nhóm đã cài đặt những định lý nào?**
+> **Trả lời:** Nhóm đã cài đặt trọn vẹn toàn bộ chuỗi chuyển đổi trong Chương 3.1:
+> - **Định lý 3 (Slide 24–30):** Chuyển Biểu thức chính quy sang $\varepsilon$-NFA bằng cấu trúc Thompson (`thompson.py`).
+> - **Định lý 2 (Slide 21–22):** Khử chuyển tiếp $\varepsilon$ để chuyển $\varepsilon$-NFA sang NFA không có $\varepsilon$-chuyển tiếp (`eliminate_epsilon` trong `thompson.py`) theo công thức $\delta'(p, a) = \varepsilon\text{-closure}(\text{Move}(\varepsilon\text{-closure}(\{p\}), a))$.
+> - **Định lý 1 (Slide 18):** Đơn định hóa Tập con chuyển NFA/$\varepsilon$-NFA sang Subset DFA (`subset_construction.py`).
+> - **Mục 2.5 (Slide 43–57):** Phương pháp trực tiếp chuyển RE sang Direct DFA qua cây cú pháp gia tố $r\cdot \#$ và bảng `followpos` (`direct_dfa.py`).
+> - **Giải thuật 3.6 (Slide 58):** Tối thiểu hóa DFA bằng cả hai thuật toán Moore Partition Refinement và Hopcroft (`dfa_minimizer.py`).
+
+**Câu 3. Làm thế nào hệ thống của nhóm quét được chuỗi tiếng Việt UTF-8 như `"Xin chào UEH"` và bình luận tiếng Việt mà bảng chữ cái $\Sigma$ của DFA vẫn hữu hạn nhỏ gọn (99 ký hiệu), đồng thời vẫn báo lỗi chính xác khi gặp `let x = 100€;`?**
+> **Trả lời:** Đây là thiết kế phân hoạch lớp tương đương Unicode trong `models.py`:
+> - Mọi quy tắc cú pháp cốt lõi của ngôn ngữ lập trình (từ khóa, tên biến ASCII, số, toán tử, dấu ngoặc kép `"`, dấu thoát `\`, dấu xuống dòng `\n`) đều chỉ phụ thuộc vào **98 ký tự ASCII** (`0x20..0x7E` cùng `\t, \n, \r`).
+> - Mọi ký tự Unicode có điểm mã `ord(c) >= 128` (như chữ tiếng Việt có dấu `à, ế, ộ` hoặc ký hiệu `€`) có hành vi chuyển trạng thái hoàn toàn giống nhau đối với bộ phân tích từ vựng: chúng **chỉ được phép xuất hiện** bên trong các lớp ký tự phủ định như `[^"\\\n]` (ruột chuỗi) hoặc `[^\n]` / `[^*]` (ruột bình luận), và **bị cấm** ở bên ngoài.
+> - Do đó, nhóm gom toàn bộ các điểm mã `ord(c) >= 128` thành một ký hiệu đại diện lớp tương đương duy nhất `NON_ASCII` (`\x80`). Nhờ vậy $|\Sigma| = 98 + 1 = 99$ hoàn toàn hữu hạn, chuỗi `"Xin chào UEH"` đi qua cung `NON_ASCII` hợp lệ, còn ký tự `€` nằm ngoài chuỗi không có cung `NON_ASCII` từ trạng thái khởi đầu `D0` nên rơi vào `DEAD` và báo lỗi `LEXICAL_ERROR` kèm mã thực `U+20AC`!
+
+**Câu 4. Tại sao khi tối thiểu hóa Multi-token DFA cho bộ phân tích từ vựng, ta không được khởi tạo $\Pi_0 = \{Q \setminus F, F\}$ như trong bài toán DFA đơn lẻ?**
+> **Trả lời:** Trong DFA nhận diện một ngôn ngữ đơn lẻ $L$, hàm đầu ra ở mỗi trạng thái chỉ là nhị phân ($\text{Accept}$ hoặc $\text{Reject}$), nên mọi trạng thái kết thúc $q \in F$ đều tương đương nhau ở bước 0. Ngược lại, bộ phân tích từ vựng là một **Otomat hữu hạn có nhãn đầu ra kiểu Moore** $\tau: F \to \{T_1, T_2, \dots, T_k\}$: trạng thái kết thúc của `KW_IF` phát ra token `KW_IF`, còn trạng thái kết thúc của `INT_LIT` phát ra token `INT_LIT`. Nếu gộp chung tất cả $F$ vào một khối trong $\Pi_0$, thuật toán tối thiểu hóa sẽ gộp nhầm các trạng thái kết thúc của các loại token khác nhau làm mất khả năng phân loại token! Do đó, phân hoạch ban đầu bắt buộc phải tách riêng từng loại token:
+> $$\Pi_0 = \{ Q \setminus F \} \cup \{ F_{T_1}, F_{T_2}, \dots, F_{T_m} \}$$
+
+**Câu 5. Giải thích sự khác biệt giữa thuật toán tối thiểu hóa Moore và thuật toán Hopcroft mà nhóm cài đặt trong `dfa_minimizer.py`?**
+> **Trả lời:**
+> - **Thuật toán Moore (Partition Refinement — Giải thuật 3.6):** Ở mỗi vòng lặp $k$, duyệt qua toàn bộ các khối trong phân hoạch $\Pi_k$ và tính vector chữ ký chuyển tiếp $(\text{block}(\delta(q, E_1)), \dots, \text{block}(\delta(q, E_p)))$ cho mọi trạng thái $q$ để tách khối cho tới khi $\Pi_{k+1} = \Pi_k$. Độ phức tạp thời gian trường hợp xấu nhất là $O(p \cdot |Q|^2)$. Ưu điểm lớn nhất là xuất được bảng vết $\Pi_0 \to \Pi_1 \to \dots \to \Pi_k$ rất trực quan cho sinh viên theo dõi.
+> - **Thuật toán Hopcroft (1971):** Thay vì quét lại toàn bộ các khối ở mỗi vòng, Hopcroft dựng đồ thị chuyển tiếp ngược $\delta^{-1}(A, c)$ và duy trì một hàng đợi phân tách (worklist) $W$. Mỗi bước lấy một cặp $(A, c)$ từ $W$, tìm tập tiền ảnh $X = \delta^{-1}(A, c)$, và chỉ kiểm tra các khối $Y$ có giao với $X$. Nếu $Y$ bị $X$ cắt thành hai phần khác rỗng $Y_1 = Y \cap X$ và $Y_2 = Y \setminus X$: nếu $Y$ đang ở trong $W$ thì thay $Y$ bằng cả $Y_1, Y_2$; ngược lại **chỉ đẩy khối nhỏ hơn** ($\min(|Y_1|, |Y_2|)$) vào $W$. Vì mỗi trạng thái chỉ có thể rơi vào "nửa nhỏ hơn" tối đa $\log_2 |Q|$ lần, tổng độ phức tạp đạt cận tối ưu $O(p \cdot |Q| \log |Q|)$.
+> - Hệ thống của nhóm chạy song song cả hai thuật toán và dùng Product Automaton chứng minh `Moore Min-DFA ≡ Hopcroft Min-DFA` (cùng đúng 78 trạng thái trên `MiniLang`, 20 trên `CalcLang`, 52 trên `MiniSQL`).
+
+**Câu 6. Làm thế nào nhóm chứng minh toán học rằng DFA sau khi tối thiểu hóa đã thực sự tối giản tuyệt đối (không thể gộp thêm bất kỳ 2 trạng thái nào nữa)?**
+> **Trả lời:** Nhóm cài đặt hàm `verify_dfa_is_minimal(dfa)` trong `verifier.py` dựa trực tiếp trên **Định lý Myhill–Nerode**: hai trạng thái $p \neq q$ là phân biệt được (distinguishable) khi và chỉ khi tồn tại một chuỗi hậu tố phân biệt (witness string) $w \in \Sigma^*$ sao cho $\tau(\hat{\delta}(p, w)) \neq \tau(\hat{\delta}(q, w))$.
+> Thuật toán đánh dấu các cặp cơ sở $(p, q)$ có $\tau(p) \neq \tau(q)$ với chuỗi phân biệt $w = \varepsilon$, sau đó lan truyền ngược qua các cung chuyển tiếp để tìm chuỗi phân biệt ngắn nhất $w$ cho mọi cặp còn lại. Kết quả thực nghiệm:
+> - Trên `(a|b)*abb` (4 trạng thái `M0..M3`): cả $\binom{4}{2} = 6/6$ cặp đều có chuỗi phân biệt (`(M0,M1): "bb"`, `(M0,M2): "b"`, `(M0,M3): ""`, `(M1,M2): "b"`, `(M1,M3): ""`, `(M2,M3): ""`).
+> - Trên `MiniLang` (78 trạng thái): toàn bộ $\binom{78}{2} = 3.003 / 3.003$ cặp trạng thái đều có chuỗi phân biệt (100%).
+> - Trên `CalcLang` (20 trạng thái): toàn bộ $\binom{20}{2} = 190 / 190$ cặp (100%).
+> - Trên `MiniSQL` (52 trạng thái): toàn bộ $\binom{52}{2} = 1.326 / 1.326$ cặp (100%).
+
+**Câu 7. Tại sao cần thêm trạng thái chết ảo `DEAD = -1` trước khi chạy tối thiểu hóa Moore/Hopcroft rồi lại xóa `DEAD` ở bước cuối?**
+> **Trả lời:** Vì DFA sinh ra từ Subset Construction hoặc Direct DFA thường có hàm chuyển tiếp không đầy đủ (sparse transitions — những cung đi vào tập rỗng $\varnothing$ bị lược bỏ). Nếu không thêm trạng thái `DEAD = -1`, một trạng thái $p$ không có cung trên ký tự $a$ (tức đi vào $\varnothing \notin F$) và trạng thái $q$ có cung trên ký tự $a$ đi tới một trạng thái không kết thúc $r \notin F$ nhưng $r$ lại đi tiếp được tới trạng thái kết thúc qua ký tự $b$ sẽ bị xử lý sai khi tính tiền ảnh ngược $\delta^{-1}$ trong Hopcroft. Việc bổ sung `DEAD` làm hàm chuyển thành **hàm toàn phần (total function)** giúp thuật toán phân hoạch chính xác tuyệt đối, sau đó Bước 5 loại bỏ khối chứa `DEAD` để đồ thị DFA gọn sạch.
+
+**Câu 8. Giải thích cách nhóm mở rộng phương pháp Trực tiếp (`Direct RE → DFA`) từ một biểu thức đơn lẻ sang bài toán Đa-Token (`build_combined_direct_dfa`)?**
+> **Trả lời:** Trong bài giảng Chương 3.1 Mục 2.5, một biểu thức đơn $R$ được nối với một dấu kết thúc duy nhất: $R \cdot \#$. Để mở rộng cho $k$ quy tắc token $\{(T_1, R_1, p_1), \dots, (T_k, R_k, p_k)\}$, nhóm xây dựng một cây cú pháp kết hợp duy nhất:
+> $$R_{\text{comb}} = (R_1 \cdot \#_1) \mid (R_2 \cdot \#_2) \mid \dots \mid (R_k \cdot \#_k)$$
+> Trong đó mỗi nút lá đặc biệt $\#_r$ được cấp một mã vị trí lá riêng $i_r$ và lưu thông tin `AcceptInfo(T_r, p_r, skip_r)`. Các hàm `nullable`, `firstpos`, `lastpos` và `followpos` vẫn tính theo đúng công thức chuẩn. Khi dựng các trạng thái DFA từ tập vị trí $S \subseteq \{1, \dots, n\}$:
+> - Chỉ các vị trí lá $i \in S$ mang ký hiệu thật $c \in \Sigma$ mới sinh cung chuyển tiếp $\delta(S, c) = \bigcup_{i \in S, \text{sym}(i)=c} \text{followpos}(i)$.
+> - Nếu $S$ chứa một hoặc nhiều vị trí kết thúc $\#_r$, trạng thái $S$ trở thành trạng thái kết thúc và nhận nhãn của token có độ ưu tiên cao nhất: $\tau(S) = \arg\min_{\#_r \in S} p_r$.
+
+---
+
+### Nhóm B — Thuật toán Cài đặt, Trường hợp Biên & Độ phức tạp
+
+**Câu 9. Định lượng đếm `{m}`, `{m,}`, `{m,n}` được nhóm xử lý như thế nào mà không cần thay đổi cấu trúc Thompson hay `followpos`?**
+> **Trả lời:** Nhóm áp dụng phép khai triển đại số ngay tại tầng cây cú pháp trừu tượng (AST) trong `regex_parser.py` (hàm `_apply_counted_quantifier`):
+> - $R\{m\} \equiv \underbrace{R \cdot R \cdots R}_{m \text{ lần}}$ (nếu $m = 0$ thì trả về `EpsilonNode()`).
+> - $R\{m,\} \equiv \underbrace{R \cdot R \cdots R}_{m \text{ lần}} \cdot R^*$.
+> - $R\{m,n\} \equiv \underbrace{R \cdot R \cdots R}_{m \text{ lần}} \cdot \underbrace{(R?) \cdot (R?) \cdots (R?)}_{n-m \text{ lần}}$.
+> Mỗi bản sao của cây con $R$ được nhân bản sâu (`_clone_ast`) để các nút lá trong Direct DFA có chỉ số vị trí độc lập. Đồng thời parser kiểm tra chặt điều kiện $0 \le m \le n \le 64$ (`MAX_QUANTIFIER_BOUND = 64`), nếu $m > n$ (như `a{5,2}`) hoặc vượt ngưỡng (`a{100}`) sẽ ném `RegexSyntaxError` rõ ràng.
+
+**Câu 10. Làm thế nào bộ phân tích cú pháp RE xử lý các trường hợp biên hiểm hóc của lớp ký tự như `[-a]`, `[a-]`, `[-]`, `[^-]`, `[^^]`, `[\[\]\\]`?**
+> **Trả lời:** Trong hàm `_parse_char_class()` của `regex_parser.py`:
+> - Ngay sau dấu `[` (và sau dấu phủ định `^` nếu có), dấu `-` đứng ở **đầu lớp ký tự** (như `[-a]`, `[-]`, `[^-]`) hoặc đứng ở **cuối lớp ký tự** ngay trước `]` (như `[a-]`) không có đủ 2 đầu mút nên được nhận diện là **ký tự gạch ngang literal `'-'`** chứ không phải toán tử khoảng!
+> - Khi dấu `-` nằm giữa hai ký tự $c_1 - c_2$: chương trình kiểm tra $\text{ord}(c_1) \le \text{ord}(c_2)$; nếu $\text{ord}(c_1) > \text{ord}(c_2)$ (như `[z-a]`) lập tức báo `RegexSyntaxError("Khoảng ký tự ngược")`.
+> - Với `[^^]`, dấu `^` thứ nhất bật cờ phủ định `negated = True`, còn dấu `^` thứ hai nằm ở vị trí phần tử nên là ký tự literal `'^'`, kết quả là tập $\Sigma \setminus \{\text{'\^'}\}$.
+> - Với lớp rỗng `[]`, `[^]` hoặc lớp phủ định loại trừ toàn bộ ASCII, hệ thống đều bắt lỗi `RegexSyntaxError`.
+
+**Câu 11. Quy tắc bị che khuất (Shadowed / Dead Token Rule) là gì? Hệ thống phát hiện tự động bằng thuật toán nào?**
+> **Trả lời:** Một quy tắc token $(T_i, R_i, p_i)$ bị gọi là **che khuất hoàn toàn (shadowed)** nếu mọi chuỗi $w \in L(R_i)$ cũng đồng thời thuộc hợp các ngôn ngữ của các quy tắc có độ ưu tiên cao hơn đứng trước nó:
+> $$L(R_i) \subseteq \bigcup_{j < i} L(R_j)$$
+> Ví dụ điển hình: nếu người dùng đặt `IDENTIFIER` (`[a-zA-Z_][a-zA-Z0-9_]*`, ưu tiên 1) lên trước `KW_IF` (`if`, ưu tiên 2), thì tại trạng thái DFA nhận chuỗi `"if"`, hàm giải quyết xung đột $\arg\min \text{priority}$ luôn chọn `IDENTIFIER`.
+> Nhờ tính chất đầy đủ của Minimized DFA $D_{\min}$, điều kiện $L(R_i) \subseteq \bigcup_{j < i} L(R_j)$ tương đương chính xác với việc **không tồn tại bất kỳ trạng thái kết thúc có thể đạt tới nào $q \in F_{\min}$ mang nhãn chiến thắng $\tau_{\min}(q) = T_i$**! Hệ thống kiểm tra điều kiện này ngay trong `LexicalAnalyzer.compile()`, tìm luôn quy tắc đứng trước đã đè lên $T_i$ (tại các trạng thái xung đột `all_matched_tokens`) và phát cảnh báo chi tiết trên cả CLI lẫn Web UI Tab 2 & Tab 4!
+
+**Câu 12. Tại sao bộ quét Maximal Munch thông thường có thể bị tấn công suy biến thành thời gian bậc hai $O(n^2)$, và kỹ thuật `failed_states` (Reps, 1998) trong `scanner.py` giải quyết triệt để vấn đề này như thế nào?**
+> **Trả lời:**
+> - **Nguyên nhân gây $O(n^2)$ ở bộ quét thông thường:** Xét quy tắc chuỗi hoặc bình luận nhiều dòng, hoặc mẫu bệnh lý như đầu vào gồm 1 dấu `"` theo sau là 5.000 cặp `\"` nhưng thiếu dấu `"` đóng ở cuối (`"` + `\"` * 5000, dài 10.001 ký tự). Tại vị trí 0, DFA đọc từ đầu đến tận ký tự 10.001 mới phát hiện không có dấu `"` đóng, nên quay lui về điểm chấp nhận gần nhất (hoặc báo lỗi tại vị trí 0 rồi tiến lên vị trí 1, 2...). Ở mỗi lần thử sau, bộ quét thông thường lại đọc đi đọc lại cùng một hậu tố dài đến cuối chuỗi nhưng cuối cùng vẫn thất bại, dẫn tới $\sum_{i=1}^n (n - i) = \Theta(n^2)$ bước chuyển trạng thái!
+> - **Giải pháp Memoization của Reps (1998) trong `scanner.py`:** Nhóm duy trì tập `failed_states: Set[Tuple[str, int]]`. Trong một lượt dò Maximal Munch từ vị trí `pos`, giả sử DFA đi qua dãy cấu hình $(q_1, i_1), (q_2, i_2), \dots, (q_m, i_m)$ và vị trí kết thúc hợp lệ cuối cùng là `last_accept_pos`. Khi đó, mọi cấu hình $(q_r, i_r)$ nằm **sau** `last_accept_pos` ($i_r > \text{last\_accept\_pos}$) đều đã được chứng minh chắc chắn rằng: *"Nếu xuất phát từ trạng thái $q_r$ tại chỉ số văn bản $i_r$, DFA không bao giờ đi tới được bất kỳ trạng thái kết thúc nào trước khi gặp DEAD/EOF"*.
+> - Do tính chất đơn định của DFA, kết quả từ $(q_r, i_r)$ chỉ phụ thuộc vào $q_r$ và hậu tố `source[i_r:]`, hoàn toàn không phụ thuộc vào đường đi trước đó! Vì vậy ta đưa tất cả $(q_r, i_r)$ với $i_r > \text{last\_accept\_pos}$ vào `failed_states`. Ở các lượt quét tiếp theo, hễ gặp `(curr_state, scan_pos) in failed_states`, bộ quét cắt nhánh `break` ngay trong $O(1)$!
+> - **Độ phức tạp chặt:** Vì chỉ có $|Q|$ trạng thái và $n$ vị trí văn bản, mỗi cặp $(q, i)$ bị đánh dấu thất bại tối đa 1 lần $\implies$ tổng số bước chuyển thất bại trên toàn bộ quá trình quét toàn file không vượt quá $|Q| \cdot n = O(n)$! Thực nghiệm trên chuỗi 10.001 ký tự `"` + `\"`*5000: hệ thống cắt nhánh đúng 5.000 lần (`memoized_cutoffs = 5000`) và quét xong trong **~24 ms**!
+
+**Câu 13. So sánh hai chế độ phục hồi lỗi `panic_char` và `smart_sync` mà nhóm cài đặt trong `scanner.py`?**
+> **Trả lời:**
+> - **`panic_char` (Panic-mode cổ điển theo từng ký tự):** Khi không khớp được token nào tại `pos`, bộ quét ghi nhận lỗi cho ký tự `source[pos]` và dịch con trỏ `pos += 1`. Chế độ này rất chuẩn xác khi gặp các ký tự lạ rời rạc (như `let a = 5$ + @b;` $\to$ bắt đúng lỗi `$`, `@` và giữ nguyên `5`, `+`, `b`). Tuy nhiên, nếu gặp **chuỗi chưa đóng** như `"Chuỗi quên đóng\nlet x = 1;`, việc chỉ bỏ qua dấu `"` ở đầu khiến phần văn bản bên trong `Chuỗi quên đóng` bị quét tiếp thành các `IDENTIFIER` và lỗi lẻ tẻ.
+> - **`smart_sync` (Phục hồi đồng bộ theo ngữ cảnh chuỗi / bình luận):** Khi thất bại tại dấu mở chuỗi `"` hoặc dấu mở bình luận nhiều dòng `/*`, bộ quét nhận diện đây là cấu trúc chuỗi/bình luận chưa đóng (`_is_unclosed_block_comment` / unclosed string) nên tự động gom toàn bộ chuỗi chưa đóng cho tới dấu xuống dòng `\n` (hoặc gom toàn bộ bình luận `/*...` chưa đóng tới `EOF`) thành **đúng 1 `LexicalError` duy nhất**, giúp dòng lệnh `let x = 1;` phía sau được quét sạch sẽ 100% không có bất kỳ token rác nào!
+> - Hệ thống cho phép người dùng bật/tắt cả 2 chế độ ngay trên giao diện Web Tab 1 để đối sánh trực quan.
+
+**Câu 14. Giải thích biểu thức chính quy nhận diện bình luận nhiều dòng `/* ... */` trong `MiniLang`: tại sao không viết đơn giản là `/\*.*\*/` mà phải viết `/\*([^*]|\*+[^*/])*\*+/`?**
+> **Trả lời:** Nếu viết `/\*.*\*/`, vì bộ quét áp dụng nguyên lý **Maximal Munch (khớp dài nhất)** và dấu `.` khớp cả dấu `*` lẫn `/`, nên khi gặp đoạn mã có hai bình luận trên cùng một dòng như:
+> `/* comment 1 */ let x = 10; /* comment 2 */`
+> biểu thức `/\*.*\*/` sẽ nuốt trọn từ `/*` đầu tiên đến tận `*/` cuối cùng, ăn mất luôn câu lệnh `let x = 10;` ở giữa!
+> Ngược lại, biểu thức chính tắc chuẩn C/Flex:
+> `/\*([^*]|\*+[^*/])*\*+/`
+> quy định chặt chẽ phần ruột bên trong: sau `/*`, hoặc là ký tự không phải `*` (`[^*]`), hoặc là một chuỗi một hay nhiều dấu `*` nhưng ký tự ngay sau chuỗi `*` đó **không được là `*` và không được là `/`** (`\*+[^*/]`), và kết thúc bằng một hoặc nhiều dấu `*` liền trước dấu `/` (`\*+/`). Nhờ vậy DFA dừng chính xác ngay tại cặp `*/` đóng đầu tiên và xử lý đúng mọi trường hợp hiểm như `/**/`, `/*** a * b ***/`, `/* a */ let x = 1; /* b */`!
+
+**Câu 15. Tại sao bình luận nhiều dòng không lồng nhau `/* ... */` thì nhận diện được bằng DFA, nhưng bình luận nhiều dòng LỒNG NHAU `/* ... /* ... */ ... */` lại không thể nhận diện bằng bất kỳ DFA nào? Hãy chứng minh bằng Bổ đề Bơm (Pumping Lemma Chương 3.2)!**
+> **Trả lời:**
+> - Giả sử phản chứng rằng ngôn ngữ $L_{\text{nested}}$ gồm các bình luận lồng nhau cân bằng `/* ... /* ... */ ... */` là ngôn ngữ chính quy.
+> - Vì lớp ngôn ngữ chính quy đóng với phép đồng cấu nghịch đảo (hoặc xét tập con giao với $(/\*)^* (\*/)^*$), nếu đặt $a = \text{"/*"}$ và $b = \text{"*/"}$, thì ngôn ngữ $L = \{ a^n b^n \mid n \ge 1 \}$ cũng phải là ngôn ngữ chính quy.
+> - Áp dụng **Bổ đề Bơm (Pumping Lemma — Chương 3.2)** cho $L$: Gọi $p \ge 1$ là hằng số bơm (tương ứng số trạng thái $|Q|$ của DFA). Chọn chuỗi $w = a^p b^p \in L$ có $|w| = 2p \ge p$.
+> - Theo Bổ đề Bơm, mọi cách phân tách $w = xyz$ thỏa mãn $|xy| \le p$ và $|y| \ge 1$ đều buộc chuỗi con $y$ chỉ nằm trong đoạn $a^p$ đầu tiên, tức $y = a^k$ với $1 \le k \le p$.
+> - Khi bơm lên với $i = 2$ (hoặc $i = 0$), ta thu được chuỗi $xy^2z = a^{p+k} b^p$. Vì $k \ge 1$ nên số dấu mở $p + k \neq p$ (số dấu đóng), suy ra $xy^2z \notin L$ — **mâu thuẫn với Bổ đề Bơm**!
+> - Vậy ngôn ngữ bình luận lồng nhau sâu tùy ý không phải là ngôn ngữ chính quy mà thuộc lớp **Ngôn ngữ phi ngữ cảnh (CFL — Chương 4)** và cần Otomat đẩy xuống (PDA) hoặc bộ đếm độ sâu lồng nhau.
+
+---
+
+### Nhóm C — Kiểm chứng Bất biến, JFLAP Round-Trip & Chi tiết Thực nghiệm
+
+**Câu 16. Năm bất biến toán học (Mathematical Invariants) mà nhóm kiểm chứng tự động trong `tests/test_suite.py` là gì?**
+> **Trả lời:**
+> 1. **Invariant 1 (Zero-Loss Source Reconstruction):** Với mọi chuỗi đầu vào $S$ bất kỳ (kể cả chứa lỗi liên tiếp, tiếng Việt UTF-8, CRLF), nếu lấy tất cả các token giữ lại + các token bị skip (khoảng trắng, comment) + các mảnh lỗi `LexicalError` sắp xếp theo `start_pos`, chúng tạo thành một phân hoạch rời nhau phủ kín $[0, |S|)$ và ghép lại bằng đúng $S$ 100% không mất và không trùng dù chỉ 1 byte!
+> 2. **Invariant 2 (6-Way Automaton Equivalence):** Với mọi biểu thức chính quy hợp lệ, cả 6 mô hình (`Thompson ε-NFA`, `NFA Khử ε`, `Subset DFA`, `Moore Min-DFA`, `Hopcroft Min-DFA`, `Direct DFA`) đều chấp nhận/từ chối cùng một tập ngôn ngữ trên hàng trăm chuỗi Fuzz và trên Product Automaton BFS (0 phản ví dụ).
+> 3. **Invariant 3 (Myhill–Nerode Absolute Minimality):** Với mọi DFA tối giản sinh ra, 100% các cặp trạng thái phân biệt $(p, q)$ đều tồn tại chuỗi phân biệt ngắn nhất $w$.
+> 4. **Invariant 4 (Reps 1998 Linear-Time Bound):** Mọi đầu vào bệnh lý dài 10.000 ký tự (`"aaaa...`, `/*xxxx...`, `"\"\"...`) đều quét hoàn tất dưới 200 ms (thực tế chỉ 3–24 ms).
+> 5. **Invariant 5 (AST Zero-`import re` Guard):** Duyệt cây cú pháp Python (`ast.parse`) của toàn bộ các file trong `lexer_engine/`, `app.py`, `cli.py` xác nhận tuyệt đối không có bất kỳ lệnh `import re` hay `from re import ...` nào.
+
+**Câu 17. Kiểm chứng Khứ hồi JFLAP (Round-Trip Verification) trong `jflap_export.py` hoạt động như thế nào?**
+> **Trả lời:** Không chỉ xuất một chiều từ NFA/DFA sang file XML `.jff` chuẩn JFLAP 7.x (`export_nfa_to_jflap`, `export_dfa_to_jflap`), nhóm còn viết bộ đọc ngược (`import_jflap_to_nfa`, `import_jflap_to_dfa`) bằng `xml.etree.ElementTree` để tái tạo lại đối tượng `NFA` / `DFA` từ chính chuỗi XML `.jff` vừa xuất ra, sau đó dùng Product Automaton (`check_dfa_equivalence`) chứng minh DFA đọc ngược từ `.jff` tương đương 100% với DFA gốc trên tất cả các ngôn ngữ `MiniLang`, `CalcLang`, `MiniSQL`!
+
+**Câu 18. Giải thích từng con số trên ví dụ `(a|b)*abb` (Slide 38 Chương 3.1): tại sao Thompson có 11 trạng thái, Khử $\varepsilon$ còn 6 trạng thái, Subset DFA có 5 trạng thái, và Min-DFA có 4 trạng thái?**
+> **Trả lời:**
+> - **Thompson $\varepsilon$-NFA (11 trạng thái `q0..q10`):** Nhánh `a` là `q2 -> q3` (2 TT); nhánh `b` là `q4 -> q5` (2 TT); phép hợp `a|b` thêm đầu `q1` và cuối `q6` (2 TT $\to$ tổng 6 TT); bao đóng Kleene `(a|b)*` thêm đầu `q0` và cuối `q7` (2 TT $\to$ tổng 8 TT); nối tiếp `.a`, `.b`, `.b` gộp đỉnh đầu nên chỉ thêm 3 trạng thái `q8`, `q9`, `q10` $\to$ tổng đúng $8 + 3 = 11$ trạng thái!
+> - **NFA Khử $\varepsilon$ theo Định lý 2 (6 trạng thái):** Sau khi tính $\varepsilon$-closure và dựng cung trực tiếp $\delta'(p, c)$, chỉ còn 6 trạng thái có cung đi tới (trạng thái đầu `q0` cùng các trạng thái sau khi đọc `a` hoặc `b`).
+> - **Subset DFA (5 trạng thái `D0..D4`):** `D0 = {0,1,2,4,7}`, `D1 = {1,2,3,4,6,7,8}` (đọc `a`), `D2 = {1,2,4,5,6,7}` (đọc `b`), `D3 = {1,2,4,5,6,7,9}` (đọc `ab`), `D4 = {1,2,4,5,6,7,10}` (đọc `abb` — kết thúc).
+> - **Moore & Hopcroft Min-DFA (4 trạng thái `M0..M3`):** Hai trạng thái `D0` và `D2` đều không kết thúc và đều chuyển tới `D1` qua `a`, chuyển tới `D2` qua `b`, nên chúng tương đương Myhill–Nerode (`D0 ≡ D2`) và được gộp thành `M0`, giảm từ 5 xuống 4 trạng thái tối giản!
+
+**Câu 19. Giải thích từng con số trên ví dụ `(a|ba)(a|b)*ba` (Slide 48–56 Chương 3.1): tại sao có 8 lá và bảng `followpos` tính ra sao?**
+> **Trả lời:** Gia tố hóa thành `(a|ba)(a|b)*ba#`, đánh số 8 nút lá từ trái sang phải:
+> - Tiền tố `(a|ba)`: lá `1:a`, lá `2:b`, lá `3:a`. Vì `lastpos(a|ba) = {1, 3}` nối với `(a|b)*ba#` có `firstpos = {4, 5, 6}`, nên `followpos(1) = followpos(3) = {4, 5, 6}`, còn `2:b` nối với `3:a` nên `followpos(2) = {3}`.
+> - Vòng lặp `(a|b)*`: lá `4:a`, lá `5:b`. Do nút sao `*` nối `lastpos = {4, 5}` quay lại `firstpos = {4, 5}` và nối tiếp sang `6:b`, nên `followpos(4) = followpos(5) = {4, 5, 6}`.
+> - Hậu tố `ba#`: lá `6:b` nối với `7:a` $\implies$ `followpos(6) = {7}`; lá `7:a` nối với `8:#` $\implies$ `followpos(7) = {8}`; và `followpos(8) = ∅`.
+> - Từ `firstpos(root) = {1, 2}` (trạng thái `A`), dựng trực tiếp ra đúng 5 trạng thái: `A={1,2}`, `B={3}` (hoặc `{4,5,6}` tùy thứ tự duyệt `a`/`b`), `{3}`, `{4,5,6,7}`, `{4,5,6,8}` (chứa `#8` là trạng thái kết thúc).
+
+**Câu 20. Tại sao trên `MiniLang` (39 token), `Combined Direct DFA` sinh ra 79 trạng thái trong khi `Minimized DFA` có 78 trạng thái (chênh nhau 1 trạng thái), còn trên `CalcLang` (20) và `MiniSQL` (52) thì `Combined Direct DFA` bằng đúng `Minimized DFA`?**
+> **Trả lời:** Phương pháp Direct RE → DFA (`followpos`) luôn tạo ra một DFA nhỏ gọn hơn rất nhiều so với Subset Construction (79 trạng thái so với 86 trạng thái của Subset DFA trên `MiniLang`), nhưng về mặt lý thuyết (Berry & Sethi, 1986; Dragon Book Mục 3.9.5), Direct DFA **không phải lúc nào cũng tối giản tuyệt đối**, bởi hai tập vị trí lá khác nhau $S_1 \neq S_2$ trong cây cú pháp vẫn có thể có cùng hành vi chuyển tiếp tương lai (trong `MiniLang`, biểu thức `BLOCK_COMMENT` `/\*([^*]|\*+[^*/])*\*+/` có hai tập vị trí lá sau khi đọc dấu `*` mang hành vi tương đương nhau). Khi đưa `Combined Direct DFA` (79 trạng thái) qua thuật toán Moore hoặc Hopcroft, cặp trạng thái tương đương đó được gộp lại thành đúng **78 trạng thái** bằng y hệt nhánh Thompson+Subset!
+
+**Câu 21. Nếu một biểu thức chính quy có thể khớp chuỗi rỗng $\varepsilon$ (nullable, ví dụ `a*` hoặc `(a|ε)*`), bộ quét xử lý thế nào để không bao giờ bị treo trong vòng lặp vô hạn?**
+> **Trả lời:** Hệ thống có 2 chốt chặn an toàn:
+> 1. Lúc biên dịch (`LexicalAnalyzer.compile`), hàm `ast.is_nullable()` phát hiện mọi quy tắc có $\varepsilon \in L(R_i)$ và ghi vào danh sách `warnings`.
+> 2. Lúc quét (`scanner.py`), điều kiện phát token bắt buộc `last_accept_pos > pos` (tức độ dài lexeme phải $\ge 1$). Nếu tại vị trí `pos`, DFA chỉ chấp nhận chuỗi rỗng độ dài 0 và không tiến thêm được ký tự nào, bộ quét coi đó là không khớp được token tiến triển và chuyển sang bước phục hồi lỗi (dịch `pos += 1`), đảm bảo con trỏ `pos` **luôn tăng nghiêm ngặt** sau mỗi bước lặp!
+
+**Câu 22. Bộ quét xử lý các chuẩn xuống dòng khác nhau (`\n` của Linux/macOS, `\r\n` của Windows CRLF, `\r` của Mac cổ) như thế nào để tọa độ `(line, col)` luôn chính xác?**
+> **Trả lời:** Trong hàm `_advance_position(text, start, end, line, col)` của `scanner.py`:
+> - Khi gặp `\n`: nếu ký tự ngay trước đó là `\r` (tức cặp `\r\n` của Windows CRLF mà `\r` vừa được xử lý ở bước trước), hàm chỉ đặt lại `col = 1` chứ **không cộng dòng lần thứ hai**; ngược lại (Unix `\n`) thì tăng `line += 1, col = 1`.
+> - Khi gặp `\r`: tăng `line += 1, col = 1`.
+> - Nhờ vậy cả `\n`, `\r\n` và `\r` (kể cả nằm bên trong bình luận nhiều dòng `/* dòng 1\r\ndòng 2 */`) đều tính tọa độ `(line, col)` của các token phía sau chính xác tuyệt đối (được kiểm chứng tự động trong `test_mixed_newlines_crlf_line_col_tracking`).
+
+**Câu 23. Trong `MiniLang`, chuỗi `"1.5e"` và `"1.5e+2"` và `"1.5e+"` được quét khác nhau như thế nào?**
+> **Trả lời:** Quy tắc `FLOAT_LIT` có RE là `[0-9]+\.[0-9]+([eE][+-]?[0-9]+)?`:
+> - Với `"1.5e+2"`: DFA đọc hết 6 ký tự vào trạng thái kết thúc của `FLOAT_LIT` $\to$ xuất 1 token `FLOAT_LIT("1.5e+2")`.
+> - Với `"1.5e"`: DFA đọc `1.5` (vào trạng thái kết thúc `FLOAT_LIT`, lưu `last_accept_pos = 3`), đọc tiếp `e` (vào trạng thái trung gian chờ chữ số mũ), rồi gặp EOF/khoảng trắng (DEAD). Bộ quét **quay lui 1 ký tự** về vị trí 3 để xuất `FLOAT_LIT("1.5")`, sau đó quét tiếp `e` thành `IDENTIFIER("e")`.
+> - Với `"1.5e+"`: DFA đọc `1.5` (lưu `last_accept_pos = 3`), đọc tiếp `e` và `+` (trạng thái trung gian chờ chữ số mũ), gặp EOF/khoảng trắng (DEAD) $\to$ **quay lui 2 ký tự** về vị trí 3 để xuất `FLOAT_LIT("1.5")`, sau đó quét tiếp `e` thành `IDENTIFIER("e")` và `+` thành `OP_PLUS("+")`!
+
+**Câu 24. Với chuỗi `"123abc"`, nhiều bạn nghĩ bộ phân tích từ vựng phải báo lỗi "tên biến bắt đầu bằng số". Tại sao bộ quét DFA chuẩn lại tách thành `INT_LIT("123")` và `IDENTIFIER("abc")`?**
+> **Trả lời:** Trong kiến trúc trình biên dịch chuẩn (C, Java, Python, Dragon Book Chương 3), ở tầng **Phân tích từ vựng (Lexical Analysis)**, quy tắc Maximal Munch đọc từ đầu chuỗi `"123abc"`: tiền tố dài nhất khớp một quy tắc hợp lệ là `"123"` (`INT_LIT`), tiếp theo là `"abc"` (`IDENTIFIER`). Việc hai token `INT_LIT` và `IDENTIFIER` đứng cạnh nhau không có toán tử ở giữa là một **Lỗi cú pháp (Syntax Error)** sẽ bị bắt ngay lập tức ở pha kế tiếp là **Bộ phân tích cú pháp (Parser - Chương 4)**! (Nếu muốn bắt ngay ở tầng từ vựng, người thiết kế ngôn ngữ có thể thêm một quy tắc bẫy lỗi `INVALID_ID = [0-9]+[a-zA-Z_]+` ngay trên `INT_LIT` trong Tab 4 Live Editor).
+
+**Câu 25. Với chuỗi `"0.0.0"`, bộ quét DFA của nhóm tách thành những token nào?**
+> **Trả lời:** Khi quét `"0.0.0"`:
+> 1. Từ đầu chuỗi, DFA khớp tiền tố dài nhất `"0.0"` thành `FLOAT_LIT("0.0")`.
+> 2. Phần còn lại là `".0"`: trong `MiniLang`, dấu `.` đứng một mình không bắt đầu bất kỳ token hợp lệ nào, nên tại dấu `.` thứ hai, bộ quét báo `LEXICAL_ERROR(".")`, tiến 1 ký tự và quét nốt `"0"` thành `INT_LIT("0")`!
+
+**Câu 26. Tại sao trong `Thompson's Construction` của nhóm (`thompson.py`), phép nối kết `ConcatNode(left, right)` lại gộp trực tiếp đỉnh kết thúc của `left` với đỉnh bắt đầu của `right` thay vì thêm một cung $\varepsilon$ nối giữa chúng?**
+> **Trả lời:** Trong bài báo gốc của Thompson (1968) và giáo trình Dragon Book (Hình 3.41 trang 160), mọi mảnh $\varepsilon$-NFA con $N(s)$ được xây dựng quy nạp luôn thỏa mãn 2 bất biến cấu trúc:
+> 1. Trạng thái khởi đầu không có bất kỳ cung nào đi vào ($\text{in-degree}(q_{\text{start}}) = 0$).
+> 2. Trạng thái kết thúc không có bất kỳ cung nào đi ra ($\text{out-degree}(q_{\text{accept}}) = 0$).
+> Nhờ hai bất biến này, khi nối $N(r)$ với $N(s)$, việc đồng nhất (gộp) đỉnh kết thúc của $N(r)$ với đỉnh khởi đầu của $N(s)$ không bao giờ tạo ra chu trình ngược hay đường đi tắt sai lệch, đồng thời tiết kiệm được 1 trạng thái và 1 cung $\varepsilon$ cho mỗi phép nối. Quan trọng hơn cả, chính cách gộp đỉnh này trong phép nối giúp biểu thức `(a|b)*abb` sinh ra **đúng 11 trạng thái (`q0..q10`)** khớp 100% với Slide 38 Chương 3.1 của cô!
+
+**Câu 27. Làm sao thuật toán `compare_regex_equivalence(R1, R2)` trên Tab 3 biết được hai biểu thức chính quy bất kỳ có tương đương nhau hay không ($L(R_1) = L(R_2)$)?**
+> **Trả lời:** Bài toán kiểm tra tương đương hai biểu thức chính quy $L(R_1) \stackrel{?}{=} L(R_2)$ là bài toán quyết định được (decidable) đối với ngôn ngữ chính quy:
+> 1. Biên dịch $R_1 \to \text{Min-DFA } D_1$ và $R_2 \to \text{Min-DFA } D_2$.
+> 2. Chạy BFS trên **Otomat tích (Product Automaton)** $D_1 \times D_2$ xuất phát từ cặp trạng thái đầu $(q_{0,1}, q_{0,2})$ trên bảng chữ cái phân hoạch chung.
+> 3. Nếu gặp bất kỳ cặp trạng thái $(q_1, q_2)$ nào mà một bên thuộc $F$ còn bên kia không thuộc $F$ (tức $(q_1 \in F_1) \neq (q_2 \in F_2)$), thuật toán dừng ngay và truy vết ngược cây BFS để trả về **chuỗi phản ví dụ ngắn nhất** $w \in L(R_1) \triangle L(R_2)$!
+> 4. Nếu BFS duyệt hết mọi cặp trạng thái đạt tới được mà không có mâu thuẫn, thuật toán kết luận $L(R_1) = L(R_2)$ trên toàn bộ $\Sigma^*$.
+
+**Câu 28. Tại sao số trạng thái Subset DFA thực tế của `MiniLang` (86 trạng thái), `CalcLang` (24 trạng thái), `MiniSQL` (64 trạng thái) lại NHỎ HƠN cả số trạng thái của Thompson $\varepsilon$-NFA (170, 57, 128), trong khi lý thuyết nói Subset Construction có thể bùng nổ lên $2^{|Q_N|}$ trạng thái?**
+> **Trả lời:** Cận trên $2^{|Q_N|}$ chỉ xảy ra với các biểu thức chính quy bệnh lý có tính nhập nhằng vị trí sâu như $(a \mid b)^* a (a \mid b)^{k-1}$ (cần nhớ đủ $k$ bit lịch sử gần nhất nên DFA cần $2^k$ trạng thái). Ngược lại, các quy tắc từ vựng của ngôn ngữ lập trình thực tế có cấu trúc dạng **cây tiền tố (trie-like)** và phân tách rõ theo các lớp ký tự rời nhau (chữ cái, chữ số, toán tử, dấu ngoặc kép). Khi chạy $\varepsilon$-closure và `Move`, phần lớn các trạng thái $\varepsilon$ trung gian của Thompson được gom chung vào một vài tập con hoạt động, khiến số tập con đạt tới được từ $D_0$ chỉ tăng tuyến tính và thậm chí nhỏ hơn số đỉnh $\varepsilon$-NFA ban đầu!
+
+**Câu 29. Nếu cô nhập một biểu thức bệnh lý như `(a|b)*a(a|b){15}` vào hệ thống để thử làm treo máy bằng bùng nổ trạng thái $2^{16} = 65.536$, hệ thống xử lý ra sao?**
+> **Trả lời:** Nhóm đã thiết kế hai tầng bảo vệ chống từ chối dịch vụ (DoS):
+> 1. Ở tầng `regex_parser.py`: giới hạn `MAX_QUANTIFIER_BOUND = 64` cho định lượng `{m,n}`.
+> 2. Ở tầng `subset_construction.py`: tham số bảo vệ `max_states = 5000` sẽ chủ động ngắt an toàn và thông báo rõ ràng nếu số tập con DFA vượt quá 5.000 trạng thái, không bao giờ làm treo tiến trình máy chủ.
+
+**Câu 30. Làm thế nào nhóm kiểm chứng được rằng trong toàn bộ lõi `lexer_engine/`, `app.py` và `cli.py` hoàn toàn không có bất kỳ chỗ nào lén dùng `import re`?**
+> **Trả lời:** Trong `tests/test_suite.py`, phương thức `test_zero_re_in_engine()` sử dụng trực tiếp module `ast` của Python để phân tích cây cú pháp (`ast.parse`) của tất cả các file `.py` trong `lexer_engine/`, `app.py` và `cli.py`, kiểm tra mọi nút `ast.Import` và `ast.ImportFrom` để khẳng định 100% không tồn tại lệnh import `re` (kể cả `importlib.import_module("re")` hay `__import__("re")`).
+
+**Câu 31. Tại sao trong `MiniSQL`, tỷ lệ giảm trạng thái khi tối thiểu hóa DFA đạt tới `-18.75%` (từ 64 xuống 52 trạng thái), cao hơn hẳn `MiniLang` (`-9.3%`, từ 86 xuống 78 trạng thái)?**
+> **Trả lời:**
+> - Trong `MiniSQL`, mỗi từ khóa được viết ở dạng hỗ trợ cả chữ HOA và chữ thường như `SELECT|select`, `FROM|from`, `WHERE|where`, `INSERT|insert`... Khi chạy Subset Construction, hai nhánh chữ HOA (`S-E-L-E-C-T`) và chữ thường (`s-e-l-e-c-t`) đi qua các tập trạng thái NFA khác nhau nên sinh ra các trạng thái Subset DFA riêng biệt. Tuy nhiên, khi đi vào các vị trí hậu tố cuối hoặc rẽ nhánh sang `IDENT`, hành vi chuyển tiếp tương lai của nhánh HOA và nhánh thường là **đồng nhất 100%**, nên thuật toán Moore & Hopcroft gộp được tới 12/64 trạng thái (`-18.75%`).
+> - Trong khi đó, `MiniLang` có tới 39 loại token phân biệt (nhiều toán tử và dấu câu 1–2 ký tự), nên ngay từ phân hoạch khởi đầu $\Pi_0$ các trạng thái kết thúc đã thuộc về các lớp token khác nhau và chỉ gộp được 8/86 trạng thái dư thừa (`-9.3%`).
+
+**Câu 32. Nếu muốn nâng cấp đồ án này thành một trình biên dịch hoàn chỉnh cho `MiniLang` trong học phần tiếp theo, các bước kết nối cụ thể với kiến thức Chương 4 (CFG) và Chương 5 (PDA) của môn Ngôn ngữ hình thức là gì?**
+> **Trả lời:**
+> 1. **Đầu ra của Đề tài T13 (Chương 2 & 3 — FA/RE):** Phương thức `LexicalAnalyzer.scan(source)` trả về dãy token $T_1 T_2 \dots T_m$ (đã loại bỏ `WHITESPACE`, `COMMENT`, `BLOCK_COMMENT`), trong đó mỗi `Token.token_name` chính là một **ký hiệu kết thúc (terminal symbol)** của Văn phạm phi ngữ cảnh $G = (V, \Sigma_{\text{tok}}, R, S)$ ở Chương 4.
+> 2. **Tầng Phân tích cú pháp (Chương 4 & 5 — CFG/PDA):** Xây dựng văn phạm phi ngữ cảnh $G$ cho các câu lệnh của `MiniLang` (`stmt -> if_stmt | while_stmt | let_stmt | block`, `expr -> term ((+|-) term)*`...) và cài đặt Otomat đẩy xuống đơn định (Deterministic PDA) dưới dạng bộ phân tích `LL(1)` (Predictive Recursive-Descent) hoặc `LR(1)` để dựng Cây cú pháp trừu tượng (AST) của chương trình và kiểm tra lỗi cú pháp dựa trên tọa độ `(line, col)` mà `Token` đã lưu sẵn!

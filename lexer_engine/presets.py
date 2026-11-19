@@ -12,49 +12,50 @@ from .models import TokenSpec
 
 MINILANG_SPECS: List[TokenSpec] = [
     TokenSpec("COMMENT", r"//[^\n]*", 1, True, "comment", "Bình luận một dòng (bỏ qua)"),
-    TokenSpec("WHITESPACE", r"[ \t\n\r]+", 2, True, "whitespace", "Khoảng trắng, tab, xuống dòng (bỏ qua)"),
+    TokenSpec("BLOCK_COMMENT", r"/\*([^*]|\*+[^*/])*\*+/", 2, True, "comment", "Bình luận nhiều dòng /* ... */ (bỏ qua)"),
+    TokenSpec("WHITESPACE", r"[ \t\n\r]+", 3, True, "whitespace", "Khoảng trắng, tab, xuống dòng (bỏ qua)"),
     # Keywords (priority higher than IDENTIFIER so exact keyword wins on conflict)
-    TokenSpec("KW_IF", r"if", 3, False, "keyword", "Từ khóa rẽ nhánh if"),
-    TokenSpec("KW_ELSE", r"else", 4, False, "keyword", "Từ khóa rẽ nhánh else"),
-    TokenSpec("KW_WHILE", r"while", 5, False, "keyword", "Từ khóa vòng lặp while"),
-    TokenSpec("KW_FOR", r"for", 6, False, "keyword", "Từ khóa vòng lặp for"),
-    TokenSpec("KW_LET", r"let", 7, False, "keyword", "Từ khóa khai báo biến let"),
-    TokenSpec("KW_FUNC", r"func", 8, False, "keyword", "Từ khóa khai báo hàm func"),
-    TokenSpec("KW_RETURN", r"return", 9, False, "keyword", "Từ khóa trả về return"),
-    TokenSpec("KW_PRINT", r"print", 10, False, "keyword", "Từ khóa xuất print"),
-    TokenSpec("BOOL_LIT", r"true|false", 11, False, "literal", "Hằng logic true / false"),
+    TokenSpec("KW_IF", r"if", 4, False, "keyword", "Từ khóa rẽ nhánh if"),
+    TokenSpec("KW_ELSE", r"else", 5, False, "keyword", "Từ khóa rẽ nhánh else"),
+    TokenSpec("KW_WHILE", r"while", 6, False, "keyword", "Từ khóa vòng lặp while"),
+    TokenSpec("KW_FOR", r"for", 7, False, "keyword", "Từ khóa vòng lặp for"),
+    TokenSpec("KW_LET", r"let", 8, False, "keyword", "Từ khóa khai báo biến let"),
+    TokenSpec("KW_FUNC", r"func", 9, False, "keyword", "Từ khóa khai báo hàm func"),
+    TokenSpec("KW_RETURN", r"return", 10, False, "keyword", "Từ khóa trả về return"),
+    TokenSpec("KW_PRINT", r"print", 11, False, "keyword", "Từ khóa xuất print"),
+    TokenSpec("BOOL_LIT", r"true|false", 12, False, "literal", "Hằng logic true / false"),
     # Literals
-    TokenSpec("FLOAT_LIT", r"[0-9]+\.[0-9]+([eE][+-]?[0-9]+)?", 12, False, "literal", "Số thực (hỗ trợ dạng khoa học)"),
-    TokenSpec("INT_LIT", r"[0-9]+", 13, False, "literal", "Số nguyên không dấu"),
-    TokenSpec("STRING_LIT", r'"([^"\\\n]|\\.)*"', 14, False, "literal", "Chuỗi ký tự (hỗ trợ ký tự escape)"),
+    TokenSpec("FLOAT_LIT", r"[0-9]+\.[0-9]+([eE][+-]?[0-9]+)?", 13, False, "literal", "Số thực (hỗ trợ dạng khoa học)"),
+    TokenSpec("INT_LIT", r"[0-9]+", 14, False, "literal", "Số nguyên không dấu"),
+    TokenSpec("STRING_LIT", r'"([^"\\\n]|\\.)*"', 15, False, "literal", "Chuỗi ký tự (hỗ trợ ký tự escape & UTF-8)"),
     # Identifier
-    TokenSpec("IDENTIFIER", r"[a-zA-Z_][a-zA-Z0-9_]*", 15, False, "identifier", "Định danh biến / tên hàm"),
+    TokenSpec("IDENTIFIER", r"[a-zA-Z_][a-zA-Z0-9_]*", 16, False, "identifier", "Định danh biến / tên hàm"),
     # Multi-character operators
-    TokenSpec("OP_EQ", r"==", 16, False, "operator", "So sánh bằng"),
-    TokenSpec("OP_NEQ", r"!=", 17, False, "operator", "So sánh khác"),
-    TokenSpec("OP_LE", r"<=", 18, False, "operator", "Nhỏ hơn hoặc bằng"),
-    TokenSpec("OP_GE", r">=", 19, False, "operator", "Lớn hơn hoặc bằng"),
-    TokenSpec("OP_AND", r"&&", 20, False, "operator", "Phép hội logic AND"),
-    TokenSpec("OP_OR", r"\|\|", 21, False, "operator", "Phép tuyển logic OR"),
+    TokenSpec("OP_EQ", r"==", 17, False, "operator", "So sánh bằng"),
+    TokenSpec("OP_NEQ", r"!=", 18, False, "operator", "So sánh khác"),
+    TokenSpec("OP_LE", r"<=", 19, False, "operator", "Nhỏ hơn hoặc bằng"),
+    TokenSpec("OP_GE", r">=", 20, False, "operator", "Lớn hơn hoặc bằng"),
+    TokenSpec("OP_AND", r"&&", 21, False, "operator", "Phép hội logic AND"),
+    TokenSpec("OP_OR", r"\|\|", 22, False, "operator", "Phép tuyển logic OR"),
     # Single-character operators
-    TokenSpec("OP_ASSIGN", r"=", 22, False, "operator", "Phép gán"),
-    TokenSpec("OP_LT", r"<", 23, False, "operator", "Nhỏ hơn"),
-    TokenSpec("OP_GT", r">", 24, False, "operator", "Lớn hơn"),
-    TokenSpec("OP_NOT", r"!", 25, False, "operator", "Phủ định logic NOT"),
-    TokenSpec("OP_PLUS", r"\+", 26, False, "operator", "Cộng"),
-    TokenSpec("OP_MINUS", r"-", 27, False, "operator", "Trừ"),
-    TokenSpec("OP_MUL", r"\*", 28, False, "operator", "Nhân"),
-    TokenSpec("OP_DIV", r"/", 29, False, "operator", "Chia"),
-    TokenSpec("OP_MOD", r"%", 30, False, "operator", "Chia lấy dư"),
+    TokenSpec("OP_ASSIGN", r"=", 23, False, "operator", "Phép gán"),
+    TokenSpec("OP_LT", r"<", 24, False, "operator", "Nhỏ hơn"),
+    TokenSpec("OP_GT", r">", 25, False, "operator", "Lớn hơn"),
+    TokenSpec("OP_NOT", r"!", 26, False, "operator", "Phủ định logic NOT"),
+    TokenSpec("OP_PLUS", r"\+", 27, False, "operator", "Cộng"),
+    TokenSpec("OP_MINUS", r"-", 28, False, "operator", "Trừ"),
+    TokenSpec("OP_MUL", r"\*", 29, False, "operator", "Nhân"),
+    TokenSpec("OP_DIV", r"/", 30, False, "operator", "Chia"),
+    TokenSpec("OP_MOD", r"%", 31, False, "operator", "Chia lấy dư"),
     # Delimiters
-    TokenSpec("LPAREN", r"\(", 31, False, "delimiter", "Mở ngoặc tròn"),
-    TokenSpec("RPAREN", r"\)", 32, False, "delimiter", "Đóng ngoặc tròn"),
-    TokenSpec("LBRACE", r"\{", 33, False, "delimiter", "Mở ngoặc nhọn"),
-    TokenSpec("RBRACE", r"\}", 34, False, "delimiter", "Đóng ngoặc nhọn"),
-    TokenSpec("LBRACKET", r"\[", 35, False, "delimiter", "Mở ngoặc vuông"),
-    TokenSpec("RBRACKET", r"\]", 36, False, "delimiter", "Đóng ngoặc vuông"),
-    TokenSpec("SEMICOLON", r";", 37, False, "delimiter", "Chấm phẩy kết thúc lệnh"),
-    TokenSpec("COMMA", r",", 38, False, "delimiter", "Dấu phẩy phân tách"),
+    TokenSpec("LPAREN", r"\(", 32, False, "delimiter", "Mở ngoặc tròn"),
+    TokenSpec("RPAREN", r"\)", 33, False, "delimiter", "Đóng ngoặc tròn"),
+    TokenSpec("LBRACE", r"\{", 34, False, "delimiter", "Mở ngoặc nhọn"),
+    TokenSpec("RBRACE", r"\}", 35, False, "delimiter", "Đóng ngoặc nhọn"),
+    TokenSpec("LBRACKET", r"\[", 36, False, "delimiter", "Mở ngoặc vuông"),
+    TokenSpec("RBRACKET", r"\]", 37, False, "delimiter", "Đóng ngoặc vuông"),
+    TokenSpec("SEMICOLON", r";", 38, False, "delimiter", "Chấm phẩy kết thúc lệnh"),
+    TokenSpec("COMMA", r",", 39, False, "delimiter", "Dấu phẩy phân tách"),
 ]
 
 
@@ -95,10 +96,10 @@ MINISQL_SPECS: List[TokenSpec] = [
 PRESETS: Dict[str, Dict] = {
     "minilang": {
         "id": "minilang",
-        "name": "MiniLang (Ngôn ngữ lệnh đầy đủ — 38 token)",
+        "name": "MiniLang (Ngôn ngữ lệnh đầy đủ — 39 token)",
         "description": (
-            "Ngôn ngữ lập trình lệnh rút gọn gồm bình luận, từ khóa điều khiển, số nguyên/thực khoa học, "
-            "chuỗi có escape, định danh, toán tử 1–2 ký tự và dấu phân cách."
+            "Ngôn ngữ lập trình lệnh rút gọn gồm bình luận đơn/nhiều dòng, từ khóa điều khiển, số nguyên/thực khoa học, "
+            "chuỗi có escape & UTF-8, định danh, toán tử 1–2 ký tự và dấu phân cách."
         ),
         "specs": MINILANG_SPECS,
         "samples": {
@@ -132,14 +133,14 @@ PRESETS: Dict[str, Dict] = {
                     "// 3. So thuc + quay lui Maximal Munch: 1.5e quay lui 1 ky tu -> FLOAT(1.5) + ID(e)\n"
                     "let pi = 3.14e+2 / 100;\n"
                     "let bt = 1.5e + 2;\n"
-                    "// 4. Chuoi rong va chuoi chua dau ngoac kep escape\n"
-                    'let empty = "";\n'
-                    'let quote = "a \\"b\\" c";\n'
+                    "// 4. Chuoi UTF-8, escape & Binh luan nhieu dong /* ... */\n"
+                    'let greeting = "Xin chào UEH \\"OK\\"";\n'
+                    "/* Binh luan nhieu dong /*** sao ***/ */\n"
                     "// 5. Binh luan cuoi file khong co ky tu xuong dong"
                 ),
             },
             "errors": {
-                "title": "Lỗi từ vựng & Phục hồi (Panic-mode Recovery)",
+                "title": "Lỗi từ vựng & Phục hồi (Panic-mode / Smart Sync)",
                 "code": (
                     "let price = 100$ + @tax;\n"
                     'let broken = "chuoi chua dong;\n'
@@ -228,6 +229,12 @@ SINGLE_REGEX_EXAMPLES: List[Dict] = [
         "sample_inputs": ["3.14", "0.5e-2", "1.0E+10", "3.", ".5", "42"],
     },
     {
+        "name": "Token BLOCK_COMMENT",
+        "pattern": r"/\*([^*]|\*+[^*/])*\*+/",
+        "note": "Biểu thức chính quy nhận dạng bình luận nhiều dòng /* ... */ kiểu C/Java.",
+        "sample_inputs": ["/**/", "/*** a * b ***/", "/* hi */", "/* unclosed", "/* a */ x"],
+    },
+    {
         "name": "Token IDENTIFIER",
         "pattern": r"[a-zA-Z_][a-zA-Z0-9_]*",
         "note": "Biểu thức chính quy nhận dạng định danh biến/hàm.",
@@ -236,7 +243,14 @@ SINGLE_REGEX_EXAMPLES: List[Dict] = [
     {
         "name": "Token STRING_LIT",
         "pattern": r'"([^"\\\n]|\\.)*"',
-        "note": "Nhận dạng chuỗi ký tự có hỗ trợ escape như \\\" và \\n.",
-        "sample_inputs": ['"hello"', '""', r'"a\"b"', '"unterminated', 'abc'],
+        "note": "Nhận dạng chuỗi ký tự có hỗ trợ escape như \\\" và UTF-8.",
+        "sample_inputs": ['"hello"', '""', r'"a\"b"', '"Xin chào UEH"', '"unterminated'],
+    },
+    {
+        "name": "Định lượng đếm: 0x[0-9a-fA-F]{2,4}",
+        "pattern": r"0[xX][0-9a-fA-F]{2,4}",
+        "note": "Nhận dạng số hệ 16 có độ dài từ 2 đến 4 chữ số hex ({m,n}).",
+        "sample_inputs": ["0xFF", "0x1A2B", "0x007", "0xF", "0x12345"],
     },
 ]
+

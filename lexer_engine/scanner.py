@@ -38,11 +38,22 @@ from .models import (
 
 
 def _advance_line_col(text: str, start: int, end: int, line: int, col: int) -> Tuple[int, int]:
-    """Update 1-based (line, col) after consuming text[start:end]."""
+    """
+    Update 1-based (line, col) after consuming text[start:end].
+    Accurately handles Unix LF (\\n), Windows CRLF (\\r\\n), and legacy Mac CR (\\r).
+    """
+    n = len(text)
     for i in range(start, end):
-        if text[i] == "\n":
+        ch = text[i]
+        if ch == "\n":
             line += 1
             col = 1
+        elif ch == "\r":
+            if i + 1 < n and text[i + 1] == "\n":
+                pass
+            else:
+                line += 1
+                col = 1
         else:
             col += 1
     return line, col
@@ -53,16 +64,33 @@ def scan_source(
     dfa: DFA,
     record_traces: bool = True,
     max_traces: int = 500,
+    error_recovery: str = "panic_char",
 ) -> ScanResult:
     """
     Tokenize `text` using the compiled Deterministic Finite Automaton `dfa`.
+
+    Implements Reps (1998) Linear-Time Maximal Munch memoization (`failed_states`)
+    to prevent O(n^2) quadratic backtracking on pathological inputs (e.g., 10,000-char
+    unclosed strings or block comments), guaranteeing strict O(n) time complexity.
+
+    Supports two error recovery modes:
+    - "panic_char" (default): classic 1-character panic-mode recovery
+    - "smart_sync": synchronizes by swallowing entire unclosed string literal or
+      unclosed multi-line block comment as a single lexical error.
     """
+    if error_recovery not in ("panic_char", "smart_sync"):
+        raise ValueError(f"Chế độ phục hồi lỗi không hợp lệ: {error_recovery!r}")
+
     t0 = time.perf_counter()
 
     tokens: List[Token] = []
     visible_tokens: List[Token] = []
     errors: List[LexicalError] = []
     traces: List[TokenTrace] = []
+
+    # Reps (1998) memoization table: (dfa_state, text_index) known to never reach any accept state
+    failed_states: set[Tuple[int, int]] = set()
+    memoized_cutoffs = 0
 
     pos = 0
     line = 1
@@ -75,6 +103,7 @@ def scan_source(
         cur_state: Optional[int] = dfa.start_state
         cursor = pos
         last_accept: Optional[Tuple[int, int, AcceptInfo]] = None
+        visited_since_accept: List[Tuple[int, int]] = []
 
         steps: List[Dict] = []
         if record_traces and trace_idx < max_traces:
@@ -120,11 +149,35 @@ def scan_source(
                     )
                 break
 
+            prev_state = cur_state
             cur_state = nxt
             cursor += 1
+
+            if (cur_state, cursor) in failed_states:
+                memoized_cutoffs += 1
+                visited_since_accept.append((cur_state, cursor))
+                if record_traces and trace_idx < max_traces:
+                    steps.append(
+                        {
+                            "step": step_num,
+                            "pos": cursor - 1,
+                            "char": ch,
+                            "char_display": escape_char_display(ch),
+                            "from_state": prev_state,
+                            "to_state": cur_state,
+                            "is_accept": False,
+                            "accept_token": None,
+                            "status": "dead",
+                        }
+                    )
+                break
+
             acc_info = dfa.accept_states.get(cur_state)
             if acc_info is not None:
                 last_accept = (cursor, cur_state, acc_info)
+                visited_since_accept.clear()
+            else:
+                visited_since_accept.append((cur_state, cursor))
 
             if record_traces and trace_idx < max_traces:
                 steps.append(
@@ -133,13 +186,27 @@ def scan_source(
                         "pos": cursor - 1,
                         "char": ch,
                         "char_display": escape_char_display(ch),
-                        "from_state": steps[-1]["to_state"] if steps else dfa.start_state,
+                        "from_state": prev_state,
                         "to_state": cur_state,
                         "is_accept": acc_info is not None,
                         "accept_token": acc_info.token_name if acc_info else None,
                         "status": "accept" if acc_info is not None else "move",
                     }
                 )
+
+        # Record all states visited after the last accepting state into failed_states (Reps 1998)
+        if visited_since_accept:
+            failed_states.update(visited_since_accept)
+
+        # Detect unclosed block comment `/* ...` that entered the comment body (cursor >= pos + 2)
+        # but hit EOF without closing `*/` (so last_accept is still at pos + 1 on `/`)
+        is_unclosed_block_comment = (
+            text[pos : pos + 2] == "/*"
+            and cursor >= pos + 2
+            and (last_accept is None or last_accept[0] == pos + 1)
+        )
+        if is_unclosed_block_comment:
+            last_accept = None
 
         if last_accept is not None and last_accept[0] > pos:
             end_pos, acc_state, acc_info = last_accept
@@ -187,14 +254,36 @@ def scan_source(
             # Lexical error: no valid token prefix accepted starting at `pos`
             bad_ch = text[pos]
             attempted = text[pos:cursor] if cursor > pos else bad_ch
-            if bad_ch == '"':
+
+            # Determine recovery span based on error_recovery mode
+            if error_recovery == "smart_sync":
+                if is_unclosed_block_comment:
+                    sync_end = n
+                elif bad_ch == '"' or (bad_ch == "'" and cursor > pos + 1):
+                    sync_end = max(cursor, pos + 1)
+                    while sync_end < n and text[sync_end] not in ("\n", "\r"):
+                        sync_end += 1
+                else:
+                    sync_end = pos + 1
+            else:
+                sync_end = pos + 1
+
+            consumed_err = text[pos:sync_end]
+            display_attempt = text[pos : max(cursor, sync_end)]
+
+            if is_unclosed_block_comment:
+                msg = (
+                    f"Bình luận nhiều dòng '/*' chưa được đóng (unterminated block comment) "
+                    f"bắt đầu bằng '{display_attempt[:24]}' tại dòng {line}, cột {col}"
+                )
+            elif bad_ch == '"' or (bad_ch == "'" and cursor > pos + 1):
                 msg = (
                     f"Chuỗi ký tự chưa được đóng (unterminated string) bắt đầu bằng "
-                    f"'{attempted[:24]}' tại dòng {line}, cột {col}"
+                    f"'{display_attempt[:24]}' tại dòng {line}, cột {col}"
                 )
             elif cursor > pos:
                 msg = (
-                    f"Từ tố không hoàn chỉnh '{attempted[:24]}' không đạt trạng thái kết thúc "
+                    f"Từ tố không hoàn chỉnh '{display_attempt[:24]}' không đạt trạng thái kết thúc "
                     f"(bắt đầu bởi '{escape_char_display(bad_ch)}') tại dòng {line}, cột {col}"
                 )
             else:
@@ -204,12 +293,12 @@ def scan_source(
                 )
 
             err = LexicalError(
-                char=bad_ch,
+                char=consumed_err if error_recovery == "smart_sync" else bad_ch,
                 line=line,
                 col=col,
                 pos=pos,
                 message=msg,
-                attempted_lexeme=attempted,
+                attempted_lexeme=display_attempt,
             )
             errors.append(err)
 
@@ -219,22 +308,21 @@ def scan_source(
                         index=trace_idx,
                         kind="ERROR",
                         token_type="LEXICAL_ERROR",
-                        lexeme=bad_ch,
+                        lexeme=consumed_err,
                         line=line,
                         col=col,
                         start_pos=pos,
-                        end_pos=pos + 1,
+                        end_pos=sync_end,
                         skipped=False,
-                        backtrack_steps=max(0, cursor - (pos + 1)),
+                        backtrack_steps=max(0, cursor - sync_end),
                         final_accept_state=None,
                         steps=steps,
                     )
                 )
             trace_idx += 1
 
-            # Panic-mode recovery: advance 1 char so remaining tokens are still scanned
-            line, col = _advance_line_col(text, pos, pos + 1, line, col)
-            pos += 1
+            line, col = _advance_line_col(text, pos, sync_end, line, col)
+            pos = sync_end
 
     elapsed_ms = (time.perf_counter() - t0) * 1000.0
     return ScanResult(
@@ -245,4 +333,7 @@ def scan_source(
         elapsed_ms=elapsed_ms,
         total_chars=n,
         total_transitions=total_transitions,
+        error_recovery_mode=error_recovery,
+        memoized_cutoffs=memoized_cutoffs,
     )
+

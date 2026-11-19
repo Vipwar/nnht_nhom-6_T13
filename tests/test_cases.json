@@ -1,0 +1,314 @@
+{
+  "metadata": {
+    "topic": "T13 - Automata-based Lexical Analyzer",
+    "description": "Bộ test case chuẩn bao gồm trường hợp hợp lệ (valid), không hợp lệ (invalid) và trường hợp biên (edge cases) cho kiểm thử tự động và demo."
+  },
+  "single_regex_cases": [
+    {
+      "id": "RE-01",
+      "category": "valid",
+      "name": "UEH Slide 38: (a|b)*abb",
+      "pattern": "(a|b)*abb",
+      "accept": ["abb", "aabb", "babb", "aaabbbabb", "bababb"],
+      "reject": ["", "a", "ab", "aba", "abba", "bb", "abc"]
+    },
+    {
+      "id": "RE-02",
+      "category": "valid",
+      "name": "UEH Slide 46-57: (a|ba)(a|b)*ba",
+      "pattern": "(a|ba)(a|b)*ba",
+      "accept": ["aba", "baba", "aaba", "baabba", "abbba"],
+      "reject": ["", "a", "b", "ba", "ab", "abb", "bba"]
+    },
+    {
+      "id": "RE-03",
+      "category": "valid",
+      "name": "Số thực khoa học FLOAT_LIT",
+      "pattern": "[0-9]+\\.[0-9]+([eE][+-]?[0-9]+)?",
+      "accept": ["0.0", "3.14", "123.456", "1.5e10", "2.5E-3", "9.99e+0"],
+      "reject": ["", "42", "3.", ".5", "1.2e", "1.2e+", "1.2.3", "abc"]
+    },
+    {
+      "id": "RE-04",
+      "category": "valid",
+      "name": "Định danh IDENTIFIER",
+      "pattern": "[a-zA-Z_][a-zA-Z0-9_]*",
+      "accept": ["a", "_", "_x1", "Var_Name_99", "ifx", "WHILE"],
+      "reject": ["", "0abc", "9", "a-b", "a b", "$var"]
+    },
+    {
+      "id": "RE-05",
+      "category": "edge",
+      "name": "Chuỗi có escape STRING_LIT",
+      "pattern": "\"([^\"\\\\\\n]|\\\\.)*\"",
+      "accept": ["\"\"", "\"hello\"", "\"a \\\"quoted\\\" b\"", "\"path\\\\to\\\\file\""],
+      "reject": ["", "\"", "\"unterminated", "\"line1\nline2\"", "hello"]
+    },
+    {
+      "id": "RE-06",
+      "category": "edge",
+      "name": "Biểu thức nullable (a|ε)b*",
+      "pattern": "(a|ε)b*",
+      "accept": ["", "a", "b", "ab", "bbb", "abbb"],
+      "reject": ["aa", "ba", "aba", "c"]
+    }
+  ],
+  "invalid_regex_cases": [
+    {"id": "RE-ERR-01", "name": "RE rỗng", "pattern": ""},
+    {"id": "RE-ERR-02", "name": "Thiếu ngoặc đóng", "pattern": "(a|b*"},
+    {"id": "RE-ERR-03", "name": "Ngoặc đóng dư thừa", "pattern": "ab)"},
+    {"id": "RE-ERR-04", "name": "Ngoặc rỗng ()", "pattern": "a()b"},
+    {"id": "RE-ERR-05", "name": "Toán tử * đầu biểu thức", "pattern": "*abc"},
+    {"id": "RE-ERR-06", "name": "Thiếu vế phải toán tử |", "pattern": "a|"},
+    {"id": "RE-ERR-07", "name": "Lớp ký tự chưa đóng", "pattern": "[a-z"},
+    {"id": "RE-ERR-08", "name": "Khoảng ký tự ngược [z-a]", "pattern": "[z-a]"},
+    {"id": "RE-ERR-09", "name": "Dấu escape cuối chuỗi", "pattern": "abc\\"}
+  ],
+  "scanner_cases": [
+    {
+      "id": "SCAN-01",
+      "preset": "minilang",
+      "category": "valid",
+      "name": "Khai báo biến & biểu thức cơ bản",
+      "input": "let x = 10 + 2.5;",
+      "expected_tokens": [
+        ["KW_LET", "let"],
+        ["IDENTIFIER", "x"],
+        ["OP_ASSIGN", "="],
+        ["INT_LIT", "10"],
+        ["OP_PLUS", "+"],
+        ["FLOAT_LIT", "2.5"],
+        ["SEMICOLON", ";"]
+      ],
+      "expected_errors": 0
+    },
+    {
+      "id": "SCAN-02",
+      "preset": "minilang",
+      "category": "edge",
+      "name": "Maximal Munch: Tiền tố từ khóa là định danh (ifx, while2, true_val)",
+      "input": "if ifx while while2 true true_val return0",
+      "expected_tokens": [
+        ["KW_IF", "if"],
+        ["IDENTIFIER", "ifx"],
+        ["KW_WHILE", "while"],
+        ["IDENTIFIER", "while2"],
+        ["BOOL_LIT", "true"],
+        ["IDENTIFIER", "true_val"],
+        ["IDENTIFIER", "return0"]
+      ],
+      "expected_errors": 0
+    },
+    {
+      "id": "SCAN-03",
+      "preset": "minilang",
+      "category": "edge",
+      "name": "Maximal Munch: Toán tử liền kề không khoảng trắng (===, !==, <=>=)",
+      "input": "a===b!==c<=>=d&&||!",
+      "expected_tokens": [
+        ["IDENTIFIER", "a"],
+        ["OP_EQ", "=="],
+        ["OP_ASSIGN", "="],
+        ["IDENTIFIER", "b"],
+        ["OP_NEQ", "!="],
+        ["OP_ASSIGN", "="],
+        ["IDENTIFIER", "c"],
+        ["OP_LE", "<="],
+        ["OP_GE", ">="],
+        ["IDENTIFIER", "d"],
+        ["OP_AND", "&&"],
+        ["OP_OR", "||"],
+        ["OP_NOT", "!"]
+      ],
+      "expected_errors": 0
+    },
+    {
+      "id": "SCAN-04",
+      "preset": "minilang",
+      "category": "edge",
+      "name": "Bình luận // vs phép chia / và bình luận cuối file không có \\n",
+      "input": "let r = 10 / 2; // comment cuoi file",
+      "expected_tokens": [
+        ["KW_LET", "let"],
+        ["IDENTIFIER", "r"],
+        ["OP_ASSIGN", "="],
+        ["INT_LIT", "10"],
+        ["OP_DIV", "/"],
+        ["INT_LIT", "2"],
+        ["SEMICOLON", ";"]
+      ],
+      "expected_errors": 0
+    },
+    {
+      "id": "SCAN-05",
+      "preset": "minilang",
+      "category": "edge",
+      "name": "Chuỗi rỗng và chuỗi chứa escape \\\" và \\\\",
+      "input": "print(\"\", \"hi \\\"UEH\\\"\\\\\");",
+      "expected_tokens": [
+        ["KW_PRINT", "print"],
+        ["LPAREN", "("],
+        ["STRING_LIT", "\"\""],
+        ["COMMA", ","],
+        ["STRING_LIT", "\"hi \\\"UEH\\\"\\\\\""],
+        ["RPAREN", ")"],
+        ["SEMICOLON", ";"]
+      ],
+      "expected_errors": 0
+    },
+    {
+      "id": "SCAN-06",
+      "preset": "minilang",
+      "category": "edge",
+      "name": "Số thực dạng khoa học & quay lui khi gặp phần mũ thiếu chữ số (1.5e)",
+      "input": "1.5e-2 1.5e+3 1.5e",
+      "expected_tokens": [
+        ["FLOAT_LIT", "1.5e-2"],
+        ["FLOAT_LIT", "1.5e+3"],
+        ["FLOAT_LIT", "1.5"],
+        ["IDENTIFIER", "e"]
+      ],
+      "expected_errors": 0
+    },
+    {
+      "id": "SCAN-07",
+      "preset": "minilang",
+      "category": "edge",
+      "name": "Đầu vào rỗng và chỉ gồm khoảng trắng/bình luận",
+      "input": "   \t\n  // chi co binh luan\n  ",
+      "expected_tokens": [],
+      "expected_errors": 0
+    },
+    {
+      "id": "SCAN-08",
+      "preset": "minilang",
+      "category": "invalid",
+      "name": "Ký tự bất hợp lệ (@, $, ~) và phục hồi lỗi Panic-mode",
+      "input": "let a = 5$ + @b ~ 1;",
+      "expected_tokens": [
+        ["KW_LET", "let"],
+        ["IDENTIFIER", "a"],
+        ["OP_ASSIGN", "="],
+        ["INT_LIT", "5"],
+        ["OP_PLUS", "+"],
+        ["IDENTIFIER", "b"],
+        ["INT_LIT", "1"],
+        ["SEMICOLON", ";"]
+      ],
+      "expected_errors": 3
+    },
+    {
+      "id": "SCAN-09",
+      "preset": "minilang",
+      "category": "invalid",
+      "name": "Số thực thiếu phần thập phân (3.) gây quay lui & lỗi dấu chấm",
+      "input": "3. + 4",
+      "expected_tokens": [
+        ["INT_LIT", "3"],
+        ["OP_PLUS", "+"],
+        ["INT_LIT", "4"]
+      ],
+      "expected_errors": 1
+    },
+    {
+      "id": "SCAN-10",
+      "preset": "minilang",
+      "category": "invalid",
+      "name": "Chuỗi ký tự chưa đóng (unterminated string)",
+      "input": "let s = \"abc\nlet x = 1;",
+      "expected_tokens": [
+        ["KW_LET", "let"],
+        ["IDENTIFIER", "s"],
+        ["OP_ASSIGN", "="],
+        ["IDENTIFIER", "abc"],
+        ["KW_LET", "let"],
+        ["IDENTIFIER", "x"],
+        ["OP_ASSIGN", "="],
+        ["INT_LIT", "1"],
+        ["SEMICOLON", ";"]
+      ],
+      "expected_errors": 1
+    },
+    {
+      "id": "SCAN-11",
+      "preset": "calclang",
+      "category": "valid",
+      "name": "CalcLang: biểu thức có ngoặc, số thực và so sánh ==",
+      "input": "let y = (3.5 + 2) * 4; print(y == 22);",
+      "expected_tokens": [
+        ["KW_LET", "let"],
+        ["ID", "y"],
+        ["ASSIGN", "="],
+        ["LPAREN", "("],
+        ["FLOAT", "3.5"],
+        ["OP_ARITH", "+"],
+        ["INT", "2"],
+        ["RPAREN", ")"],
+        ["OP_ARITH", "*"],
+        ["INT", "4"],
+        ["SEMI", ";"],
+        ["KW_PRINT", "print"],
+        ["LPAREN", "("],
+        ["ID", "y"],
+        ["EQ", "=="],
+        ["INT", "22"],
+        ["RPAREN", ")"],
+        ["SEMI", ";"]
+      ],
+      "expected_errors": 0
+    },
+    {
+      "id": "SCAN-12",
+      "preset": "minisql",
+      "category": "valid",
+      "name": "MiniSQL: câu truy vấn SELECT ... FROM ... WHERE",
+      "input": "SELECT id, name FROM users WHERE score >= 8.5 AND status <> 'off';",
+      "expected_tokens": [
+        ["KW_SELECT", "SELECT"],
+        ["IDENT", "id"],
+        ["COMMA", ","],
+        ["IDENT", "name"],
+        ["KW_FROM", "FROM"],
+        ["IDENT", "users"],
+        ["KW_WHERE", "WHERE"],
+        ["IDENT", "score"],
+        ["COMP_OP", ">="],
+        ["NUMBER", "8.5"],
+        ["KW_AND", "AND"],
+        ["IDENT", "status"],
+        ["COMP_OP", "<>"],
+        ["STRING", "'off'"],
+        ["SEMI", ";"]
+      ],
+      "expected_errors": 0
+    },
+    {
+      "id": "SCAN-13",
+      "preset": "minilang",
+      "category": "invalid",
+      "name": "Toán tử đơn & và | chưa đủ 2 ký tự (báo lỗi từ vựng)",
+      "input": "a & b | c",
+      "expected_tokens": [
+        ["IDENTIFIER", "a"],
+        ["IDENTIFIER", "b"],
+        ["IDENTIFIER", "c"]
+      ],
+      "expected_errors": 2
+    },
+    {
+      "id": "SCAN-14",
+      "preset": "minilang",
+      "category": "invalid",
+      "name": "Ký tự Unicode ngoài bảng chữ cái ASCII Σ",
+      "input": "let gia = 100€;",
+      "expected_tokens": [
+        ["KW_LET", "let"],
+        ["IDENTIFIER", "gia"],
+        ["OP_ASSIGN", "="],
+        ["INT_LIT", "100"],
+        ["SEMICOLON", ";"]
+      ],
+      "expected_errors": 1
+    }
+  ]
+}

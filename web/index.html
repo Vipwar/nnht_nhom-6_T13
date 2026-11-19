@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LexAutomata Studio — T13 Automata-based Lexical Analyzer (UEH)</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <!-- Top App Header -->
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-logo" aria-hidden="true">
+        <svg viewBox="0 0 36 36" width="32" height="32">
+          <circle cx="11" cy="18" r="7" fill="none" stroke="currentColor" stroke-width="2.4"/>
+          <circle cx="26" cy="18" r="7" fill="none" stroke="currentColor" stroke-width="2.2"/>
+          <circle cx="26" cy="18" r="4.3" fill="none" stroke="currentColor" stroke-width="1.6"/>
+          <line x1="18" y1="18" x2="19" y2="18" stroke="currentColor" stroke-width="2.4"/>
+          <path d="M16.5 14.5 L20.5 18 L16.5 21.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <div>
+        <div class="brand-title">LexAutomata Studio <span class="badge-topic">Đề tài T13</span></div>
+        <div class="brand-sub">Bộ phân tích từ vựng dựa trên Automata (Zero <code>re</code>) · Ngôn ngữ hình thức — UEH</div>
+      </div>
+    </div>
+
+    <div class="topbar-controls">
+      <div class="control-group">
+        <label for="preset-select">Ngôn ngữ:</label>
+        <select id="preset-select" class="select-input">
+          <option value="minilang">MiniLang (38 token — Đầy đủ)</option>
+          <option value="calclang">CalcLang (12 token — DFA gọn)</option>
+          <option value="minisql">MiniSQL (14 token — Truy vấn)</option>
+        </select>
+      </div>
+
+      <div id="pipeline-pill" class="pipeline-pill" title="Trạng thái đường ống RE → ε-NFA → DFA → Min-DFA">
+        Đang biên dịch Automata...
+      </div>
+
+      <button id="btn-export-jff-top" class="btn btn-outline btn-sm" title="Xuất Minimized DFA sang định dạng JFLAP (.jff)">
+        ⬇ JFLAP (.jff)
+      </button>
+      <button id="btn-theme" class="btn btn-ghost btn-sm" title="Chuyển chế độ Sáng / Tối">
+        🌙
+      </button>
+    </div>
+  </header>
+
+  <!-- Navigation Tabs -->
+  <nav class="tabbar" role="tablist">
+    <button class="tab-btn active" data-tab="scanner" role="tab">
+      <span class="tab-ico">⚡</span> 1. Bộ Quét &amp; Mô Phỏng
+    </button>
+    <button class="tab-btn" data-tab="automata" role="tab">
+      <span class="tab-ico">🕸</span> 2. Automata &amp; Tối Thiểu Hóa
+    </button>
+    <button class="tab-btn" data-tab="single-re" role="tab">
+      <span class="tab-ico">🔬</span> 3. Thí Nghiệm RE (Thompson &amp; r#)
+    </button>
+    <button class="tab-btn" data-tab="editor" role="tab">
+      <span class="tab-ico">⚙</span> 4. Đặc Tả Token (Live RE)
+    </button>
+    <button class="tab-btn" data-tab="tests" role="tab">
+      <span class="tab-ico">✅</span> 5. Kiểm Thử &amp; Benchmark
+    </button>
+  </nav>
+
+  <!-- Global Alert Banner -->
+  <div id="global-alert" class="alert-banner hidden"></div>
+
+  <main class="main-container">
+    <!-- ==================== TAB 1: LEXICAL SCANNER & ANIMATOR ==================== -->
+    <section id="tab-scanner" class="tab-panel active">
+      <div class="grid-two-col">
+        <!-- Left: Code Editor & Token Overlay -->
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <h2>Mã Nguồn Đầu Vào</h2>
+              <p class="muted">Nhập mã nguồn bất kỳ hoặc chọn bộ dữ liệu mẫu (hợp lệ, trường hợp biên, lỗi từ vựng)</p>
+            </div>
+            <div class="sample-pills">
+              <button class="pill-btn active" data-sample="valid">✓ Hợp lệ</button>
+              <button class="pill-btn" data-sample="edge_cases">★ Biên (Maximal Munch)</button>
+              <button class="pill-btn" data-sample="errors">⚠ Lỗi &amp; Phục hồi</button>
+            </div>
+          </div>
+
+          <div class="editor-wrap">
+            <textarea id="source-input" class="code-textarea" spellcheck="false" placeholder="Nhập mã nguồn để phân tích từ vựng..."></textarea>
+          </div>
+
+          <div class="toolbar-row">
+            <div class="toolbar-left">
+              <label class="toggle-label">
+                <input type="checkbox" id="chk-use-min" checked />
+                <span>Dùng Minimized DFA</span>
+              </label>
+              <label class="toggle-label">
+                <input type="checkbox" id="chk-show-skipped" />
+                <span>Hiện token bỏ qua (WS/Comment)</span>
+              </label>
+            </div>
+            <div class="toolbar-right">
+              <button id="btn-export-tokens" class="btn btn-outline btn-sm">⬇ JSON</button>
+              <button id="btn-scan" class="btn btn-primary">▶ Quét Từ Vựng (Scan)</button>
+            </div>
+          </div>
+
+          <div class="sub-panel">
+            <div class="sub-panel-header">
+              <span>Tô Màu Trực Tiếp Theo Token (nhấp vào từ tố bất kỳ để mô phỏng DFA)</span>
+              <span class="legend-inline">
+                <span class="dot cat-keyword"></span>Từ khóa
+                <span class="dot cat-identifier"></span>Định danh
+                <span class="dot cat-literal"></span>Hằng số/Chuỗi
+                <span class="dot cat-operator"></span>Toán tử
+                <span class="dot cat-delimiter"></span>Phân cách
+                <span class="dot cat-error"></span>Lỗi
+              </span>
+            </div>
+            <div id="highlighted-code" class="highlighted-code"></div>
+          </div>
+        </div>
+
+        <!-- Right: Stats, Errors & Token Stream Table -->
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <h2>Luồng Token Đầu Ra</h2>
+              <p class="muted">Nhấp vào một dòng token để xem đường đi trạng thái DFA &amp; quay lui Maximal Munch bên dưới</p>
+            </div>
+          </div>
+
+          <div id="scan-kpis" class="kpi-strip">
+            <div class="kpi-box"><div class="kpi-val" id="kpi-tokens">0</div><div class="kpi-lbl">Token hợp lệ</div></div>
+            <div class="kpi-box"><div class="kpi-val kpi-err" id="kpi-errors">0</div><div class="kpi-lbl">Lỗi từ vựng</div></div>
+            <div class="kpi-box"><div class="kpi-val kpi-warn" id="kpi-backtracks">0</div><div class="kpi-lbl">Lần quay lui</div></div>
+            <div class="kpi-box"><div class="kpi-val" id="kpi-transitions">0</div><div class="kpi-lbl">Bước chuyển δ</div></div>
+            <div class="kpi-box"><div class="kpi-val" id="kpi-time">0 ms</div><div class="kpi-lbl">Thời gian quét</div></div>
+          </div>
+
+          <div id="errors-box" class="errors-box hidden"></div>
+
+          <div class="table-scroll token-table-scroll">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Loại Token</th>
+                  <th>Từ tố (Lexeme)</th>
+                  <th>Vị trí</th>
+                  <th>Trạng thái</th>
+                  <th>Quay lui</th>
+                </tr>
+              </thead>
+              <tbody id="token-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bottom Full-width: Step-by-Step DFA Execution Animator -->
+      <div class="card animator-card">
+        <div class="card-header">
+          <div>
+            <h2>Mô Phỏng Quá Trình Chạy DFA Từng Bước (Maximal Munch &amp; Backtracking)</h2>
+            <p id="anim-subtitle" class="muted">Chọn một token hoặc lỗi ở trên để quan sát băng ký tự và đường đi qua các trạng thái DFA</p>
+          </div>
+          <div class="anim-controls">
+            <button id="btn-tok-prev" class="btn btn-outline btn-sm" title="Token trước">« Token</button>
+            <button id="btn-tok-next" class="btn btn-outline btn-sm" title="Token sau">Token »</button>
+            <span class="divider-v"></span>
+            <button id="btn-step-first" class="btn btn-outline btn-sm" title="Bước đầu">⏮</button>
+            <button id="btn-step-prev" class="btn btn-outline btn-sm" title="Lùi 1 bước">◀</button>
+            <button id="btn-step-play" class="btn btn-primary btn-sm">▶ Chạy</button>
+            <button id="btn-step-next" class="btn btn-outline btn-sm" title="Tiến 1 bước">▶</button>
+            <button id="btn-step-last" class="btn btn-outline btn-sm" title="Bước cuối">⏭</button>
+            <label class="speed-control">
+              <span>Tốc độ</span>
+              <input type="range" id="anim-speed" min="150" max="1200" value="550" step="50" />
+            </label>
+          </div>
+        </div>
+
+        <div class="anim-body">
+          <div class="tape-section">
+            <div class="tape-header">
+              <span class="tape-title">Băng Ký Tự Đầu Vào (Input Tape)</span>
+              <span id="anim-step-badge" class="step-badge">Bước 0 / 0</span>
+            </div>
+            <div id="anim-tape" class="tape-strip"></div>
+            <div id="anim-narration" class="anim-narration"></div>
+          </div>
+
+          <div class="path-svg-wrap">
+            <svg id="anim-path-svg" class="path-svg" viewBox="0 0 960 175"></svg>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 2: COMBINED AUTOMATA & MINIMIZATION ==================== -->
+    <section id="tab-automata" class="tab-panel">
+      <div id="eq-proof-banner" class="proof-banner"></div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="subtab-group" id="auto-subtabs">
+            <button class="subtab-btn active" data-view="min_dfa">Minimized Combined DFA</button>
+            <button class="subtab-btn" data-view="subset_dfa">Subset Combined DFA</button>
+            <button class="subtab-btn" data-view="combined_nfa">Combined ε-NFA</button>
+            <button class="subtab-btn" data-view="table">Bảng Chuyển Trạng Thái</button>
+            <button class="subtab-btn" data-view="minimization">Quá Trình Tối Thiểu Hóa (Π₀ → Πₙ)</button>
+          </div>
+          <div class="toolbar-right">
+            <button id="btn-zoom-in" class="btn btn-outline btn-sm">＋</button>
+            <button id="btn-zoom-out" class="btn btn-outline btn-sm">－</button>
+            <button id="btn-zoom-fit" class="btn btn-outline btn-sm">Vừa khung</button>
+            <button id="btn-export-svg" class="btn btn-outline btn-sm">⬇ SVG</button>
+            <button id="btn-export-jff-view" class="btn btn-outline btn-sm">⬇ JFLAP .jff</button>
+          </div>
+        </div>
+
+        <!-- Graph View + Side Inspector -->
+        <div id="auto-graph-layout" class="graph-split-layout">
+          <div class="svg-viewport" id="main-graph-viewport">
+            <svg id="main-automata-svg" class="automata-svg"></svg>
+            <div class="viewport-hint">Kéo để di chuyển · Cuộn chuột để phóng to/thu nhỏ · Nhấp trạng thái để xem chi tiết</div>
+          </div>
+
+          <aside class="inspector-panel">
+            <h3>Thông Tin Automata &amp; Trạng Thái</h3>
+            <div id="auto-stats-list" class="stats-list"></div>
+            <hr class="sep" />
+            <h4>Chi Tiết Trạng Thái Đang Chọn</h4>
+            <div id="node-inspector" class="node-inspector">
+              <p class="muted">Nhấp vào một nút trạng thái trên đồ thị để xem tập trạng thái con NFA, các trạng thái đã gộp và xung đột ưu tiên token.</p>
+            </div>
+            <hr class="sep" />
+            <h4>Xung Đột Ưu Tiên Đã Giải Quyết</h4>
+            <div id="conflicts-list" class="conflicts-list"></div>
+          </aside>
+        </div>
+
+        <!-- Transition Table View -->
+        <div id="auto-table-view" class="hidden">
+          <div class="table-filter-bar">
+            <input type="text" id="table-search" class="text-input" placeholder="Lọc theo trạng thái (VD: D0, KW_IF, FLOAT)..." />
+            <label class="toggle-label">
+              <input type="radio" name="table-source" value="min" checked /> Minimized DFA
+            </label>
+            <label class="toggle-label">
+              <input type="radio" name="table-source" value="sub" /> Subset DFA
+            </label>
+          </div>
+          <div class="table-scroll matrix-scroll">
+            <table class="data-table matrix-table" id="transition-matrix"></table>
+          </div>
+        </div>
+
+        <!-- Minimization Partitions View -->
+        <div id="auto-min-view" class="hidden">
+          <div id="min-summary-cards" class="kpi-strip"></div>
+          <div id="min-partitions-container" class="partitions-list"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 3: SINGLE-RE DUAL PIPELINE LAB ==================== -->
+    <section id="tab-single-re" class="tab-panel">
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h2>Phòng Thí Nghiệm Biểu Thức Chính Quy Đơn Lẻ</h2>
+            <p class="muted">
+              So sánh trực tiếp 2 phương pháp xây dựng DFA trong bài giảng Chương 3.1 (UEH):
+              <strong>(1) RE → Thompson ε-NFA → Subset DFA → Min-DFA</strong> và
+              <strong>(2) Direct RE → Cây phân tích r# (nullable, firstpos, lastpos, followpos) → Direct DFA</strong>
+            </p>
+          </div>
+        </div>
+
+        <div class="re-lab-form">
+          <div class="input-col grow">
+            <label for="re-input">Biểu thức chính quy (RE):</label>
+            <input type="text" id="re-input" class="code-input" value="(a|ba)(a|b)*ba" placeholder="VD: (a|b)*abb hoặc [0-9]+\.[0-9]+" />
+          </div>
+          <div class="input-col">
+            <label for="re-name">Tên Token:</label>
+            <input type="text" id="re-name" class="text-input" value="SLIDE_EX" style="width:130px" />
+          </div>
+          <div class="input-col grow">
+            <label for="re-test-strings">Chuỗi kiểm thử (phân cách bằng dấu phẩy):</label>
+            <input type="text" id="re-test-strings" class="code-input" value="aba, baba, aabba, ba, a, abb" />
+          </div>
+          <div class="input-col btn-col">
+            <button id="btn-inspect-re" class="btn btn-primary">🔬 Phân Tích Pipeline</button>
+          </div>
+        </div>
+
+        <div class="quick-re-bar" id="quick-re-buttons"></div>
+
+        <div id="re-error-box" class="alert-inline hidden"></div>
+
+        <div id="re-summary-strip" class="re-summary-strip"></div>
+
+        <!-- String Membership Results -->
+        <div id="re-string-tests" class="string-tests-bar"></div>
+
+        <div class="subtab-group" id="re-subtabs">
+          <button class="subtab-btn active" data-review="nfa">1. Thompson ε-NFA</button>
+          <button class="subtab-btn" data-review="subset">2. Subset DFA &amp; Trace</button>
+          <button class="subtab-btn" data-review="direct">3. Direct RE → DFA (Cây r# &amp; Followpos)</button>
+          <button class="subtab-btn" data-review="min">4. Minimized DFA &amp; Phân Hoạch</button>
+        </div>
+
+        <!-- Single-RE Stage Display -->
+        <div id="re-stage-graph" class="re-stage-panel">
+          <div class="stage-toolbar">
+            <span id="re-stage-caption" class="muted"></span>
+            <div>
+              <button id="btn-re-jff" class="btn btn-outline btn-sm">⬇ Tải JFLAP (.jff)</button>
+            </div>
+          </div>
+          <div class="svg-viewport re-svg-viewport" id="re-graph-viewport">
+            <svg id="re-automata-svg" class="automata-svg"></svg>
+          </div>
+          <div id="re-extra-panel" class="re-extra-panel"></div>
+        </div>
+
+        <!-- Direct RE -> DFA Dedicated Panel (Syntax Tree + Followpos + Direct DFA) -->
+        <div id="re-stage-direct" class="re-stage-panel hidden">
+          <div class="grid-direct-top">
+            <div class="sub-box">
+              <h4>Cây Phân Tích Biểu Thức Gia Tố <code>r·#</code> (nullable, firstpos, lastpos)</h4>
+              <p class="muted small">Định dạng khớp Slide 52 Chương 3.1: trên nút là <b>nullable (T/F)</b>, bên trái là <b>FP</b>, bên phải là <b>LP</b>, dưới lá là <b>vị trí lá</b>.</p>
+              <div class="svg-viewport tree-viewport">
+                <svg id="direct-tree-svg" class="automata-svg"></svg>
+              </div>
+            </div>
+            <div class="sub-box">
+              <h4>Bảng <code>followpos(p)</code></h4>
+              <div class="table-scroll" style="max-height: 360px;">
+                <table class="data-table">
+                  <thead><tr><th>Vị trí p</th><th>Ký hiệu</th><th>followpos(p)</th></tr></thead>
+                  <tbody id="followpos-tbody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+          <div class="sub-box" style="margin-top: 14px;">
+            <h4>Direct DFA Xây Dựng Trực Tiếp Từ Bảng <code>followpos</code></h4>
+            <div class="svg-viewport re-svg-viewport" id="direct-dfa-viewport">
+              <svg id="direct-dfa-svg" class="automata-svg"></svg>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 4: LIVE TOKEN SPEC EDITOR ==================== -->
+    <section id="tab-editor" class="tab-panel">
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h2>Trình Soạn Thảo Đặc Tả Token Bằng Biểu Thức Chính Quy</h2>
+            <p class="muted">
+              Thêm, xóa, chỉnh sửa RE hoặc thay đổi thứ tự ưu tiên rồi nhấn <strong>Biên Dịch Lại Automata</strong> —
+              toàn bộ Combined ε-NFA, Subset DFA, Minimized DFA và Bộ Quét sẽ cập nhật ngay lập tức!
+            </p>
+          </div>
+          <div class="toolbar-right">
+            <button id="btn-add-hex-demo" class="btn btn-outline btn-sm">+ Thêm nhanh HEX_LIT (0x...)</button>
+            <button id="btn-add-rule" class="btn btn-outline btn-sm">+ Thêm quy tắc mới</button>
+            <button id="btn-export-spec" class="btn btn-outline btn-sm">⬇ Lưu Spec JSON</button>
+            <button id="btn-recompile" class="btn btn-primary">⚙ Biên Dịch Lại Automata</button>
+          </div>
+        </div>
+
+        <div id="editor-feedback" class="alert-inline hidden"></div>
+
+        <div class="table-scroll editor-table-scroll">
+          <table class="data-table editor-table">
+            <thead>
+              <tr>
+                <th style="width:65px">Ưu tiên</th>
+                <th style="width:155px">Tên Token</th>
+                <th>Biểu thức chính quy (RE)</th>
+                <th style="width:125px">Phân loại</th>
+                <th style="width:75px">Bỏ qua</th>
+                <th>Mô tả</th>
+                <th style="width:110px">Thao tác</th>
+              </tr>
+            </thead>
+            <tbody id="spec-editor-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 5: TEST SUITE & BENCHMARK ==================== -->
+    <section id="tab-tests" class="tab-panel">
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h2>Bộ Kiểm Thử Tự Động (Hợp Lệ · Trường Hợp Biên · Lỗi)</h2>
+            <p class="muted">Kiểm chứng chéo ε-NFA ≡ Subset DFA ≡ Direct DFA ≡ Minimized DFA và kiểm tra toàn diện bộ quét từ vựng</p>
+          </div>
+          <div class="toolbar-right">
+            <button id="btn-run-tests" class="btn btn-primary">▶ Chạy Toàn Bộ Kiểm Thử</button>
+          </div>
+        </div>
+
+        <div id="test-kpis" class="kpi-strip"></div>
+
+        <div class="filter-bar" id="test-filter-bar">
+          <button class="pill-btn active" data-tfilter="all">Tất cả</button>
+          <button class="pill-btn" data-tfilter="valid">✓ Hợp lệ (Valid)</button>
+          <button class="pill-btn" data-tfilter="edge">★ Trường hợp biên (Edge)</button>
+          <button class="pill-btn" data-tfilter="invalid">⚠ Không hợp lệ (Invalid)</button>
+        </div>
+
+        <div class="table-scroll" style="max-height: 430px;">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Mã</th>
+                <th>Nhóm</th>
+                <th>Loại</th>
+                <th>Mô tả Test Case</th>
+                <th>Đầu vào</th>
+                <th>Trạng thái</th>
+                <th>Chi tiết kết quả</th>
+              </tr>
+            </thead>
+            <tbody id="tests-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top: 16px;">
+        <div class="card-header">
+          <div>
+            <h2>Đánh Giá Hiệu Năng &amp; So Sánh Số Trạng Thái Trên Các Bộ Ngôn Ngữ</h2>
+            <p class="muted">Đo thực nghiệm biên dịch RE → ε-NFA → Subset DFA → Minimized DFA và thông lượng quét 10 KB mã nguồn</p>
+          </div>
+          <button id="btn-run-bench" class="btn btn-outline btn-sm">↻ Chạy lại Benchmark</button>
+        </div>
+
+        <div class="table-scroll">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Bộ Ngôn Ngữ</th>
+                <th>Số Token</th>
+                <th>ε-NFA (trạng thái)</th>
+                <th>Subset DFA</th>
+                <th>Min DFA</th>
+                <th>Giảm trạng thái</th>
+                <th>Lớp ký tự</th>
+                <th>Thời gian biên dịch</th>
+                <th>Quét 10 KB mã nguồn</th>
+                <th>Chứng minh tương đương</th>
+              </tr>
+            </thead>
+            <tbody id="bench-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <span>Đồ án Cuối kỳ Môn <strong>Ngôn ngữ hình thức</strong> — Đề tài <strong>T13: Automata-based Lexical Analyzer</strong> · Đại học Kinh tế TP.HCM (UEH)</span>
+    <span>100% cài đặt thuật toán Automata thuần Python (không sử dụng thư viện <code>re</code> trong lõi)</span>
+  </footer>
+
+  <script src="/app.js"></script>
+</body>
+</html>

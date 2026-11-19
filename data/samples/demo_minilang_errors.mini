@@ -1,0 +1,4 @@
+let price = 100$ + @tax;
+let broken = "chuoi chua dong;
+let badFloat = 3. + 4;
+let okAfterError = 42;

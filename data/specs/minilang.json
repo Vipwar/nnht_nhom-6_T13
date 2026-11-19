@@ -1,0 +1,311 @@
+{
+  "id": "minilang",
+  "name": "MiniLang (Ngôn ngữ lệnh đầy đủ — 38 token)",
+  "description": "Ngôn ngữ lập trình lệnh rút gọn gồm bình luận, từ khóa điều khiển, số nguyên/thực khoa học, chuỗi có escape, định danh, toán tử 1–2 ký tự và dấu phân cách.",
+  "tokens": [
+    {
+      "name": "COMMENT",
+      "pattern": "//[^\\n]*",
+      "priority": 1,
+      "skip": true,
+      "category": "comment",
+      "description": "Bình luận một dòng (bỏ qua)"
+    },
+    {
+      "name": "WHITESPACE",
+      "pattern": "[ \\t\\n\\r]+",
+      "priority": 2,
+      "skip": true,
+      "category": "whitespace",
+      "description": "Khoảng trắng, tab, xuống dòng (bỏ qua)"
+    },
+    {
+      "name": "KW_IF",
+      "pattern": "if",
+      "priority": 3,
+      "skip": false,
+      "category": "keyword",
+      "description": "Từ khóa rẽ nhánh if"
+    },
+    {
+      "name": "KW_ELSE",
+      "pattern": "else",
+      "priority": 4,
+      "skip": false,
+      "category": "keyword",
+      "description": "Từ khóa rẽ nhánh else"
+    },
+    {
+      "name": "KW_WHILE",
+      "pattern": "while",
+      "priority": 5,
+      "skip": false,
+      "category": "keyword",
+      "description": "Từ khóa vòng lặp while"
+    },
+    {
+      "name": "KW_FOR",
+      "pattern": "for",
+      "priority": 6,
+      "skip": false,
+      "category": "keyword",
+      "description": "Từ khóa vòng lặp for"
+    },
+    {
+      "name": "KW_LET",
+      "pattern": "let",
+      "priority": 7,
+      "skip": false,
+      "category": "keyword",
+      "description": "Từ khóa khai báo biến let"
+    },
+    {
+      "name": "KW_FUNC",
+      "pattern": "func",
+      "priority": 8,
+      "skip": false,
+      "category": "keyword",
+      "description": "Từ khóa khai báo hàm func"
+    },
+    {
+      "name": "KW_RETURN",
+      "pattern": "return",
+      "priority": 9,
+      "skip": false,
+      "category": "keyword",
+      "description": "Từ khóa trả về return"
+    },
+    {
+      "name": "KW_PRINT",
+      "pattern": "print",
+      "priority": 10,
+      "skip": false,
+      "category": "keyword",
+      "description": "Từ khóa xuất print"
+    },
+    {
+      "name": "BOOL_LIT",
+      "pattern": "true|false",
+      "priority": 11,
+      "skip": false,
+      "category": "literal",
+      "description": "Hằng logic true / false"
+    },
+    {
+      "name": "FLOAT_LIT",
+      "pattern": "[0-9]+\\.[0-9]+([eE][+-]?[0-9]+)?",
+      "priority": 12,
+      "skip": false,
+      "category": "literal",
+      "description": "Số thực (hỗ trợ dạng khoa học)"
+    },
+    {
+      "name": "INT_LIT",
+      "pattern": "[0-9]+",
+      "priority": 13,
+      "skip": false,
+      "category": "literal",
+      "description": "Số nguyên không dấu"
+    },
+    {
+      "name": "STRING_LIT",
+      "pattern": "\"([^\"\\\\\\n]|\\\\.)*\"",
+      "priority": 14,
+      "skip": false,
+      "category": "literal",
+      "description": "Chuỗi ký tự (hỗ trợ ký tự escape)"
+    },
+    {
+      "name": "IDENTIFIER",
+      "pattern": "[a-zA-Z_][a-zA-Z0-9_]*",
+      "priority": 15,
+      "skip": false,
+      "category": "identifier",
+      "description": "Định danh biến / tên hàm"
+    },
+    {
+      "name": "OP_EQ",
+      "pattern": "==",
+      "priority": 16,
+      "skip": false,
+      "category": "operator",
+      "description": "So sánh bằng"
+    },
+    {
+      "name": "OP_NEQ",
+      "pattern": "!=",
+      "priority": 17,
+      "skip": false,
+      "category": "operator",
+      "description": "So sánh khác"
+    },
+    {
+      "name": "OP_LE",
+      "pattern": "<=",
+      "priority": 18,
+      "skip": false,
+      "category": "operator",
+      "description": "Nhỏ hơn hoặc bằng"
+    },
+    {
+      "name": "OP_GE",
+      "pattern": ">=",
+      "priority": 19,
+      "skip": false,
+      "category": "operator",
+      "description": "Lớn hơn hoặc bằng"
+    },
+    {
+      "name": "OP_AND",
+      "pattern": "&&",
+      "priority": 20,
+      "skip": false,
+      "category": "operator",
+      "description": "Phép hội logic AND"
+    },
+    {
+      "name": "OP_OR",
+      "pattern": "\\|\\|",
+      "priority": 21,
+      "skip": false,
+      "category": "operator",
+      "description": "Phép tuyển logic OR"
+    },
+    {
+      "name": "OP_ASSIGN",
+      "pattern": "=",
+      "priority": 22,
+      "skip": false,
+      "category": "operator",
+      "description": "Phép gán"
+    },
+    {
+      "name": "OP_LT",
+      "pattern": "<",
+      "priority": 23,
+      "skip": false,
+      "category": "operator",
+      "description": "Nhỏ hơn"
+    },
+    {
+      "name": "OP_GT",
+      "pattern": ">",
+      "priority": 24,
+      "skip": false,
+      "category": "operator",
+      "description": "Lớn hơn"
+    },
+    {
+      "name": "OP_NOT",
+      "pattern": "!",
+      "priority": 25,
+      "skip": false,
+      "category": "operator",
+      "description": "Phủ định logic NOT"
+    },
+    {
+      "name": "OP_PLUS",
+      "pattern": "\\+",
+      "priority": 26,
+      "skip": false,
+      "category": "operator",
+      "description": "Cộng"
+    },
+    {
+      "name": "OP_MINUS",
+      "pattern": "-",
+      "priority": 27,
+      "skip": false,
+      "category": "operator",
+      "description": "Trừ"
+    },
+    {
+      "name": "OP_MUL",
+      "pattern": "\\*",
+      "priority": 28,
+      "skip": false,
+      "category": "operator",
+      "description": "Nhân"
+    },
+    {
+      "name": "OP_DIV",
+      "pattern": "/",
+      "priority": 29,
+      "skip": false,
+      "category": "operator",
+      "description": "Chia"
+    },
+    {
+      "name": "OP_MOD",
+      "pattern": "%",
+      "priority": 30,
+      "skip": false,
+      "category": "operator",
+      "description": "Chia lấy dư"
+    },
+    {
+      "name": "LPAREN",
+      "pattern": "\\(",
+      "priority": 31,
+      "skip": false,
+      "category": "delimiter",
+      "description": "Mở ngoặc tròn"
+    },
+    {
+      "name": "RPAREN",
+      "pattern": "\\)",
+      "priority": 32,
+      "skip": false,
+      "category": "delimiter",
+      "description": "Đóng ngoặc tròn"
+    },
+    {
+      "name": "LBRACE",
+      "pattern": "\\{",
+      "priority": 33,
+      "skip": false,
+      "category": "delimiter",
+      "description": "Mở ngoặc nhọn"
+    },
+    {
+      "name": "RBRACE",
+      "pattern": "\\}",
+      "priority": 34,
+      "skip": false,
+      "category": "delimiter",
+      "description": "Đóng ngoặc nhọn"
+    },
+    {
+      "name": "LBRACKET",
+      "pattern": "\\[",
+      "priority": 35,
+      "skip": false,
+      "category": "delimiter",
+      "description": "Mở ngoặc vuông"
+    },
+    {
+      "name": "RBRACKET",
+      "pattern": "\\]",
+      "priority": 36,
+      "skip": false,
+      "category": "delimiter",
+      "description": "Đóng ngoặc vuông"
+    },
+    {
+      "name": "SEMICOLON",
+      "pattern": ";",
+      "priority": 37,
+      "skip": false,
+      "category": "delimiter",
+      "description": "Chấm phẩy kết thúc lệnh"
+    },
+    {
+      "name": "COMMA",
+      "pattern": ",",
+      "priority": 38,
+      "skip": false,
+      "category": "delimiter",
+      "description": "Dấu phẩy phân tách"
+    }
+  ]
+}

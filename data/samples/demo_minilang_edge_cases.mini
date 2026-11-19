@@ -1,0 +1,11 @@
+// 1. Maximal Munch: ifx la IDENTIFIER, khong phai KW_IF + x
+let ifx = while_2 + return0 + trueValue;
+// 2. Toan tu lien ke khong khoang trang: === -> == va =
+let flag = a===b && x<=y || z!=0;
+// 3. So thuc + quay lui Maximal Munch: 1.5e quay lui 1 ky tu -> FLOAT(1.5) + ID(e)
+let pi = 3.14e+2 / 100;
+let bt = 1.5e + 2;
+// 4. Chuoi rong va chuoi chua dau ngoac kep escape
+let empty = "";
+let quote = "a \"b\" c";
+// 5. Binh luan cuoi file khong co ky tu xuong dong

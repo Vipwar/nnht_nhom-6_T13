@@ -1,5 +1,7 @@
 # Đề tài T13: Automata-based Lexical Analyzer (`LexAutomata Studio`)
 
+[![T13 Automata Lexical Analyzer CI](https://github.com/Vipwar/nnht_nhom-6_T13/actions/workflows/ci.yml/badge.svg)](https://github.com/Vipwar/nnht_nhom-6_T13/actions/workflows/ci.yml)
+
 > **Học phần:** Ngôn ngữ hình thức (*Introduction to Formal Languages*) — Mã lớp: `26C1INF50915301`  
 > **Trường:** Đại học Kinh tế TP.HCM (UEH) — Khoa Công nghệ Thông tin Kinh doanh (CTD)  
 > **Giảng viên hướng dẫn:** ThS. Hồ Thị Thanh Tuyến  
@@ -36,7 +38,7 @@ Tập Token Specs (RE + Thứ tự ưu tiên + Cờ Skip)
 
 ## 2. Yêu cầu môi trường & Cài đặt
 
-- **Python 3.10+** (đã kiểm thử trên Python 3.11 / 3.12).
+- **Python 3.10+** (đã kiểm thử trên Python 3.10 / 3.11 / 3.12 qua GitHub Actions CI).
 - **Không cần `pip install` bất kỳ thư viện nào** để chạy ứng dụng Web Studio, CLI và toàn bộ bộ kiểm thử tự động (`lexer_engine/`, `app.py`, `cli.py`, `tests/` chỉ dùng 100% Python Standard Library).
 - Hỗ trợ chạy ngay trên **GitHub Codespaces** (`.devcontainer/devcontainer.json`) và **Render Cloud** (`render.yaml`).
 
@@ -70,13 +72,16 @@ python3 cli.py benchmark
 
 # 4. Quét mã nguồn với chế độ phục hồi lỗi Panic-mode hoặc Smart-Sync
 python3 cli.py scan --preset minilang --file data/samples/demo_minilang_valid.mini
-python3 cli.py scan --preset minilang --file data/samples/demo_minilang_errors.mini --recovery smart_sync
+python3 cli.py scan --preset minilang --file data/samples/demo_minilang_errors.mini --error-recovery smart_sync
 
 # 5. Phân tích chi tiết 1 Biểu thức chính quy qua chuỗi 6 Otomat + Myhill-Nerode (Slide 38 & Slide 54)
 python3 cli.py inspect "(a|b)*abb" --name SLIDE38 --test abb aabb babb ab ba
 python3 cli.py inspect "(a|ba)(a|b)*ba" --name SLIDE54 --test aba baba aabba ba a abb
 
-# 6. Xuất DFA sang định dạng JFLAP (.jff)
+# 6. Chứng minh tương đương 2 Biểu thức chính quy bất kỳ L(R1) == L(R2) bằng Product Automaton
+python3 cli.py equiv "(a|b)*" "(a*b*)*"
+
+# 7. Xuất NFA/DFA sang định dạng JFLAP 7.x (.jff)
 python3 cli.py export-jff --pattern "(a|b)*abb" --stage min_dfa --expand --out data/jflap_exports/custom_abb.jff
 ```
 

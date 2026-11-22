@@ -23,7 +23,9 @@ from lexer_engine import (
     LexicalAnalyzer,
     TokenSpec,
     build_combined_direct_dfa,
+    build_direct_dfa,
     check_dfa_equivalence,
+    compare_regex_equivalence,
     eliminate_epsilon,
     export_dfa_to_jflap,
     export_nfa_to_jflap,
@@ -229,6 +231,9 @@ def cmd_export_jff(args: argparse.Namespace) -> int:
             xml_str = export_nfa_to_jflap(nfa, expand_char_classes=args.expand)
         elif args.stage == "eps_free_nfa":
             xml_str = export_nfa_to_jflap(eliminate_epsilon(nfa), expand_char_classes=args.expand)
+        elif args.stage == "direct_dfa":
+            dir_res = build_direct_dfa(args.pattern, token_name=args.name)
+            xml_str = export_dfa_to_jflap(dir_res.dfa, expand_char_classes=args.expand)
         else:
             from lexer_engine.dfa_minimizer import minimize_dfa
             from lexer_engine.subset_construction import nfa_to_dfa
@@ -244,11 +249,28 @@ def cmd_export_jff(args: argparse.Namespace) -> int:
             xml_str = export_nfa_to_jflap(lex.eps_free_nfa, expand_char_classes=args.expand)
         elif args.stage == "subset_dfa":
             xml_str = export_dfa_to_jflap(lex.subset_dfa, expand_char_classes=args.expand)
+        elif args.stage == "direct_dfa":
+            xml_str = export_dfa_to_jflap(build_combined_direct_dfa(lex.specs), expand_char_classes=args.expand)
         else:
             xml_str = export_dfa_to_jflap(lex.minimized_dfa, expand_char_classes=args.expand)
 
     out_path.write_text(xml_str, encoding="utf-8")
     print(f"Exported JFLAP file ({args.stage}) -> {out_path}")
+    return 0
+
+
+def cmd_equiv(args: argparse.Namespace) -> int:
+    res = compare_regex_equivalence(args.pattern_a, args.pattern_b)
+    print("=" * 84)
+    print(f"REGEX EQUIVALENCE VERIFIER: R1 = {args.pattern_a}  vs  R2 = {args.pattern_b}")
+    print("=" * 84)
+    print(f"R1 Min-DFA States : {res['min_dfa_a_states']}")
+    print(f"R2 Min-DFA States : {res['min_dfa_b_states']}")
+    print(f"Equivalent (L1=L2): {'YES (TƯƠNG ĐƯƠNG 100%)' if res['equivalent'] else 'NO (KHÔNG TƯƠNG ĐƯƠNG)'}")
+    print(f"Detail            : {res['message']}")
+    if not res["equivalent"] and res.get("counterexample") is not None:
+        print(f"Shortest Witness  : {res['counterexample']!r}")
+    print("=" * 84)
     return 0
 
 
@@ -281,6 +303,8 @@ def main(argv: List[str] | None = None) -> int:
     p_scan.add_argument("--trace", action="store_true", help="Record execution traces")
     p_scan.add_argument(
         "--error-recovery",
+        "--recovery",
+        dest="error_recovery",
         choices=["panic_char", "smart_sync"],
         default="panic_char",
         help="Lexical error recovery strategy (panic_char or smart_sync)",
@@ -294,6 +318,11 @@ def main(argv: List[str] | None = None) -> int:
     p_insp.add_argument("--test", nargs="*", help="Test strings to simulate")
     p_insp.set_defaults(func=cmd_inspect)
 
+    p_equiv = sub.add_parser("equiv", help="Prove equivalence L(R1) == L(R2) via Product Automaton")
+    p_equiv.add_argument("pattern_a", help="First regular expression R1")
+    p_equiv.add_argument("pattern_b", help="Second regular expression R2")
+    p_equiv.set_defaults(func=cmd_equiv)
+
     p_bench = sub.add_parser("benchmark", help="Benchmark compile & scan performance on all presets")
     p_bench.set_defaults(func=cmd_benchmark)
 
@@ -301,7 +330,11 @@ def main(argv: List[str] | None = None) -> int:
     p_jff.add_argument("--preset", choices=list(PRESETS.keys()), default="calclang")
     p_jff.add_argument("--pattern", help="Single RE pattern instead of preset")
     p_jff.add_argument("--name", default="TOKEN")
-    p_jff.add_argument("--stage", choices=["nfa", "eps_free_nfa", "subset_dfa", "min_dfa"], default="min_dfa")
+    p_jff.add_argument(
+        "--stage",
+        choices=["nfa", "eps_free_nfa", "subset_dfa", "direct_dfa", "min_dfa"],
+        default="min_dfa",
+    )
     p_jff.add_argument("--expand", action="store_true", help="Expand char classes to single-char transitions")
     p_jff.add_argument("--out", required=True, help="Output .jff path")
     p_jff.set_defaults(func=cmd_export_jff)

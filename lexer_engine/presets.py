@@ -154,7 +154,7 @@ PRESETS: Dict[str, Dict] = {
         "id": "calclang",
         "name": "CalcLang (Ngôn ngữ biểu thức gọn — 12 token, DFA trực quan)",
         "description": (
-            "Bộ ngôn ngữ nhỏ gọn (~16 trạng thái DFA tối giản) lý tưởng để quan sát toàn bộ "
+            "Bộ ngôn ngữ nhỏ gọn (20 trạng thái DFA tối giản) lý tưởng để quan sát toàn bộ "
             "đồ thị Combined DFA, bảng chuyển trạng thái và các bước tối thiểu hóa trực tiếp."
         ),
         "specs": CALCLANG_SPECS,

@@ -993,8 +993,111 @@ def build_slides() -> None:
         align=PP_ALIGN.CENTER,
     )
 
+    speaker_notes = [
+        (
+            "[Thành viên 1 | 0:00 – 0:30 | Slide 1: Trang bìa]\n"
+            "Em xin kính chào Cô và các bạn. Hôm nay Nhóm 6 chúng em xin trình bày báo cáo đồ án cuối kỳ môn Ngôn ngữ hình thức "
+            "với đề tài T13: Automata-based Lexical Analyzer — Xây dựng Bộ phân tích từ vựng tổng quát từ Biểu thức chính quy và Ô-tô-mát hữu hạn.\n"
+            "Điểm cốt lõi nhất của đồ án là toàn bộ hệ thống được lập trình 100% từ gốc bằng Python Standard Library, tuyệt đối không dùng "
+            "thư viện 'import re' trong lõi, hiện thực trọn vẹn 6 phương pháp Automata Chương 3.1 và vượt qua 62/62 kịch bản kiểm thử."
+        ),
+        (
+            "[Thành viên 1 | 0:30 – 1:15 | Slide 2: Đặt vấn đề & 4 Mục tiêu đột phá]\n"
+            "Trong trình biên dịch, Lexical Analyzer là cầu nối đầu tiên chuyển dòng ký tự thô thành luồng Token, lọc bỏ khoảng trắng/bình luận "
+            "và phát hiện lỗi từ vựng. Vì mọi lớp token đều thuộc Ngôn ngữ chính quy nên có thể quét bằng DFA trong thời gian tuyến tính chặt O(n).\n"
+            "Nhóm đặt ra 4 mục tiêu đột phá: (1) 100% thuần Python (Zero import re), hỗ trợ {m,n} và UTF-8 NON_ASCII; "
+            "(2) Kiểm chứng tương đương 6 chiều và chứng minh tối giản Myhill–Nerode; "
+            "(3) Bộ quét O(n) theo thuật toán Reps (1998) chống quay lui O(n²) và phát hiện Shadowed Rules; "
+            "(4) Web Studio 5 Tab cùng 62 test cases và 16 bộ unittest."
+        ),
+        (
+            "[Thành viên 1 | 1:15 – 2:00 | Slide 3: Mô hình hình thức Đa-Token & Bảng chữ cái UTF-8]\n"
+            "Slide 3 trình bày mở rộng ô-tô-mát đơn lẻ sang Đa-Token:\n"
+            "1. Combined ε-NFA & Khử ε (Định lý 2 Slide 21–22): rút gọn MiniLang từ 170 xuống 96 trạng thái NFA không ε.\n"
+            "2. Subset DFA (43 lớp ký tự tương đương): giải xung đột theo Rule Priority và tự động bắt lỗi Shadowed Rule.\n"
+            "3. Moore & Hopcroft + Myhill–Nerode: phân hoạch Π₀ theo từng nhãn token chiến thắng, tìm chuỗi phân biệt cho 3003/3003 cặp.\n"
+            "Bảng chữ cái |Σ| = 99 (98 ASCII + NON_ASCII 0x80) giúp khớp chuỗi tiếng Việt 'Xin chào UEH' nhưng vẫn bắt lỗi '100€' (U+20AC)."
+        ),
+        (
+            "[Thành viên 2 | 2:00 – 2:40 | Slide 4: Kiến trúc đường ống 6 phương pháp Automata]\n"
+            "Slide 4 mô tả kiến trúc 6 nhánh biên dịch song song:\n"
+            "• Nhánh chuẩn đi qua chuỗi 4 định lý Chương 3.1: RE Parser → Thompson ε-NFA (ĐL 3) → NFA Khử ε (ĐL 2) → Subset DFA (ĐL 1) → Moore & Hopcroft Min-DFA.\n"
+            "• Nhánh đối chứng đi trực tiếp từ cây cú pháp gia tố r·# và (R₁·#₁)|...|(Rₖ·#ₖ) qua bảng followpos để sinh Direct DFA đơn lẻ và Đa-Token.\n"
+            "• Mô-đun Product Automaton Verifier kiểm chứng tương đương 100% giữa cả 6 mô hình và kiểm chứng khứ hồi JFLAP 7.x."
+        ),
+        (
+            "[Thành viên 2 | 2:40 – 3:25 | Slide 5: Kiểm chứng Slide 38 UEH trên (a|b)*abb]\n"
+            "Kiểm chứng trên biểu thức kinh điển (a|b)*abb của Slide 38 Chương 3.1:\n"
+            "• Hình (a) Thompson ε-NFA: sinh đúng 11 trạng thái (q0..q10) khớp tuyệt đối Slide 38.\n"
+            "• Bước Khử ε (Định lý 2 Slide 21–22): loại bỏ toàn bộ cung ε, rút gọn từ 11 xuống 6 trạng thái NFA.\n"
+            "• Hình (b) Subset DFA: sinh đúng 5 trạng thái (D0..D4) khớp Slide 35.\n"
+            "• Hình (c) Moore & Hopcroft Min-DFA: gộp D0 ≡ D2 còn 4 trạng thái tối giản, đủ 6/6 cặp có chuỗi phân biệt Myhill–Nerode (bb, b, ε)."
+        ),
+        (
+            "[Thành viên 2 | 3:25 – 4:15 | Slide 6: Nhánh đối chứng Direct RE → DFA (Slide 46–57)]\n"
+            "Kiểm chứng phương pháp trực tiếp trên r = (a|ba)(a|b)*ba# (Slide 54 Chương 3.1):\n"
+            "• Cây cú pháp gia tố có đúng 8 vị trí lá; bảng followpos trên giao diện Web Tab 3 khớp 100% từng con số với Slide 54: "
+            "followpos(1)=3=4=5={4,5,6}, (2)={3}, (6)={7}, (7)={8}.\n"
+            "• Đồ thị Direct DFA sinh trực tiếp 5 trạng thái tối giản A..E khớp Slide 55–57.\n"
+            "• Mở rộng Đa-Token (Rᵢ·#ᵢ) sinh Combined Direct DFA tương đương 100% với Min-DFA trên cả MiniLang (79 TT), CalcLang (20), MiniSQL (52)."
+        ),
+        (
+            "[Thành viên 3 | 4:15 – 4:55 | Slide 7: Đồ thị Combined Minimized DFA — Ngôn ngữ CalcLang]\n"
+            "Đồ thị Combined Minimized DFA hoàn chỉnh của CalcLang (12 token): nén từ 57 ε-NFA → 26 NFA khử ε → 24 Subset DFA → 20 trạng thái tối giản (190/190 cặp Myhill–Nerode).\n"
+            "• Từ khóa vs Định danh: D0 → D9 → D13 → D16 nhận KW_LET nhờ Priority; nếu đọc thêm chữ/số (như letx) thì rẽ sang D8 nhận ID nhờ Maximal Munch.\n"
+            "• Số thực & Quay lui: D0 → D5[INT] → '.' → D11 (trung gian) → D15[FLOAT]. Gặp '3.' dừng ở D11 rồi quay lui về D5 phát INT('3')."
+        ),
+        (
+            "[Thành viên 3 | 4:55 – 5:35 | Slide 8: Bộ quét Maximal Munch Tuyến tính O(n) (Reps, 1998) & Phục hồi lỗi Kép]\n"
+            "3 cơ chế nổi bật của scanner.py:\n"
+            "1. Bảng nhớ failed_states (Reps, 1998): ghi nhớ các cấu hình (state, cursor) không dẫn tới trạng thái kết thúc để cắt nhánh O(1). "
+            "Trên chuỗi lỗi 10.000 ký tự '\"' + '\\\"'*5000, hệ thống cắt nhánh đúng 5.000 lần và quét xong trong ~24 ms!\n"
+            "2. Hỗ trợ UTF-8 qua cung NON_ASCII và bình luận nhiều dòng /*...*/.\n"
+            "3. Phục hồi lỗi kép: chuyển đổi trực tiếp giữa Panic-mode (dịch 1 ký tự) và Smart-Sync (gom trọn chuỗi chưa đóng thành 1 lỗi duy nhất)."
+        ),
+        (
+            "[Thành viên 3 | 5:35 – 7:15 | Slide 9: Trình diễn trực tiếp LexAutomata Studio 5 Tab]\n"
+            "Chuyển sang trình duyệt thực hiện Live Demo 90 giây qua 4 bước:\n"
+            "• Tab 1: Quét mã UTF-8 & /*...*/, bật/tắt Panic-mode vs Smart-Sync trên chuỗi chưa đóng, chạy hoạt ảnh quay lui '1.5e'.\n"
+            "• Tab 2: Chuyển đổi 6 mô hình Automata, xem bảng chuỗi phân biệt Myhill–Nerode (3003/3003 cặp).\n"
+            "• Tab 3: Xem cây r# Slide 54 và kiểm chứng tương đương 2 biểu thức R₁ ≡ R₂.\n"
+            "• Tab 4: Đưa IDENTIFIER lên trên KW_IF → Hệ thống bật cảnh báo đỏ Shadowed Rule ngay lập tức!"
+        ),
+        (
+            "[Thành viên 4 | 7:15 – 7:50 | Slide 10: Bộ Kiểm thử Không Lỗ Hổng (62/62 PASS) & 5 Bất biến Toán học]\n"
+            "Kết quả kiểm thử tự động:\n"
+            "• 62/62 JSON Test Cases PASS (100%): 16 mẫu RE đơn & {m,n}, 20 bẫy lỗi cú pháp RE, 26 kịch bản quét đa ngôn ngữ.\n"
+            "• 16/16 bộ Unittest OK cùng hơn 400 chuỗi Fuzzing kiểm chứng 5 bất biến toán học: Zero-Loss Reconstruction, 6-Way Equivalence, "
+            "Myhill–Nerode (4.519/4.519 cặp trên 3 ngôn ngữ), Reps O(n) (< 25 ms / 10 KB lỗi) và JFLAP 7.x Round-Trip."
+        ),
+        (
+            "[Thành viên 4 | 7:50 – 8:25 | Slide 11: Thực nghiệm & Phân tích Hiệu năng trên 3 Ngôn ngữ]\n"
+            "Tổng hợp thực nghiệm 6 phương pháp Automata:\n"
+            "• MiniLang (39 token): 170 ε-NFA → 96 NFA khử ε → 86 Subset DFA → 79 Combined Direct DFA → 78 Moore/Hopcroft Min-DFA (-9.3%, 3003/3003 cặp).\n"
+            "• CalcLang (12 token): 57 → 26 → 24 → 20 → 20 Min-DFA (-16.7%, 190/190 cặp).\n"
+            "• MiniSQL (14 token): 128 → 67 → 64 → 52 → 52 Min-DFA (-18.8%, 1326/1326 cặp).\n"
+            "• Tốc độ quét đạt 26.000 – 51.000 tokens/giây chỉ với Python thuần."
+        ),
+        (
+            "[Thành viên 4 | 8:25 – 9:05 | Slide 12: Giới hạn Lý thuyết (Bổ đề Bơm), Hướng phát triển & Phân công]\n"
+            "• Giới hạn lý thuyết DFA (Bổ đề Bơm Chương 3.2): Bình luận lồng nhau sâu tùy ý /* /* ... */ */ đẳng cấu với L = {a^n b^n | n ≥ 1} "
+            "thuộc lớp Ngôn ngữ phi ngữ cảnh (CFL - Chương 4), vượt khả năng bộ nhớ hữu hạn của DFA.\n"
+            "• Hướng phát triển: Bổ sung ngăn xếp ngữ cảnh từ vựng và kết nối Parser CFG LL(1)/LR(1).\n"
+            "• Phân công đều 25% cho 4 thành viên và khai báo minh bạch việc sử dụng AI hỗ trợ rà soát, kiểm chứng."
+        ),
+        (
+            "[Thành viên 4 | 9:05 – 9:30 | Slide 13: Kết luận & Hỏi đáp Q&A]\n"
+            "Tổng kết 3 trụ cột của đồ án T13: (1) 6 phương pháp Automata 100% tự cài đặt (Zero import re); "
+            "(2) Chứng minh toán học Product Automaton 6 chiều, Myhill–Nerode, Shadowed Rules & Reps O(n); "
+            "(3) 62/62 PASS + 16 Unittest Suites khớp 100% bài giảng UEH.\n"
+            "Em xin chân thành cảm ơn Cô Hồ Thị Thanh Tuyến và các bạn đã lắng nghe. Nhóm rất mong nhận được câu hỏi phản biện từ Cô và các bạn!"
+        ),
+    ]
+    for s_obj, note_txt in zip(prs.slides, speaker_notes):
+        s_obj.notes_slide.notes_text_frame.text = note_txt
+
     prs.save(str(PPTX_PATH))
-    print(f"[OK] Saved PPTX presentation -> {PPTX_PATH} ({TOTAL} slides)")
+    print(f"[OK] Saved PPTX presentation with embedded speaker notes -> {PPTX_PATH} ({TOTAL} slides)")
 
 
 if __name__ == "__main__":

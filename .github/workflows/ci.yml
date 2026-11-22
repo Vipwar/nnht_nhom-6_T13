@@ -1,0 +1,40 @@
+name: T13 Automata Lexical Analyzer CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  verify-automata-engine:
+    name: Verify 6-Way Automata Engine & 62 Test Cases (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Run 16 Unit & Mathematical Invariant Test Suites (incl. Zero `import re` AST Guard)
+        run: python3 tests/test_suite.py -v
+
+      - name: Run 62 Structured JSON Test Cases via CLI
+        run: python3 cli.py test
+
+      - name: Verify Exact UEH Chap 3.1 Lecture Slide Examples & Regex Equivalence
+        run: |
+          python3 cli.py inspect "(a|b)*abb" --test abb aabb ab aba
+          python3 cli.py inspect "(a|ba)(a|b)*ba" --test aba baba aabba ba
+          python3 cli.py equiv "(a|b)*" "(a*b*)*"
+
+      - name: Run 6-Way Automata Compilation & O(n) Scanner Benchmark
+        run: python3 cli.py benchmark

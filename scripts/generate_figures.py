@@ -64,7 +64,7 @@ def _render_dot(dot_src: str, out_png: Path, dpi: int = 240) -> bool:
 
 
 def fig1_architecture_pipeline() -> None:
-    """Crisp visual architecture diagram of the v2.0 Kleene 360° Automata-based Lexical Analyzer."""
+    """Visual architecture diagram of the Automata-based Lexical Analyzer."""
     fig, ax = plt.subplots(figsize=(11.5, 4.8), dpi=300)
     ax.set_xlim(0, 11.5)
     ax.set_ylim(0, 4.8)
@@ -80,20 +80,18 @@ def fig1_architecture_pipeline() -> None:
     )
     ax.text(
         5.75, 4.35,
-        "KIẾN TRÚC TỔNG THỂ BỘ PHÂN TÍCH TỪ VỰNG DỰA TRÊN AUTOMATA v2.0 (ĐỀ TÀI T13 — KLEENE 360°)",
+        "KIẾN TRÚC TỔNG THỂ BỘ PHÂN TÍCH TỪ VỰNG DỰA TRÊN AUTOMATA (ĐỀ TÀI T13)",
         ha="center", va="center", fontsize=11.0, fontweight="bold", color="#0F172A",
     )
 
     # Top main compile pipeline (5 boxes)
     stages = [
         (0.45, 2.55, 1.85, 1.35, "#EFF6FF", "#2563EB", "1. Đặc tả Token", "Tập RE: R₁..Rₖ + Priority\nMa trận giao L(Rᵢ)∩L(Rⱼ)\n& Cảnh báo che khuất"),
-        (2.65, 2.55, 1.85, 1.35, "#EEF2FF", "#4F46E5", "2. Regex Parser", "Đệ quy (Zero re, ≤4096 nút)\nΣ(U) Unicode động & ASCII\n0x00..0x7F (~(~A) = A)"),
-        (4.85, 2.55, 1.85, 1.35, "#F0FDF4", "#16A3AA", "3. Thompson & Khử ε", "Combined ε-NFA (ĐL 1)\n→ NFA không ε (ĐL 2)\nGắn nhãn đích Fᵢ"),
-        (7.05, 2.55, 1.95, 1.35, "#FFFBEB", "#D97706", "4. Subset DFA", "Định lý 3: ε-closure & Move\nPhân hoạch lớp tương đương\nGiải xung đột ưu tiên"),
-        (9.35, 2.55, 1.80, 1.35, "#ECFDF5", "#059669", "5. Min-DFA", "Định lý 4: Moore Π₀..Πₙ\n& Hopcroft O(|Σ||Q|log|Q|)\nBảo toàn phân loại token"),
+        (2.65, 2.55, 1.85, 1.35, "#EEF2FF", "#4F46E5", "2. Regex Parser", "Đệ quy (0 import re, ≤4096 nút)\nΣ(U) Unicode động & ASCII\n0x00..0x7F (~(~A) = A)"),
+        (4.85, 2.55, 1.85, 1.35, "#F0FDF4", "#16A34A", "3. Thompson & Khử ε", "Combined ε-NFA (ĐL 3)\n→ NFA không ε (ĐL 2)\nGắn nhãn đích Fᵢ"),
+        (7.05, 2.55, 1.95, 1.35, "#FFFBEB", "#D97706", "4. Subset DFA", "Định lý 1: ε-closure & Move\nPhân hoạch lớp tương đương\nGiải xung đột ưu tiên"),
+        (9.35, 2.55, 1.80, 1.35, "#ECFDF5", "#059669", "5. Min-DFA", "Moore Π₀..Πₙ & Hopcroft\nO(|Σ|·|Q|log|Q|)\nBảo toàn phân loại token"),
     ]
-    # Keep exact green border on stage 3
-    stages[2] = (4.85, 2.55, 1.85, 1.35, "#F0FDF4", "#16A34A", "3. Thompson & Khử ε", "Combined ε-NFA (ĐL 1)\n→ NFA không ε (ĐL 2)\nGắn nhãn đích Fᵢ")
 
     for x, y, w, h, fc, ec, title, desc in stages:
         ax.add_patch(
@@ -113,11 +111,11 @@ def fig1_architecture_pipeline() -> None:
         ym = 2.55 + 1.35 / 2
         ax.annotate("", xy=(x2, ym), xytext=(x1, ym), arrowprops=dict(arrowstyle="-|>", color="#334155", lw=1.8))
 
-    # Bottom row: Direct RE->DFA + GNFA 360°, Formal Verifier, and O(n) Scanner + Flex Codegen
+    # Bottom row: Direct RE->DFA + GNFA, Formal Verifier, and O(n) Scanner + Codegen
     bottom_boxes = [
-        (0.45, 0.48, 2.95, 1.32, "#F5F3FF", "#7C3AED", "Direct RE→DFA & GNFA 360°", "Cây gia tố r·# (followpos) + JFLAP\n& GNFA Khử Trạng Thái (DFA → RE)"),
-        (3.75, 0.48, 3.15, 1.32, "#ECFDF5", "#047857", "Chứng Minh Toán Học (Verifier)", "Product Automaton 7-Chiều (R₀ ≡ R_sinh)\nMyhill-Nerode + Chứng nhân L(Rᵢ)∩L(Rⱼ)"),
-        (7.25, 0.48, 3.90, 1.32, "#FEF2F2", "#DC2626", "6. O(n) Scanner & Flex Codegen", "Maximal Munch + Reps Memoization chống O(n²)\nPanic/Smart-Sync + Sinh Lexer Độc Lập (.py)"),
+        (0.45, 0.48, 2.95, 1.32, "#F5F3FF", "#7C3AED", "Direct RE→DFA & GNFA", "Cây cú pháp r·# (followpos) + JFLAP\n& Khử trạng thái GNFA (DFA → RE)"),
+        (3.75, 0.48, 3.15, 1.32, "#ECFDF5", "#047857", "Kiểm chứng tương đương", "Product Automaton (R₀ ≡ R_sinh)\nMyhill-Nerode + Chứng nhân L(Rᵢ)∩L(Rⱼ)"),
+        (7.25, 0.48, 3.90, 1.32, "#FEF2F2", "#DC2626", "6. Bộ quét O(n) & Sinh mã Lexer", "Maximal Munch + Reps Memoization chống O(n²)\nPanic/Smart-Sync + Xuất Lexer độc lập (.py)"),
     ]
     for x, y, w, h, fc, ec, title, desc in bottom_boxes:
         ax.add_patch(
@@ -304,10 +302,10 @@ def fig4_benchmark_comparison() -> None:
     x = np.arange(len(labels))
     w = 0.20
 
-    b1 = ax1.bar(x - 1.5 * w, nfa_counts, width=w, label="ε-NFA (ĐL 1)", color="#60A5FA", edgecolor="#1D4ED8", lw=0.8)
-    b2 = ax1.bar(x - 0.5 * w, eps_free_counts, width=w, label="NFA Khử ε (ĐL 2)", color="#A78BFA", edgecolor="#6D28D9", lw=0.8)
-    b3 = ax1.bar(x + 0.5 * w, sub_counts, width=w, label="Subset DFA (ĐL 3)", color="#FBBF24", edgecolor="#B45309", lw=0.8)
-    b4 = ax1.bar(x + 1.5 * w, min_counts, width=w, label="Min-DFA (ĐL 4)", color="#34D399", edgecolor="#047857", lw=0.8)
+    b1 = ax1.bar(x - 1.5 * w, nfa_counts, width=w, label="ε-NFA (ĐL 3)", color="#60A5FA", edgecolor="#1D4ED8", lw=0.8)
+    b2 = ax1.bar(x - 0.5 * w, eps_free_counts, width=w, label="NFA khử ε (ĐL 2)", color="#A78BFA", edgecolor="#6D28D9", lw=0.8)
+    b3 = ax1.bar(x + 0.5 * w, sub_counts, width=w, label="Subset DFA (ĐL 1)", color="#FBBF24", edgecolor="#B45309", lw=0.8)
+    b4 = ax1.bar(x + 1.5 * w, min_counts, width=w, label="Min-DFA (Moore/Hopcroft)", color="#34D399", edgecolor="#047857", lw=0.8)
 
     for bars in (b1, b2, b3, b4):
         for bar in bars:
@@ -317,7 +315,7 @@ def fig4_benchmark_comparison() -> None:
     ax1.set_xticks(x)
     ax1.set_xticklabels(labels, fontsize=9.5, fontweight="bold")
     ax1.set_ylabel("Số lượng trạng thái (States)", fontsize=9.5, fontweight="bold")
-    ax1.set_title("(a) Số trạng thái qua 4 Định lý Chương 3.1", fontsize=10.5, fontweight="bold", color="#1E3A8A", pad=10)
+    ax1.set_title("(a) Số trạng thái qua các giai đoạn Chương 3.1", fontsize=10.5, fontweight="bold", color="#1E3A8A", pad=10)
     ax1.set_ylim(0, max(nfa_counts) * 1.18)
     ax1.grid(axis="y", linestyle="--", alpha=0.4)
     ax1.legend(frameon=True, fontsize=8.0, ncol=2)

@@ -1,7 +1,7 @@
 {
   "metadata": {
-    "topic": "T13 - Automata-based Lexical Analyzer (Version 2.0 Ultimate)",
-    "description": "Bộ 72 test case có cấu trúc toàn diện bao gồm trường hợp hợp lệ (valid), không hợp lệ (invalid) và trường hợp biên (edge cases) cho bộ phân tích RE (Unicode động, ASCII 0x00..0x7F, chống bom AST), chuỗi 7-chiều Kleene 360° Automata và bộ quét từ vựng."
+    "topic": "T13 - Automata-based Lexical Analyzer",
+    "description": "Bộ 72 test case có cấu trúc bao gồm trường hợp hợp lệ (valid), không hợp lệ (invalid) và trường hợp biên (edge cases) cho bộ phân tích RE (Unicode động, ASCII 0x00..0x7F, chống bom AST), chuỗi chuyển đổi Automata và bộ quét từ vựng."
   },
   "single_regex_cases": [
     {

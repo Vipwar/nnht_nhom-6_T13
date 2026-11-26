@@ -8,7 +8,7 @@ on:
 
 jobs:
   verify-automata-engine:
-    name: Verify v2.0 Kleene 360° Automata Engine & 72 Test Cases (Python ${{ matrix.python-version }})
+    name: Verify Automata Engine & Test Cases (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -24,13 +24,13 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Run 22 Unit & Mathematical Invariant Test Suites (incl. Zero `import re` AST Guard)
+      - name: Run 22 Unit & Mathematical Invariant Test Suites
         run: python3 tests/test_suite.py -v
 
       - name: Run 72 Structured JSON Test Cases via CLI
         run: python3 cli.py test
 
-      - name: Verify UEH Chap 3.1 Slides, Kleene 360° GNFA, Intersection Matrix & Standalone Codegen
+      - name: Verify Kleene Pipeline, GNFA, Intersection Matrix & Standalone Codegen
         run: |
           python3 cli.py inspect "(a|b)*abb" --test abb aabb ab aba
           python3 cli.py inspect "(a|ba)(a|b)*ba" --test aba baba aabba ba
@@ -41,5 +41,5 @@ jobs:
           python3 cli.py codegen --preset minilang -o /tmp/minilang_lexer.py
           python3 /tmp/minilang_lexer.py --code 'let x = 42; if (x >= 10) { print("ok"); }'
 
-      - name: Run 7-Way Automata Compilation & O(n) Scanner Benchmark
+      - name: Run Automata Compilation & O(n) Scanner Benchmark
         run: python3 cli.py benchmark

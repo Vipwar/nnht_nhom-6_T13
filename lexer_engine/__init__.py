@@ -1,17 +1,17 @@
 """
-T13: Automata-based Lexical Analyzer Engine — Version 2.0 Ultimate
-(100% from scratch, zero `import re` usage).
+T13: Automata-based Lexical Analyzer Engine
+(100% from scratch in Python Standard Library, zero `import re` usage).
 
 Exposes:
-- LexicalAnalyzer: Full multi-token compilation pipeline
+- LexicalAnalyzer: Multi-token compilation pipeline
       Token REs -> Dynamic Unicode Alphabet Sigma(U) -> Combined ε-NFA
       -> ε-free NFA (Theorem 2) -> Subset DFA -> Moore & Hopcroft Minimized DFA
       -> Myhill-Nerode Minimality Proof -> Static Intersection Matrix L(R_i) ∩ L(R_j)
       -> Shadowed Rule Detector -> Standalone Table-Driven Codegen -> Reps O(n) Scanner
-- inspect_single_regex: Full 360° Kleene Theorem pedagogical pipeline for a single RE
+- inspect_single_regex: Kleene Theorem pipeline for a single RE
       RE -> AST & Postfix -> Thompson ε-NFA -> ε-free NFA -> Subset DFA
       -> Direct DFA (r# / followpos) -> Minimized DFA (Moore & Hopcroft)
-      -> GNFA State Elimination (DFA -> Synthesized RE) -> Formal Equivalence & Minimality Proofs
+      -> GNFA State Elimination (DFA -> Synthesized RE) -> Equivalence & Minimality Checks
 """
 
 from __future__ import annotations
@@ -140,8 +140,8 @@ class LexicalAnalyzer:
                             shadowers.append(ov.rule_i)
                 by_str = ", ".join(shadowers) if shadowers else "quy tắc ưu tiên cao hơn"
                 warn_msg = (
-                    f"Cảnh báo: Quy tắc `{tname}` bị che khuất hoàn toàn bởi quy tắc ưu tiên cao hơn "
-                    f"(`{by_str}`) và sẽ không bao giờ được khớp!"
+                    f"Cảnh báo: Quy tắc '{tname}' bị che khuất hoàn toàn bởi quy tắc ưu tiên cao hơn "
+                    f"({by_str}) và không bao giờ được khớp."
                 )
                 warnings.append(warn_msg)
                 rep["shadowed"] = True

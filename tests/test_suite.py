@@ -183,7 +183,7 @@ def run_json_test_report() -> Dict:
                 "detail": (
                     f"εNFA:{info['nfa']['state_count']} → NFA:{len(eps_free.states)} → Sub:{info['subset_dfa']['state_count']} "
                     f"→ Dir:{info['direct_dfa']['dfa']['state_count']} → Min:{info['minimized_dfa']['state_count']} "
-                    f"→ GNFA:✓ | {len(tc['accept'])} accept + {len(tc['reject'])} reject | Kleene 360°=✓"
+                    f"→ GNFA:OK | {len(tc['accept'])} accept + {len(tc['reject'])} reject | Kleene=OK"
                     if not failures
                     else "; ".join(failures)
                 ),
@@ -230,7 +230,7 @@ def run_json_test_report() -> Dict:
         if passed:
             detail = (
                 f"[{tc['preset']}] {len(got_min)} tokens, {len(res_min.errors)} lỗi, "
-                f"{res_min.elapsed_ms:.3f} ms (Subset ≡ MinDFA, Zero-Loss=✓)"
+                f"{res_min.elapsed_ms:.3f} ms (Subset ≡ MinDFA, Zero-Loss=OK)"
             )
         else:
             detail = (

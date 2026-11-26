@@ -1,6 +1,6 @@
 /* ============================================================================
-   LexAutomata Studio — Interactive Frontend Engine (Zero External Dependencies)
-   Topic T13: Automata-based Lexical Analyzer (UEH Formal Languages)
+   Topic T13: Automata-based Lexical Analyzer — Frontend (Vanilla JS)
+   Course: Formal Languages (UEH)
    ============================================================================ */
 
 (() => {
@@ -690,12 +690,12 @@
     if (data.errors.length > 0) {
       errBox.classList.remove("hidden");
       errBox.innerHTML =
-        `<strong>⚠ Phát hiện ${data.errors.length} lỗi từ vựng (Chế độ: ${escHtml(recModeLabel)}):</strong>` +
+        `<strong>Phát hiện ${data.errors.length} lỗi từ vựng (chế độ: ${escHtml(recModeLabel)}):</strong>` +
         data.errors
           .map((e) => {
             const trIdx = data.traces.findIndex((tr) => tr.kind === "ERROR" && tr.start_pos === e.pos);
             const lexInfo = e.lexeme && e.lexeme.length > 1 ? ` [Lexeme thu hồi: "${formatLexeme(e.lexeme)}"]` : "";
-            return `<div class="err-item" data-trace-idx="${trIdx}">• [Dòng ${e.line}, Cột ${e.col}] ${escHtml(e.message)}${escHtml(lexInfo)}</div>`;
+            return `<div class="err-item" data-trace-idx="${trIdx}">- [Dòng ${e.line}, cột ${e.col}] ${escHtml(e.message)}${escHtml(lexInfo)}</div>`;
           })
           .join("");
       errBox.querySelectorAll(".err-item").forEach((el) => {
@@ -737,7 +737,7 @@
       const tokObj = data.tokens.find((t) => t.start_pos === tr.start_pos);
       const cat = tr.kind === "ERROR" ? "error" : (tokObj?.category || "other");
       const btHtml = tr.backtrack_steps > 0
-        ? `<span class="tok-badge badge-operator">↩ ${tr.backtrack_steps}</span>`
+        ? `<span class="tok-badge badge-operator">${tr.backtrack_steps}</span>`
         : `<span class="muted">0</span>`;
       const stateHtml = tr.final_accept_state !== null ? `<code>D${tr.final_accept_state}</code>` : `<span class="tok-badge badge-error">DEAD</span>`;
       rows.push(`
@@ -768,7 +768,6 @@
     traceIdx = Math.max(0, Math.min(traces.length - 1, traceIdx));
     AppState.selectedTraceIdx = traceIdx;
     const tr = traces[traceIdx];
-    // Show final step by default so user sees the complete path immediately, or can hit Play from step 0!
     AppState.animStepIdx = tr.steps.length - 1;
 
     // Highlight selected row & highlighted span
@@ -790,7 +789,7 @@
     $("#anim-subtitle").innerHTML =
       `Đang mô phỏng #${tr.index + 1}: <strong>${escHtml(tr.token_type)}</strong> = <code>${escHtml(formatLexeme(tr.lexeme))}</code> ` +
       `(dòng ${tr.line}, cột ${tr.col})` +
-      (tr.backtrack_steps > 0 ? ` · <strong style="color:var(--warning)">Maximal Munch quay lui ${tr.backtrack_steps} ký tự!</strong>` : "");
+      (tr.backtrack_steps > 0 ? ` · <strong style="color:var(--warning)">Maximal Munch quay lui ${tr.backtrack_steps} ký tự</strong>` : "");
 
     $("#anim-step-badge").textContent = `Bước ${curStepIdx} / ${steps.length - 1}`;
 
@@ -809,7 +808,7 @@
           else if (idx < acceptCharLen) cls += " cell-accepted";
           else cls += " cell-backtrack";
         }
-        const tag = st.status === "dead" ? "DEAD" : (idx >= acceptCharLen && tr.kind === "TOKEN" ? "↩" : `#${st.pos}`);
+        const tag = st.status === "dead" ? "DEAD" : (idx >= acceptCharLen && tr.kind === "TOKEN" ? "BT" : `#${st.pos}`);
         return `<div class="${cls}" title="Ký tự '${escHtml(st.char_display)}' tại vị trí ${st.pos}">
           <span>${escHtml(st.char_display)}</span>
           <span class="cell-idx">${tag}</span>
@@ -822,12 +821,12 @@
     const narr = $("#anim-narration");
     narr.className = "anim-narration";
     if (curStep.status === "start") {
-      narr.innerHTML = `Khởi đầu tại trạng thái <code>D${curStep.to_state}</code> (vị trí ${curStep.pos}). Sẵn sàng đọc ký tự đầu tiên theo nguyên tắc Maximal Munch (Reps O(n)).`;
+      narr.innerHTML = `Khởi đầu tại trạng thái <code>D${curStep.to_state}</code> (vị trí ${curStep.pos}). Đọc ký tự đầu tiên theo nguyên tắc Maximal Munch (Reps O(n)).`;
     } else if (curStep.status === "accept") {
       narr.classList.add("narr-accept");
       narr.innerHTML =
         `Đọc ký tự <code>${escHtml(curStep.char_display)}</code>: chuyển <code>D${curStep.from_state} → D${curStep.to_state}</code>. ` +
-        `<strong>Đạt trạng thái kết thúc [${escHtml(curStep.accept_token)}]!</strong> Cập nhật <code>last_accept = D${curStep.to_state}</code> và tiếp tục thử đọc dài hơn.`;
+        `<strong>Đạt trạng thái kết thúc [${escHtml(curStep.accept_token)}].</strong> Cập nhật <code>last_accept = D${curStep.to_state}</code> và tiếp tục nhìn trước.`;
     } else if (curStep.status === "move") {
       narr.innerHTML =
         `Đọc ký tự <code>${escHtml(curStep.char_display)}</code>: chuyển <code>D${curStep.from_state} → D${curStep.to_state}</code> ` +
@@ -838,15 +837,15 @@
         narr.innerHTML =
           `Gặp ký tự <code>${escHtml(curStep.char_display)}</code> tại <code>D${curStep.from_state}</code>: <strong>không có chuyển tiếp δ (DEAD)</strong>. ` +
           (tr.backtrack_steps > 0
-            ? `Áp dụng <strong>Maximal Munch</strong>: quay lui <b>${tr.backtrack_steps}</b> ký tự về <code>last_accept = D${tr.final_accept_state}</code> → xuất <strong>${escHtml(tr.token_type)}</strong>(<code>${escHtml(formatLexeme(tr.lexeme))}</code>)!`
-            : `Dừng và xuất token dài nhất tại <code>D${tr.final_accept_state}</code> → <strong>${escHtml(tr.token_type)}</strong>(<code>${escHtml(formatLexeme(tr.lexeme))}</code>)!`);
+            ? `Áp dụng <strong>Maximal Munch</strong>: quay lui <b>${tr.backtrack_steps}</b> ký tự về <code>last_accept = D${tr.final_accept_state}</code> → xuất <strong>${escHtml(tr.token_type)}</strong>(<code>${escHtml(formatLexeme(tr.lexeme))}</code>).`
+            : `Dừng và xuất token dài nhất tại <code>D${tr.final_accept_state}</code> → <strong>${escHtml(tr.token_type)}</strong>(<code>${escHtml(formatLexeme(tr.lexeme))}</code>).`);
       } else {
         narr.classList.add("narr-err");
         const recMode = AppState.scanData?.stats?.error_recovery_mode === "smart_sync"
           ? `phục hồi <strong>Smart-Sync</strong> (thu hồi <code>${escHtml(formatLexeme(tr.lexeme))}</code>)`
           : `phục hồi <strong>Panic-mode</strong> (bỏ qua 1 ký tự <code>${escHtml(formatLexeme(tr.lexeme))}</code>)`;
         narr.innerHTML =
-          `Gặp ký tự <code>${escHtml(curStep.char_display)}</code> tại <code>D${curStep.from_state}</code>: <strong>DEAD</strong> và chưa từng đi qua trạng thái kết thúc nào! ` +
+          `Gặp ký tự <code>${escHtml(curStep.char_display)}</code> tại <code>D${curStep.from_state}</code>: <strong>DEAD</strong> và chưa đi qua trạng thái kết thúc nào. ` +
           `Báo <strong>LEXICAL_ERROR</strong> tại (${tr.line}:${tr.col}) và ${recMode}.`;
       }
     }
@@ -946,7 +945,7 @@
       svg.appendChild(svgEl("text", {
         x, y: cy + 4.5, "text-anchor": "middle",
         "font-family": "var(--mono)", "font-size": 12.5, "font-weight": 800, fill: txtCol,
-      }, isDead ? "✗" : `D${st.to_state}`));
+      }, isDead ? "∅" : `D${st.to_state}`));
 
       if (st.is_accept && st.accept_token && isReached) {
         svg.appendChild(svgEl("text", {
@@ -975,8 +974,8 @@
         }));
         svg.appendChild(svgEl("text", {
           x: midX, y: 18, "text-anchor": "middle",
-          "font-size": 11.5, "font-weight": 800, fill: "#d97706",
-        }, `↩ Quay lui ${tr.backtrack_steps} ký tự về D${tr.final_accept_state} (${tr.token_type})`));
+          "font-size": 11.5, "font-weight": 700, fill: "#d97706",
+        }, `Quay lui ${tr.backtrack_steps} ký tự về D${tr.final_accept_state} (${tr.token_type})`));
       }
     }
   }
@@ -987,7 +986,7 @@
       AppState.animTimer = null;
     }
     const btn = $("#btn-step-play");
-    if (btn) btn.textContent = "▶ Chạy";
+    if (btn) btn.textContent = "Chạy";
   }
 
   function togglePlayAnimation() {
@@ -1001,7 +1000,7 @@
       AppState.animStepIdx = 0;
       renderAnimator();
     }
-    $("#btn-step-play").textContent = "⏸ Dừng";
+    $("#btn-step-play").textContent = "Dừng";
     const delay = 1350 - Number($("#anim-speed").value);
     AppState.animTimer = setInterval(() => {
       const curTr = AppState.scanData?.traces?.[AppState.selectedTraceIdx];
@@ -1018,7 +1017,7 @@
   function updateTopPipelinePill() {
     const s = AppState.automataData?.summary;
     if (!s) return;
-    const eqMark = s.equivalence.equivalent ? "✓ Eq" : "✗ Eq";
+    const eqMark = s.equivalence.equivalent ? "Eq: Đạt" : "Eq: Lỗi";
     const epsFree = s.eps_free_nfa_states ? ` → NFA(${s.eps_free_nfa_states})` : "";
     $("#pipeline-pill").textContent =
       `RE(${s.token_count}) → ε-NFA(${s.nfa_states})${epsFree} → DFA(${s.subset_dfa_states}) → Min(${s.minimized_dfa_states}, -${s.state_reduction_percent}%) · ${eqMark}`;
@@ -1037,7 +1036,7 @@
     banner.style.background = eq.equivalent && mhEq ? "var(--success-soft)" : "var(--danger-soft)";
     banner.style.color = eq.equivalent && mhEq ? "var(--success)" : "var(--danger)";
     banner.innerHTML = `
-      <span>${eq.equivalent && mhEq ? "✅" : "❌"} <strong>Kiểm chứng Toán học:</strong> Subset DFA ≡ Moore Min-DFA ≡ Hopcroft Min-DFA (${s.minimized_dfa_states} trạng thái) · <strong>Myhill-Nerode:</strong> ${minProof ? `${minProof.distinguishable_pairs}/${minProof.total_pairs} cặp phân biệt (100% tối giản)` : escHtml(eq.message)}</span>
+      <span><strong>Kiểm chứng tương đương:</strong> Subset DFA ≡ Moore Min-DFA ≡ Hopcroft Min-DFA (${s.minimized_dfa_states} trạng thái) · <strong>Myhill-Nerode:</strong> ${minProof ? `${minProof.distinguishable_pairs}/${minProof.total_pairs} cặp phân biệt` : escHtml(eq.message)}</span>
       <span>Biên dịch: <strong>${s.timings_ms.total_ms.toFixed(2)} ms</strong> · Lớp Σ: <strong>${s.char_class_count}</strong></span>
     `;
 
@@ -1050,9 +1049,9 @@
 
     // Inspector Stats
     $("#auto-stats-list").innerHTML = `
-      <div class="stat-chip"><div class="sc-val">${s.token_count}</div><div class="sc-lbl">Quy tắc Token</div></div>
+      <div class="stat-chip"><div class="sc-val">${s.token_count}</div><div class="sc-lbl">Quy tắc token</div></div>
       <div class="stat-chip"><div class="sc-val">${s.nfa_states}</div><div class="sc-lbl">Trạng thái ε-NFA</div></div>
-      <div class="stat-chip"><div class="sc-val">${s.eps_free_nfa_states || "—"}</div><div class="sc-lbl">NFA Khử ε (ĐL 2)</div></div>
+      <div class="stat-chip"><div class="sc-val">${s.eps_free_nfa_states || "—"}</div><div class="sc-lbl">NFA khử ε (ĐL 2)</div></div>
       <div class="stat-chip"><div class="sc-val">${s.subset_dfa_states}</div><div class="sc-lbl">Subset DFA</div></div>
       <div class="stat-chip"><div class="sc-val">${s.minimized_dfa_states}</div><div class="sc-lbl">Min-DFA (-${s.state_reduction_percent}%)</div></div>
       <div class="stat-chip"><div class="sc-val">${s.char_class_count}</div><div class="sc-lbl">Lớp tương đương Σ</div></div>
@@ -1067,7 +1066,7 @@
       confHtml += shad
         .map(
           (sr) =>
-            `<div class="conflict-item" style="border-left:3px solid var(--danger);background:var(--danger-soft)">⚠ <strong>LUẬT BỊ CHE KHUẤT:</strong> <code>${escHtml(sr.token_name || sr.rule_name)}</code> bị che khuất hoàn toàn bởi [${(sr.shadowed_by || []).map(escHtml).join(", ")}]</div>`
+            `<div class="conflict-item" style="border-left:3px solid var(--danger);background:var(--danger-soft)"><strong>Quy tắc bị che khuất:</strong> <code>${escHtml(sr.token_name || sr.rule_name)}</code> bị che khuất bởi [${(sr.shadowed_by || []).map(escHtml).join(", ")}]</div>`
         )
         .join("");
     }
@@ -1075,7 +1074,7 @@
       ? confs
           .map(
             (c) =>
-              `<div class="conflict-item"><code>${c.state}</code>: <strong>${escHtml(c.winner)}</strong> thắng [${c.all_matched.map(escHtml).join(", ")}]</div>`
+              `<div class="conflict-item"><code>${c.state}</code>: <strong>${escHtml(c.winner)}</strong> ưu tiên hơn [${c.all_matched.map(escHtml).join(", ")}]</div>`
           )
           .join("")
       : '<p class="muted">Không có xung đột ưu tiên token.</p>';
@@ -1150,8 +1149,8 @@
     $("#inter-summary-cards").innerHTML = `
       <div class="kpi-box"><div class="kpi-val">${inter.total_pairs}</div><div class="kpi-lbl">Tổng cặp C(${inter.rule_names.length}, 2)</div></div>
       <div class="kpi-box"><div class="kpi-val kpi-ok">${inter.disjoint_count}</div><div class="kpi-lbl">Rời nhau L(Rᵢ)∩L(Rⱼ)=∅</div></div>
-      <div class="kpi-box"><div class="kpi-val">${inter.safe_priority_count}</div><div class="kpi-lbl">Giao có kiểm soát (Ưu tiên)</div></div>
-      <div class="kpi-box"><div class="kpi-val ${inter.shadow_conflict_count ? "kpi-err" : "kpi-ok"}">${inter.shadow_conflict_count}</div><div class="kpi-lbl">Cặp Che khuất (Shadowed)</div></div>
+      <div class="kpi-box"><div class="kpi-val">${inter.safe_priority_count}</div><div class="kpi-lbl">Giao có kiểm soát (ưu tiên)</div></div>
+      <div class="kpi-box"><div class="kpi-val ${inter.shadow_conflict_count ? "kpi-err" : "kpi-ok"}">${inter.shadow_conflict_count}</div><div class="kpi-lbl">Cặp che khuất (shadowed)</div></div>
       <div class="kpi-box"><div class="kpi-val">${inter.elapsed_ms.toFixed(2)} ms</div><div class="kpi-lbl">Thời gian Product BFS</div></div>
     `;
 
@@ -1169,8 +1168,8 @@
             .map((ov) => {
               const wDisp = ov.shortest_witness === "" ? "ε (rỗng)" : `"${formatLexeme(ov.shortest_witness)}"`;
               const winBadge = ov.severity === "danger"
-                ? `<span class="tok-badge badge-fail">⚠ ${escHtml(ov.rule_j)} BỊ CHE KHUẤT</span>`
-                : `<span class="tok-badge badge-pass">✓ ${escHtml(ov.winner)} thắng</span>`;
+                ? `<span class="tok-badge badge-fail">${escHtml(ov.rule_j)} bị che khuất</span>`
+                : `<span class="tok-badge badge-pass">${escHtml(ov.winner)} ưu tiên</span>`;
               return `
                 <tr>
                   <td><code>#${ov.priority_i} ${escHtml(ov.rule_i)}</code></td>
@@ -1183,7 +1182,7 @@
               `;
             })
             .join("")
-        : '<tr><td colspan="6" class="muted" style="text-align:center">Mọi cặp quy tắc token đều rời nhau hoàn toàn (L(Rᵢ) ∩ L(Rⱼ) = ∅)!</td></tr>';
+        : '<tr><td colspan="6" class="muted" style="text-align:center">Mọi cặp quy tắc token đều rời nhau (L(Rᵢ) ∩ L(Rⱼ) = ∅).</td></tr>';
     }
 
     const names = inter.rule_names || [];
@@ -1203,7 +1202,7 @@
       if (code === "superset_of_higher") return "⊃";
       if (code === "partial_overlap") return "∩";
       if (code === "identical_shadow") return "≡";
-      if (code === "superset_shadow" || code === "shadowed_by_higher") return "⚠";
+      if (code === "superset_shadow" || code === "shadowed_by_higher") return "⊃";
       return "·";
     };
 
@@ -1242,12 +1241,12 @@
         const ov = ovMap.get(`${ni}|${nj}`);
         if (!ov) {
           banner.className = "alert-inline alert-ok";
-          banner.innerHTML = `✅ <strong>Rời nhau tuyệt đối:</strong> <code>L(${escHtml(ni)}) ∩ L(${escHtml(nj)}) = ∅</code> — Không tồn tại chuỗi nào thuộc đồng thời cả hai quy tắc.`;
+          banner.innerHTML = `<strong>Rời nhau:</strong> <code>L(${escHtml(ni)}) ∩ L(${escHtml(nj)}) = ∅</code> — Không tồn tại chuỗi nào thuộc đồng thời cả hai quy tắc.`;
         } else {
           const wDisp = ov.shortest_witness === "" ? "ε (rỗng)" : `"${formatLexeme(ov.shortest_witness)}"`;
           banner.className = ov.severity === "danger" ? "alert-inline alert-err" : "alert-inline alert-warn";
           banner.innerHTML =
-            `${ov.severity === "danger" ? "⚠" : "ℹ"} <strong>Cặp (${escHtml(ov.rule_i)}, ${escHtml(ov.rule_j)}):</strong> ` +
+            `<strong>Cặp (${escHtml(ov.rule_i)}, ${escHtml(ov.rule_j)}):</strong> ` +
             `Chứng nhân ngắn nhất <code>w = ${escHtml(wDisp)}</code> — ${escHtml(ov.description)}`;
         }
       });
@@ -1276,7 +1275,7 @@
 
     const tbody = `<tbody>${rows
       .map((r) => {
-        const prefix = (r.is_start ? "→ " : "") + (r.is_accept ? "★ " : "");
+        const prefix = (r.is_start ? "→ " : "") + (r.is_accept ? "* " : "");
         const tokBadge = r.accept_token ? `<span class="tok-badge badge-pass">${escHtml(r.accept_token)}</span>` : `<span class="muted">—</span>`;
         const cells = cols
           .map((c) => {
@@ -1318,8 +1317,8 @@
         })
         .join(" · ");
       mnBox.innerHTML = `
-        <div><strong>✅ Định lý Myhill-Nerode & Đối chiếu Song song Moore ≡ Hopcroft:</strong> ${escHtml(minProof.message)} (${mhEq?.equivalent ? "Moore Min-DFA ≡ Hopcroft Min-DFA: 0 phản ví dụ" : "Không khớp"})</div>
-        <div style="margin-top:4px;font-size:12px" class="muted"><strong>Mẫu chuỗi nhân chứng phân tách cặp trạng thái (Distinguishing Witnesses):</strong> ${witnesses}</div>
+        <div><strong>Định lý Myhill-Nerode và đối chiếu Moore ≡ Hopcroft:</strong> ${escHtml(minProof.message)} (${mhEq?.equivalent ? "Moore Min-DFA ≡ Hopcroft Min-DFA: 0 phản ví dụ" : "Không khớp"})</div>
+        <div style="margin-top:4px;font-size:12px" class="muted"><strong>Mẫu chuỗi nhân chứng phân tách cặp trạng thái:</strong> ${witnesses}</div>
       `;
     }
 
@@ -1403,11 +1402,11 @@
     $("#re-summary-strip").innerHTML = `
       <div class="kpi-box"><div class="kpi-val" style="font-size:13px">${escHtml(info.postfix)}</div><div class="kpi-lbl">Hậu tố (${info.ast_nodes || "—"} nút AST)</div></div>
       <div class="kpi-box"><div class="kpi-val">${info.nfa.state_count}</div><div class="kpi-lbl">Thompson ε-NFA</div></div>
-      <div class="kpi-box"><div class="kpi-val">${epsFreeCount}</div><div class="kpi-lbl">NFA Khử ε (ĐL 2)</div></div>
+      <div class="kpi-box"><div class="kpi-val">${epsFreeCount}</div><div class="kpi-lbl">NFA khử ε (ĐL 2)</div></div>
       <div class="kpi-box"><div class="kpi-val">${info.subset_dfa.state_count}</div><div class="kpi-lbl">Subset DFA</div></div>
       <div class="kpi-box"><div class="kpi-val">${info.direct_dfa.dfa.state_count}</div><div class="kpi-lbl">Direct DFA (r#)</div></div>
       <div class="kpi-box"><div class="kpi-val kpi-ok">${info.minimized_dfa.state_count}</div><div class="kpi-lbl">Min-DFA (Moore/Hopcroft)</div></div>
-      <div class="kpi-box"><div class="kpi-val ${allOk ? "kpi-ok" : "kpi-err"}">${allOk ? "✓ 360°" : "✗"}</div><div class="kpi-lbl">Kleene 360° (R₀ ≡ R_sinh)</div></div>
+      <div class="kpi-box"><div class="kpi-val ${allOk ? "kpi-ok" : "kpi-err"}">${allOk ? "Đạt" : "Lỗi"}</div><div class="kpi-lbl">Định lý Kleene (R₀ ≡ R_sinh)</div></div>
     `;
 
     $("#re-string-tests").innerHTML = (info.string_tests || [])
@@ -1415,7 +1414,7 @@
         const disp = st.input === "" ? "ε (rỗng)" : `"${st.input}"`;
         const ok = st.min_dfa_accepted;
         return `<span class="str-pill ${ok ? "acc" : "rej"}" title="NFA=${st.nfa_accepted}, MinDFA=${st.min_dfa_accepted}, DirectDFA=${st.direct_dfa_accepted}">
-          <span>${escHtml(disp)}</span> → <strong>${ok ? "ACCEPT" : "REJECT"}</strong> ${st.consistent ? "✓" : "⚠"}
+          <span>${escHtml(disp)}</span> → <strong>${ok ? "ACCEPT" : "REJECT"}</strong>${st.consistent ? "" : " (lệch)"}
         </span>`;
       })
       .join("");
@@ -1448,7 +1447,7 @@
       const pBanner = $("#gnfa-proof-banner");
       if (pBanner) {
         pBanner.innerHTML = `
-          <span>${g.kleene_equivalent ? "✅" : "❌"} <strong>${escHtml(g.verification_message)}</strong></span>
+          <span><strong>${escHtml(g.verification_message)}</strong></span>
           <span>Thời gian khử ${g.live_state_count} đỉnh: <strong>${g.elapsed_ms.toFixed(2)} ms</strong></span>
         `;
       }
@@ -1483,14 +1482,14 @@
       extra.innerHTML = `<div class="muted">Biểu thức trung tố tường minh: <code>${escHtml(info.explicit_infix)}</code> · Hậu tố: <code>${escHtml(info.postfix)}</code></div>`;
     } else if (v === "eps_free") {
       const ef = info.eps_free_nfa || info.nfa;
-      $("#re-stage-caption").textContent = `NFA Không ε (Định lý 2 Slide 21-22): ${ef.state_count} trạng thái, ${ef.edge_count} cung (0 ε-chuyển tiếp)`;
+      $("#re-stage-caption").textContent = `NFA không ε (Định lý 2, Slide 21–22): ${ef.state_count} trạng thái, ${ef.edge_count} cung (0 ε-chuyển tiếp)`;
       renderAutomataSVG($("#re-automata-svg"), $("#re-graph-viewport"), ef, "single-re");
-      extra.innerHTML = `<div class="muted">Khử toàn bộ ε-chuyển tiếp bằng bao đóng ε-closure(q) và tích hợp trạng thái kết thúc theo đúng Định lý 2 (Chương 3.1).</div>`;
+      extra.innerHTML = `<div class="muted">Khử toàn bộ ε-chuyển tiếp bằng bao đóng ε-closure(q) và cập nhật tập kết thúc theo Định lý 2 (Chương 3.1).</div>`;
     } else if (v === "subset") {
-      $("#re-stage-caption").textContent = `Subset Construction DFA (Định lý 1): ${info.subset_dfa.state_count} trạng thái từ ε-closure & Move`;
+      $("#re-stage-caption").textContent = `Subset Construction DFA (Định lý 1): ${info.subset_dfa.state_count} trạng thái từ ε-closure và Move`;
       renderAutomataSVG($("#re-automata-svg"), $("#re-graph-viewport"), info.subset_dfa, "single-re");
       extra.innerHTML = `
-        <h4 style="margin-bottom:6px;font-size:13px">Nhật ký xây dựng tập con (Subset Construction Steps):</h4>
+        <h4 style="margin-bottom:6px;font-size:13px">Các bước xây dựng tập con (Subset Construction):</h4>
         <div class="table-scroll" style="max-height:190px">
           <table class="data-table">
             <thead><tr><th>#</th><th>Bước tính toán ε-closure / Move</th></tr></thead>
@@ -1516,8 +1515,8 @@
         : "";
       extra.innerHTML = `
         <div class="proof-banner" style="margin-bottom:8px">
-          <span>✅ Subset ≡ Moore Min ≡ Hopcroft Min: ${escHtml(info.equivalence.subset_vs_minimized.message)}</span>
-          <span>✅ Kleene 360° GNFA R_sinh: <code>${escHtml(info.gnfa ? info.gnfa.synthesized_regex : "")}</code></span>
+          <span>Subset ≡ Moore Min ≡ Hopcroft Min: ${escHtml(info.equivalence.subset_vs_minimized.message)}</span>
+          <span>GNFA R_sinh: <code>${escHtml(info.gnfa ? info.gnfa.synthesized_regex : "")}</code></span>
         </div>
         <div class="partitions-list">${(info.minimization.partition_history || [])
           .map(
@@ -1542,11 +1541,11 @@
       box.classList.remove("hidden");
       if (res.equivalent) {
         box.className = "alert-inline alert-ok";
-        box.innerHTML = `✅ <strong>TƯƠNG ĐƯƠNG TOÁN HỌC:</strong> <code>L(${escHtml(patA)}) ≡ L(${escHtml(patB)})</code> (Product DFA đã duyệt ${res.visited_pairs ?? res.checked_pairs} cặp trạng thái; Min-DFA: ${res.min_dfa_a_states ?? res.pattern_a_min_states} vs ${res.min_dfa_b_states ?? res.pattern_b_min_states} trạng thái, 0 phản ví dụ).`;
+        box.innerHTML = `<strong>Hai biểu thức tương đương:</strong> <code>L(${escHtml(patA)}) ≡ L(${escHtml(patB)})</code> (Product DFA đã duyệt ${res.visited_pairs ?? res.checked_pairs} cặp trạng thái; Min-DFA: ${res.min_dfa_a_states ?? res.pattern_a_min_states} và ${res.min_dfa_b_states ?? res.pattern_b_min_states} trạng thái, 0 phản ví dụ).`;
       } else {
         box.className = "alert-inline alert-err";
         const ce = res.counterexample === "" ? "ε (chuỗi rỗng)" : `"${res.counterexample}"`;
-        box.innerHTML = `❌ <strong>KHÔNG TƯƠNG ĐƯƠNG:</strong> <code>L(${escHtml(patA)}) ≠ L(${escHtml(patB)})</code> — Phản ví dụ ngắn nhất (BFS): <code>w = ${escHtml(ce)}</code> (${escHtml(res.message)}).`;
+        box.innerHTML = `<strong>Hai biểu thức không tương đương:</strong> <code>L(${escHtml(patA)}) ≠ L(${escHtml(patB)})</code> — Phản ví dụ ngắn nhất (BFS): <code>w = ${escHtml(ce)}</code> (${escHtml(res.message)}).`;
       }
     } catch (err) {
       box.classList.remove("hidden");
@@ -1570,9 +1569,9 @@
       if (shadowedMap.size > 0) {
         shBox.classList.remove("hidden");
         shBox.innerHTML =
-          `<strong>⚠ CẢNH BÁO PHÁT HIỆN ${shadowedMap.size} QUY TẮC BỊ CHE KHUẤT (SHADOWED / DEAD RULES):</strong><br/>` +
+          `<strong>Cảnh báo phát hiện ${shadowedMap.size} quy tắc bị che khuất:</strong><br/>` +
           Array.from(shadowedMap.values())
-            .map((sr) => `• ${escHtml(sr.message)}`)
+            .map((sr) => `- ${escHtml(sr.message)}`)
             .join("<br/>");
       } else {
         shBox.classList.add("hidden");
@@ -1595,10 +1594,10 @@
         </td>
         <td style="text-align:center"><input type="checkbox" class="ed-skip" ${sp.skip ? "checked" : ""} /></td>
         <td><input type="text" class="ed-desc" value="${escHtml(sp.description || "")}" /></td>
-        <td>
-          <button class="btn btn-outline btn-sm ed-up" title="Tăng ưu tiên">↑</button>
-          <button class="btn btn-outline btn-sm ed-down" title="Giảm ưu tiên">↓</button>
-          <button class="btn-danger-sm ed-del" title="Xóa">✕</button>
+        <td style="white-space:nowrap">
+          <button class="btn btn-outline btn-sm ed-up" title="Tăng ưu tiên">Lên</button>
+          <button class="btn btn-outline btn-sm ed-down" title="Giảm ưu tiên">Xuống</button>
+          <button class="btn-danger-sm ed-del" title="Xóa">Xóa</button>
         </td>
       </tr>
     `;
@@ -1650,8 +1649,8 @@
           .map((ov) => {
             const wDisp = ov.shortest_witness === "" ? "ε (rỗng)" : `"${formatLexeme(ov.shortest_witness)}"`;
             const statusHtml = ov.severity === "danger"
-              ? `<span class="tok-badge badge-fail">⚠ ${escHtml(ov.rule_j)} BỊ CHE KHUẤT</span> ${escHtml(ov.description)}`
-              : `<span class="tok-badge badge-pass">✓ ${escHtml(ov.winner)} thắng</span> ${escHtml(ov.description)}`;
+              ? `<span class="tok-badge badge-fail">${escHtml(ov.rule_j)} bị che khuất</span> ${escHtml(ov.description)}`
+              : `<span class="tok-badge badge-pass">${escHtml(ov.winner)} ưu tiên</span> ${escHtml(ov.description)}`;
             return `
               <tr>
                 <td><code>#${ov.priority_i} ${escHtml(ov.rule_i)}</code></td>
@@ -1663,7 +1662,7 @@
             `;
           })
           .join("")
-      : '<tr><td colspan="5" class="muted" style="text-align:center">Tất cả các quy tắc đều rời nhau đôi một (L(Rᵢ) ∩ L(Rⱼ) = ∅)!</td></tr>';
+      : '<tr><td colspan="5" class="muted" style="text-align:center">Tất cả các quy tắc đều rời nhau đôi một (L(Rᵢ) ∩ L(Rⱼ) = ∅).</td></tr>';
   }
 
   function syncEditorFromDOM() {
@@ -1700,13 +1699,13 @@
       const shCount = (compiled.shadowed_rules || []).length;
       fb.className = shCount > 0 ? "alert-inline alert-warn" : "alert-inline alert-ok";
       fb.textContent =
-        `✅ Biên dịch thành công ${s.token_count} quy tắc token trong ${s.timings_ms.total_ms.toFixed(2)} ms! ` +
-        `ε-NFA (${s.nfa_states}) → NFA Khử ε (${s.eps_free_nfa_states}) → Subset DFA (${s.subset_dfa_states}) → Minimized DFA (${s.minimized_dfa_states}, -${s.state_reduction_percent}%).` +
-        (shCount > 0 ? ` ⚠ Phát hiện ${shCount} quy tắc bị che khuất!` : "");
+        `Đã biên dịch ${s.token_count} quy tắc token trong ${s.timings_ms.total_ms.toFixed(2)} ms. ` +
+        `ε-NFA (${s.nfa_states}) → NFA khử ε (${s.eps_free_nfa_states}) → Subset DFA (${s.subset_dfa_states}) → Minimized DFA (${s.minimized_dfa_states}, -${s.state_reduction_percent}%).` +
+        (shCount > 0 ? ` Phát hiện ${shCount} quy tắc bị che khuất.` : "");
       fb.classList.remove("hidden");
     } catch (err) {
       fb.className = "alert-inline alert-err";
-      fb.textContent = `❌ Lỗi biên dịch: ${err.message}`;
+      fb.textContent = `Lỗi biên dịch: ${err.message}`;
       fb.classList.remove("hidden");
     }
   }
@@ -1727,13 +1726,13 @@
     if (!r) return;
     const hEl = $("#test-suite-heading");
     if (hEl) {
-      hEl.textContent = `Bộ Kiểm Thử Tự Động (${r.total} Test Case Có Cấu Trúc: Hợp Lệ · Trường Hợp Biên · Lỗi & Kleene 360°)`;
+      hEl.textContent = `Bộ kiểm thử tự động (${r.total} test case: hợp lệ, biên, lỗi từ vựng và Định lý Kleene)`;
     }
     $("#test-kpis").innerHTML = `
-      <div class="kpi-box"><div class="kpi-val">${r.total}</div><div class="kpi-lbl">Tổng Test Cases</div></div>
-      <div class="kpi-box"><div class="kpi-val kpi-ok">${r.passed}</div><div class="kpi-lbl">Đạt (PASSED)</div></div>
-      <div class="kpi-box"><div class="kpi-val ${r.failed ? "kpi-err" : "kpi-ok"}">${r.failed}</div><div class="kpi-lbl">Thất bại (FAILED)</div></div>
-      <div class="kpi-box"><div class="kpi-val kpi-ok">${r.pass_rate}%</div><div class="kpi-lbl">Tỷ lệ chính xác</div></div>
+      <div class="kpi-box"><div class="kpi-val">${r.total}</div><div class="kpi-lbl">Tổng số test case</div></div>
+      <div class="kpi-box"><div class="kpi-val kpi-ok">${r.passed}</div><div class="kpi-lbl">Đạt (PASS)</div></div>
+      <div class="kpi-box"><div class="kpi-val ${r.failed ? "kpi-err" : "kpi-ok"}">${r.failed}</div><div class="kpi-lbl">Không đạt (FAIL)</div></div>
+      <div class="kpi-box"><div class="kpi-val kpi-ok">${r.pass_rate}%</div><div class="kpi-lbl">Tỷ lệ đạt</div></div>
     `;
 
     const filtered = r.results.filter((item) => AppState.testFilter === "all" || item.category === AppState.testFilter);
@@ -1746,7 +1745,7 @@
         <td><span class="tok-badge ${it.category === "valid" ? "badge-literal" : it.category === "edge" ? "badge-operator" : "badge-error"}">${escHtml(it.category)}</span></td>
         <td><strong>${escHtml(it.name)}</strong></td>
         <td><code>${escHtml(formatLexeme(it.input).slice(0, 38))}</code></td>
-        <td><span class="tok-badge ${it.passed ? "badge-pass" : "badge-fail"}">${it.passed ? "✓ PASS" : "✗ FAIL"}</span></td>
+        <td><span class="tok-badge ${it.passed ? "badge-pass" : "badge-fail"}">${it.passed ? "PASS" : "FAIL"}</span></td>
         <td class="muted">${escHtml(it.detail)}</td>
       </tr>
     `
@@ -1770,7 +1769,7 @@
           <td><strong>${b.minimized_dfa_states} / ${b.hopcroft_dfa_states}</strong> <span class="tok-badge badge-pass">-${b.reduction_percent}%</span></td>
           <td>${b.moore_ms.toFixed(2)} / ${b.hopcroft_ms.toFixed(2)} ms</td>
           <td>${b.scan_10kb_ms.toFixed(2)} ms (${b.scan_10kb_tokens} tok)</td>
-          <td><span class="tok-badge ${b.equivalent && b.is_minimal ? "badge-pass" : "badge-fail"}">${b.equivalent && b.is_minimal ? `✓ 6-Chiều (${b.minimality_pairs})` : "✗"}</span></td>
+          <td><span class="tok-badge ${b.equivalent && b.is_minimal ? "badge-pass" : "badge-fail"}">${b.equivalent && b.is_minimal ? `Đạt (${b.minimality_pairs})` : "Lỗi"}</span></td>
         </tr>
       `
         )
@@ -1790,7 +1789,7 @@
             <td><strong>${pMs.toFixed(2)} ms</strong> (${st.panic_errors} lỗi)</td>
             <td><strong>${sMs.toFixed(2)} ms</strong> (${st.smart_errors} lỗi)</td>
             <td><code>${st.memoized_cutoffs.toLocaleString()} lần cắt tỉa</code></td>
-            <td><span class="tok-badge ${ok ? "badge-pass" : "badge-fail"}">${ok ? "✓ O(n) Tuyến tính" : "✗"}</span></td>
+            <td><span class="tok-badge ${ok ? "badge-pass" : "badge-fail"}">${ok ? "Đạt O(n)" : "Lỗi"}</span></td>
           </tr>
         `;
           })
@@ -1832,7 +1831,7 @@
     $("#btn-theme").addEventListener("click", () => {
       const isDark = document.documentElement.dataset.theme === "dark";
       document.documentElement.dataset.theme = isDark ? "" : "dark";
-      $("#btn-theme").textContent = isDark ? "🌙" : "☀️";
+      $("#btn-theme").textContent = isDark ? "Dark" : "Light";
     });
 
     // Main Tabs

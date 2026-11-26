@@ -1,5 +1,5 @@
 """
-Command-Line Interface for Topic T13: Automata-based Lexical Analyzer (Version 2.0 Ultimate).
+Command-Line Interface for Topic T13: Automata-based Lexical Analyzer.
 
 Usage examples:
   python cli.py scan --preset minilang --file data/samples/demo_minilang_valid.mini
@@ -146,7 +146,7 @@ def cmd_inspect(args: argparse.Namespace) -> int:
     info = inspect_single_regex(args.pattern, token_name=args.name, test_strings=args.test or [])
     gnfa = info["gnfa"]
     print("=" * 88)
-    print(f"SINGLE REGEX 360° KLEENE PIPELINE INSPECTOR: {args.name} = {args.pattern}")
+    print(f"SINGLE REGEX PIPELINE INSPECTOR: {args.name} = {args.pattern}")
     print("=" * 88)
     print(f"Explicit Infix : {info['explicit_infix']}")
     print(f"Postfix        : {info['postfix']}")
@@ -165,8 +165,8 @@ def cmd_inspect(args: argparse.Namespace) -> int:
     print(f"Subset ≡ Direct: {info['equivalence']['subset_vs_direct']['message']}")
     print(f"Moore ≡ Hopcr. : {info['equivalence']['moore_vs_hopcroft']['message']}")
     print(f"Myhill-Nerode  : {info['minimality']['message']}")
-    print(f"GNFA Synthesized RE (DFA -> RE): {gnfa['synthesized_regex']}")
-    print(f"Kleene 360°    : {gnfa['verification_message']}")
+    print(f"GNFA RE (DFA->RE): {gnfa['synthesized_regex']}")
+    print(f"Kleene Check   : {gnfa['verification_message']}")
 
     print("\n--- Direct RE -> DFA Followpos Table ---")
     for row in info["direct_dfa"]["followpos_table"]:
@@ -189,7 +189,7 @@ def cmd_inspect(args: argparse.Namespace) -> int:
         print("\n--- String Membership Tests ---")
         for st in info["string_tests"]:
             verdict = "ACCEPT" if st["min_dfa_accepted"] else "REJECT"
-            sync = "OK (εNFA=NFA=SubDFA=DirDFA=MinDFA)" if st["consistent"] else "MISMATCH!"
+            sync = "OK (εNFA=NFA=SubDFA=DirDFA=MinDFA)" if st["consistent"] else "MISMATCH"
             print(f"  {st['input']!r:<16} -> {verdict:<6} | {sync}")
     return 0
 
@@ -201,12 +201,12 @@ def cmd_gnfa(args: argparse.Namespace) -> int:
     res = dfa_to_regex(min_dfa, verify_roundtrip=True)
 
     print("=" * 88)
-    print("GNFA STATE ELIMINATION (DFA -> REGULAR EXPRESSION) — KLEENE THEOREM 360°")
+    print("GNFA STATE ELIMINATION (DFA -> REGULAR EXPRESSION)")
     print("=" * 88)
     print(f"Original Regex R_0   : {args.pattern}")
     print(f"Minimized DFA States : {len(min_dfa.states)} (live: {res.live_state_count})")
     print(f"Synthesized RE R_syn : {res.synthesized_regex}")
-    print(f"Kleene 360° Verdict  : {'PASS (L(R_0) ≡ L(R_syn))' if res.kleene_equivalent else 'FAIL'}")
+    print(f"Equivalence Verdict  : {'PASS (L(R_0) ≡ L(R_syn))' if res.kleene_equivalent else 'FAIL'}")
     print(f"Detail               : {res.verification_message}")
     print("-" * 88)
     for st in res.elimination_steps:
@@ -315,7 +315,7 @@ def cmd_intersections(args: argparse.Namespace) -> int:
 
 def cmd_benchmark(_args: argparse.Namespace) -> int:
     print("=" * 112)
-    print("BENCHMARK: AUTOMATA COMPILATION (7-WAY + KLEENE 360°) & LINEAR-TIME O(n) SCANNER PERFORMANCE")
+    print("BENCHMARK: AUTOMATA COMPILATION & LINEAR-TIME O(n) SCANNER PERFORMANCE")
     print("=" * 112)
     print(
         f"{'Preset':<10} {'Tok':>4} {'ε-NFA':>6} {'No-ε':>6} {'SubDFA':>7} {'DirDFA':>7} {'MinDFA':>7} "
@@ -337,7 +337,7 @@ def cmd_benchmark(_args: argparse.Namespace) -> int:
         scan_ms = (time.perf_counter() - t0) * 1000.0
         moore_ms = s["timings_ms"].get("minimize_ms", 0.0)
         hop_ms = s["timings_ms"].get("hopcroft_ms", 0.0)
-        mn_pairs = f"{s['minimality']['distinguishable_pairs']}/{s['minimality']['total_pairs']}✓"
+        mn_pairs = f"{s['minimality']['distinguishable_pairs']}/{s['minimality']['total_pairs']} OK"
         print(
             f"{pid:<10} {s['token_count']:>4} {s['nfa_states']:>6} {s['eps_free_nfa_states']:>6} "
             f"{s['subset_dfa_states']:>7} {len(combined_direct.states):>7} {s['minimized_dfa_states']:>7} "

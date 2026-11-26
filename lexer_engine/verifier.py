@@ -178,8 +178,8 @@ def check_dfa_equivalence(
         visited_pairs=len(parent),
         counterexample=None,
         message=(
-            f"TƯƠNG ĐƯƠNG TUYỆT ĐỐI (chứng minh bằng Product Automaton, "
-            f"duyệt {len(parent)} cặp trạng thái đạt tới được, 0 phản ví dụ)."
+            f"Hai DFA tương đương (kiểm tra bằng Product Automaton, "
+            f"duyệt {len(parent)} cặp trạng thái, 0 phản ví dụ)."
         ),
     )
 
@@ -367,12 +367,12 @@ def verify_dfa_is_minimal(dfa: DFA, check_token_names: bool = True) -> Minimalit
 
     if is_minimal:
         msg = (
-            f"TỐI GIẢN TUYỆT ĐỐI (Myhill-Nerode): Mọi {distinguishable_count}/{total_pairs} cặp trạng thái "
-            f"(p, q) đều phân biệt được bởi chuỗi chứng nhân w, 0 cặp tương đương dư thừa."
+            f"DFA đã tối giản theo Myhill-Nerode: cả {distinguishable_count}/{total_pairs} cặp trạng thái "
+            f"(p, q) đều có chuỗi phân biệt w, không còn cặp tương đương dư thừa."
         )
     else:
         msg = (
-            f"CHƯA TỐI GIẢN: còn {len(equivalent_pairs)} cặp trạng thái tương đương chưa gộp, "
+            f"Chưa tối giản: còn {len(equivalent_pairs)} cặp trạng thái tương đương chưa gộp, "
             f"{len(unreachable)} trạng thái không đạt tới, {len(dead_states)} trạng thái chết."
         )
 

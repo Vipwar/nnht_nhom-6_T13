@@ -109,7 +109,7 @@ def generate_standalone_lexer(
 Auto-generated Standalone Table-Driven Lexical Analyzer ({cls_name}).
 
 Spec / Preset : {preset_name} ({rule_count} token rules -> {num_states} Minimized DFA states, {num_classes} char classes)
-Generator     : T13 Automata-based Lexical Analyzer (Version 2.0 Ultimate)
+Generator     : T13 Automata-based Lexical Analyzer (UEH Formal Languages)
 Dependencies  : 100% Python Standard Library ONLY (Zero `import re`, Zero external packages).
 
 Algorithm:

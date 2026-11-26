@@ -452,8 +452,8 @@ def dfa_to_regex(dfa: DFA, verify_roundtrip: bool = True) -> GNFAEliminationResu
         visited_pairs = eq.visited_pairs
         if eq.equivalent:
             ver_msg = (
-                f"KHÉP KÍN VÒNG TRÒN ĐỊNH LÝ KLEENE 360°: L(DFA) ≡ L(R_sinh) "
-                f"(duyệt {eq.visited_pairs} cặp trạng thái, 0 phản ví dụ)."
+                f"Định lý Kleene (DFA → RE): L(DFA) ≡ L(R_sinh) "
+                f"(đã kiểm tra {eq.visited_pairs} cặp trạng thái, 0 phản ví dụ)."
             )
         else:
             ver_msg = f"Lệch tương đương Kleene: {eq.message}"

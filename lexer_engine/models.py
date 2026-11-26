@@ -18,7 +18,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Dict, FrozenSet, Iterable, List, Optional, Set, Tuple
 
-# Internal Unicode Noncharacter sentinel (Unicode Standard §23.7: U+FDD0..U+FDEF permanently
+# Internal Unicode Noncharacter sentinel (Unicode Standard Section 23.7: U+FDD0..U+FDEF permanently
 # reserved for internal engine use). Represents all Unicode code points >= 0x80 NOT in U_explicit.
 NON_ASCII: str = "\ufdd0"
 

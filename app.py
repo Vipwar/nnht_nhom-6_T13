@@ -1,10 +1,10 @@
 """
-Web Server & REST API for Topic T13: Automata-based Lexical Analyzer Studio.
+Web Server & REST API for Topic T13: Automata-based Lexical Analyzer.
 
 Zero third-party dependencies (uses Python standard library `http.server` only).
 Run:
     python app.py
-Opens interactive studio at http://127.0.0.1:8000 (or cloud PORT/HOST automatically).
+Opens web interface at http://127.0.0.1:8000 (or cloud PORT/HOST automatically).
 """
 
 from __future__ import annotations
@@ -429,18 +429,17 @@ class LexerHTTPHandler(BaseHTTPRequestHandler):
 def run_server(host: str = "127.0.0.1", port: int = 8000, open_browser: bool = True) -> None:
     server = ThreadingHTTPServer((host, port), LexerHTTPHandler)
     url = f"http://{host}:{port}"
-    print("=" * 72)
-    print("  T13: AUTOMATA-BASED LEXICAL ANALYZER STUDIO (UEH - Ngôn ngữ hình thức)")
-    print("=" * 72)
-    print(f"  Server running at : {url}")
-    print("  Press Ctrl+C to stop.")
-    print("=" * 72)
+    print("-" * 68)
+    print("  De tai T13: Bo phan tich tu vung dua tren Automata (UEH)")
+    print(f"  Dia chi truy cap : {url}")
+    print("  Nhan Ctrl+C de dung may chu.")
+    print("-" * 68)
     if open_browser:
         threading.Timer(0.6, lambda: webbrowser.open(url)).start()
     try:
         server.serve_forever()
     except KeyboardInterrupt:
-        print("\nStopping server...")
+        print("\nDang dung may chu...")
     finally:
         server.server_close()
 
@@ -450,7 +449,7 @@ if __name__ == "__main__":
     default_host = os.environ.get("HOST", "0.0.0.0" if is_cloud else "127.0.0.1")
     default_port = int(os.environ.get("PORT", "8000"))
 
-    parser = argparse.ArgumentParser(description="Run T13 Automata-based Lexical Analyzer Web Studio")
+    parser = argparse.ArgumentParser(description="Chay giao dien Web cho De tai T13")
     parser.add_argument("--host", default=default_host)
     parser.add_argument("--port", type=int, default=default_port)
     parser.add_argument("--no-browser", action="store_true", help="Do not auto-open web browser")

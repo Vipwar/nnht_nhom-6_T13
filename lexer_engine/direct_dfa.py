@@ -18,6 +18,7 @@ from typing import Dict, FrozenSet, List, Optional, Set, Tuple
 
 from .models import (
     DFA,
+    NON_ASCII,
     AcceptInfo,
     TokenSpec,
     compute_alphabet_partition,
@@ -97,11 +98,14 @@ def build_direct_dfa(
     priority: int = 0,
     skip: bool = False,
     category: str = "other",
+    extra_unicode: FrozenSet[str] = frozenset(),
 ) -> DirectDFAResult:
     """
     Build a DFA directly from Regular Expression `pattern` without constructing an NFA.
     """
-    ast = parse_regex(pattern)
+    cleaned_extra = frozenset(c for c in extra_unicode if ord(c) >= 128 and c != NON_ASCII)
+    ast = parse_regex(pattern, extra_unicode=cleaned_extra)
+    u_chars = ast.explicit_unicode_chars() | cleaned_extra
 
     node_counter = 0
     pos_counter = 0
@@ -306,6 +310,7 @@ def build_direct_dfa(
         accept_states=accept_states,
         char_classes=char_classes,
         transitions=transitions,
+        unicode_chars=u_chars,
         state_subsets=state_subsets,
         name=f"Direct-DFA({token_name})",
         pattern=pattern,
@@ -327,11 +332,20 @@ def build_combined_direct_dfa(specs: List[TokenSpec]) -> DFA:
         (R_1 · #_1) | (R_2 · #_2) | ... | (R_k · #_k)
     without constructing any intermediate NFA (Dragon Book Section 3.9.5).
 
-    If a Direct DFA state (set of positions S) contains multiple end-markers #_i,
-    the token rule with the highest priority (smallest priority integer) wins.
+    Lifts all k ASTs onto the shared dynamic Unicode alphabet U = U_1 u ... u U_k.
     """
     if not specs:
         raise ValueError("Danh sách đặc tả token không được rỗng")
+
+    raw_asts: List[RegexNode] = [parse_regex(spec.pattern) for spec in specs]
+    global_unicode: FrozenSet[str] = frozenset().union(
+        *(ast.explicit_unicode_chars() for ast in raw_asts)
+    )
+    materialized_asts: List[RegexNode] = (
+        [ast.materialize_unicode(global_unicode) for ast in raw_asts]
+        if global_unicode
+        else raw_asts
+    )
 
     pos_counter = 0
     leaf_chars: Dict[int, FrozenSet[str]] = {}
@@ -389,9 +403,8 @@ def build_combined_direct_dfa(specs: List[TokenSpec]) -> DFA:
 
     root_firstpos: Set[int] = set()
 
-    for idx, spec in enumerate(specs):
+    for idx, (spec, ast) in enumerate(zip(specs, materialized_asts)):
         effective_priority = spec.priority if spec.priority is not None else idx
-        ast = parse_regex(spec.pattern)
         n_body, fp_body, lp_body = eval_node(ast)
 
         end_p = next_pos()
@@ -477,6 +490,7 @@ def build_combined_direct_dfa(specs: List[TokenSpec]) -> DFA:
         accept_states=accept_states,
         char_classes=char_classes,
         transitions=transitions,
+        unicode_chars=global_unicode,
         state_subsets=state_subsets,
         all_matched_tokens=all_matched_tokens,
         name=f"Combined Direct DFA ({len(specs)} tokens)",

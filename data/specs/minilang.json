@@ -117,11 +117,11 @@
     },
     {
       "name": "STRING_LIT",
-      "pattern": "\"([^\"\\\\\\n]|\\\\.)*\"",
+      "pattern": "\"([^\"\\\\\\n\\r]|\\\\.)*\"",
       "priority": 15,
       "skip": false,
       "category": "literal",
-      "description": "Chuỗi ký tự (hỗ trợ ký tự escape & UTF-8)"
+      "description": "Chuỗi ký tự (hỗ trợ ký tự escape, CRLF & UTF-8)"
     },
     {
       "name": "IDENTIFIER",

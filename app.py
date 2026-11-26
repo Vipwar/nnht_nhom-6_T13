@@ -40,6 +40,7 @@ from lexer_engine import (  # noqa: E402
     eliminate_epsilon,
     export_dfa_to_jflap,
     export_nfa_to_jflap,
+    generate_standalone_lexer,
     inspect_single_regex,
 )
 from lexer_engine.dfa_minimizer import minimize_dfa  # noqa: E402
@@ -124,6 +125,7 @@ def _automata_payload(analyzer: LexicalAnalyzer) -> Dict[str, Any]:
         "hopcroft_minimization": analyzer.hopcroft_minimization.to_dict(),
         "minimality": analyzer.minimality_proof.to_dict(),
         "moore_vs_hopcroft": analyzer.moore_vs_hopcroft_equivalence.to_dict(),
+        "intersections": analyzer.intersection_analysis.to_dict(),
         "shadowed_rules": analyzer.shadowed_rules,
         "warnings": analyzer.warnings,
         "minimized_dfa": analyzer.minimized_dfa.to_graph_dict(),
@@ -303,6 +305,20 @@ class LexerHTTPHandler(BaseHTTPRequestHandler):
                 self._send_text(xml_str, "application/xml; charset=utf-8", filename=fname)
                 return
 
+            if path == "/api/export-lexer":
+                lex = STATE.get_analyzer()
+                pid = STATE.preset_id
+                cls_map = {
+                    "minilang": "MiniLangLexer",
+                    "calclang": "CalcLangLexer",
+                    "minisql": "MiniSQLLexer",
+                }
+                cls_name = qs.get("class_name", [cls_map.get(pid, "CustomLexer")])[0]
+                py_code = generate_standalone_lexer(lex, class_name=cls_name, preset_name=pid)
+                fname = f"{pid}_standalone_lexer.py"
+                self._send_text(py_code, "text/x-python; charset=utf-8", filename=fname)
+                return
+
             # Static files from web/
             rel = "index.html" if path in ("/", "") else path.lstrip("/")
             file_path = (WEB_DIR / rel).resolve()
@@ -377,6 +393,30 @@ class LexerHTTPHandler(BaseHTTPRequestHandler):
                 pattern_a = str(body.get("pattern_a", ""))
                 pattern_b = str(body.get("pattern_b", ""))
                 self._send_json(compare_regex_equivalence(pattern_a, pattern_b))
+                return
+
+            if path == "/api/codegen":
+                if "specs" in body:
+                    lex = STATE.compile_custom(body["specs"])
+                else:
+                    lex = STATE.get_analyzer()
+                pid = STATE.preset_id
+                cls_map = {
+                    "minilang": "MiniLangLexer",
+                    "calclang": "CalcLangLexer",
+                    "minisql": "MiniSQLLexer",
+                }
+                cls_name = str(body.get("class_name") or cls_map.get(pid, "CustomLexer"))
+                py_code = generate_standalone_lexer(lex, class_name=cls_name, preset_name=pid)
+                self._send_json(
+                    {
+                        "filename": f"{pid}_standalone_lexer.py",
+                        "class_name": cls_name,
+                        "code": py_code,
+                        "state_count": len(lex.minimized_dfa.states),
+                        "char_class_count": len(lex.minimized_dfa.char_classes),
+                    }
+                )
                 return
 
             self.send_error(HTTPStatus.NOT_FOUND, "Unknown API endpoint")

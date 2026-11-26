@@ -128,12 +128,12 @@
     <transition>
       <from>0</from>
       <to>2</to>
-      <read>(</read>
+      <read>\(</read>
     </transition>
     <transition>
       <from>0</from>
       <to>3</to>
-      <read>)</read>
+      <read>\)</read>
     </transition>
     <transition>
       <from>0</from>
@@ -183,7 +183,7 @@
     <transition>
       <from>5</from>
       <to>11</to>
-      <read>.</read>
+      <read>\.</read>
     </transition>
     <transition>
       <from>7</from>

@@ -315,9 +315,9 @@ def build_slides() -> None:
         3.72,
         7.7,
         0.95,
-        "Xây dựng Bộ Phân Tích Từ Vựng Tổng Quát từ Biểu Thức Chính Quy,\n"
-        "Thompson ε-NFA, Khử ε (ĐL 2), Subset DFA, Direct DFA (r#) & Moore/Hopcroft Min-DFA",
-        size=14.5,
+        "Bộ Phân Tích Từ Vựng Tổng Quát Khép Kín Vòng Tròn Định Lý Kleene 360°:\n"
+        "RE (Unicode Động Σ(U)) ⇄ ε-NFA · Khử ε · Subset/Direct DFA · Moore/Hopcroft · GNFA & Flex Codegen",
+        size=14.0,
         italic=True,
         color=RGBColor(0xBF, 0xDB, 0xFE),
     )
@@ -335,7 +335,7 @@ def build_slides() -> None:
         color=RGBColor(0x94, 0xA3, 0xB8),
     )
 
-    add_text(s1, 9.15, 0.85, 3.5, 0.4, "ĐIỂM NỔI BẬT DỰ ÁN", size=13, bold=True, color=C_SKY)
+    add_text(s1, 9.15, 0.85, 3.5, 0.4, "ĐIỂM NỔI BẬT v2.0 ULTIMATE", size=13, bold=True, color=C_SKY)
     add_bullets(
         s1,
         9.15,
@@ -343,12 +343,12 @@ def build_slides() -> None:
         3.55,
         3.0,
         [
-            ("100% Tự cài đặt: ", "Zero 'import re' trong lõi; hỗ trợ {m,n} & UTF-8 NON_ASCII."),
-            ("6 Phương pháp Automata: ", "Thompson → Khử ε → Subset → Moore/Hopcroft & Direct r#."),
-            ("Chứng minh Toán học: ", "Product Automaton 6-Way + Myhill–Nerode + Shadowed Rules."),
-            ("Scanner O(n) & 62 Tests: ", "Reps (1998) Memoization, Smart-Sync, 62/62 PASS + JFLAP .jff."),
+            ("Zero import re & Σ(U): ", "128 ASCII (~(~A)=A), Unicode động (nếu, €), chặn bom AST ≤4096."),
+            ("Kleene 360° (7 Otomat): ", "Thompson → Khử ε → Subset/Direct → Moore/Hopcroft → GNFA RE."),
+            ("Chứng minh & Ma trận Giao: ", "Myhill–Nerode + Ma trận L(Rᵢ)∩L(Rⱼ) kèm chứng nhân ngắn nhất."),
+            ("O(n) & Flex Codegen: ", "Reps (1998), Sinh Lexer độc lập (.py), 72/72 PASS + 22 Suites."),
         ],
-        size=11.6,
+        size=11.3,
         space_after=7,
         lead_color=C_SKY,
         text_color=C_WHITE,
@@ -373,7 +373,7 @@ def build_slides() -> None:
     # SLIDE 2: BÀI TOÁN & MỤC TIÊU
     # =========================================================================
     s2 = prs.slides.add_slide(blank)
-    add_header(s2, "01 · ĐẶT VẤN ĐỀ", "Bài toán Phân tích Từ vựng & Mục tiêu Đồ án T13", 2, TOTAL)
+    add_header(s2, "01 · ĐẶT VẤN ĐỀ", "Bài toán Phân tích Từ vựng & Mục tiêu Đồ án T13 (v2.0)", 2, TOTAL)
 
     add_rect(s2, 0.45, 1.18, 6.1, 5.72, C_WHITE, border_color=C_BORDER, rounded=True)
     add_text(s2, 0.70, 1.35, 5.6, 0.4, "Cầu nối giữa Ngôn ngữ hình thức & Trình biên dịch", size=15.5, bold=True, color=C_UEH)
@@ -386,7 +386,7 @@ def build_slides() -> None:
         [
             (
                 "Vai trò Lexical Analyzer: ",
-                "Chuyển dòng ký tự thô thành luồng token (từ khóa, định danh, số, chuỗi UTF-8, toán tử), lọc khoảng trắng/bình luận (// và /*...*/) và báo lỗi kèm (dòng, cột).",
+                "Chuyển dòng ký tự thô thành luồng token (từ khóa, định danh, số, chuỗi UTF-8/CRLF, toán tử), lọc khoảng trắng/bình luận (// và /*...*/) và báo lỗi kèm (dòng, cột).",
             ),
             (
                 "Tại sao dùng Automata hữu hạn? ",
@@ -394,10 +394,10 @@ def build_slides() -> None:
             ),
             (
                 "Vấn đề khi lập trình thủ công: ",
-                "Viết if/else cứng nhắc không tổng quát; còn gọi thư viện hộp đen re không minh họa được chuỗi định lý Automata.",
+                "Viết if/else cứng nhắc không tổng quát; còn gọi thư viện hộp đen re không minh họa được vòng tròn Định lý Kleene.",
             ),
         ],
-        size=12.8,
+        size=12.6,
         space_after=9,
     )
     add_rect(s2, 0.70, 5.45, 5.6, 1.18, C_BLUE_BG, border_color=C_BLUE, border_pt=1.2, rounded=True)
@@ -407,9 +407,9 @@ def build_slides() -> None:
         5.58,
         5.3,
         0.95,
-        "Chuỗi 4 Định lý Chương 3.1 + Nhánh Trực tiếp Mục 2.5:\n"
-        "RE  ≡  Thompson ε-NFA  ≡  NFA Khử ε  ≡  Subset DFA  ≡  Direct DFA  ≡  Min-DFA",
-        size=12.5,
+        "Khép kín Vòng tròn Định lý Kleene 360° (Chương 3.1):\n"
+        "RE  ⇄  ε-NFA  ⇄  NFA Khử ε  ⇄  Subset/Direct DFA  ⇄  Min-DFA  ⇄  GNFA RE",
+        size=12.1,
         bold=True,
         color=C_UEH,
         valign=MSO_ANCHOR.MIDDLE,
@@ -423,29 +423,29 @@ def build_slides() -> None:
             "1",
             C_BLUE,
             C_BLUE_BG,
-            "100% Thuần Python (Zero import re trong lõi)",
-            "Tự lập trình RE Parser ({m,n}, NON_ASCII UTF-8) → Thompson → Khử ε (ĐL 2) → Subset → Moore & Hopcroft Min-DFA.",
+            "Zero import re · Đại số Σ(U) & Chống Bom AST",
+            "Phủ kín 128 ASCII (~(~A)=A), phân hoạch Unicode động Σ(U) (nếu, €), chặn bom (((a{64}){64}){64}) ≤ 4096 nút.",
         ),
         (
             "2",
             C_PURPLE,
             C_PURPLE_BG,
-            "6-Way Equivalence & Chứng minh Myhill–Nerode",
-            "Direct RE→DFA đơn lẻ & Đa-Token, Product Automaton 6 chiều, chuỗi phân biệt Myhill–Nerode & JFLAP Khứ hồi.",
+            "Kleene 360° (GNFA) & Ma trận Giao L(Rᵢ)∩L(Rⱼ)",
+            "Thompson, Khử ε, Subset, Direct r#, Moore/Hopcroft, GNFA (DFA→RE), Myhill–Nerode & chứng nhân giao nhau.",
         ),
         (
             "3",
             C_AMBER,
             C_AMBER_BG,
-            "Bộ quét O(n) Reps (1998) & Phát hiện Luật Che khuất",
-            "Bảng nhớ failed_states chống quay lui O(n²), cảnh báo Shadowed Rules, phục hồi lỗi Panic-mode & Smart-Sync.",
+            "Scanner O(n) Reps (1998) & Flex Codegen (.py)",
+            "Bảng nhớ failed_states chống O(n²), STRING_LIT an toàn CRLF, sinh file Lexer Python độc lập kiểu Flex.",
         ),
         (
             "4",
             C_GREEN,
             C_GREEN_BG,
-            "Web Studio 5 Tab & 62/62 Test Cases + 16 Unittest",
-            "3 ngôn ngữ (MiniLang 39 token, CalcLang 12, MiniSQL 14), kiểm chứng 5 bất biến toán học trên 400+ chuỗi Fuzz.",
+            "Web Studio 5 Tab & 72/72 Test Cases + 22 Suites",
+            "3 ngôn ngữ (MiniLang 39, CalcLang 12, MiniSQL 14), đối chứng vi sai 100% giữa Engine gốc & Lexer sinh tự động.",
         ),
     ]
     for i, (num, col, bgc, g_title, g_desc) in enumerate(goals):
@@ -465,14 +465,14 @@ def build_slides() -> None:
             align=PP_ALIGN.CENTER,
             valign=MSO_ANCHOR.MIDDLE,
         )
-        add_text(s2, 7.82, y + 0.08, 4.65, 0.32, g_title, size=12.6, bold=True, color=col)
-        add_text(s2, 7.82, y + 0.40, 4.65, 0.55, g_desc, size=11.1, color=C_TEXT)
+        add_text(s2, 7.82, y + 0.08, 4.65, 0.32, g_title, size=12.4, bold=True, color=col)
+        add_text(s2, 7.82, y + 0.40, 4.65, 0.55, g_desc, size=10.9, color=C_TEXT)
 
     # =========================================================================
     # SLIDE 3: MÔ HÌNH HÌNH THỨC & MỞ RỘNG ĐA-TOKEN
     # =========================================================================
     s3 = prs.slides.add_slide(blank)
-    add_header(s3, "02 · MÔ HÌNH HÌNH THỨC", "Mở rộng Automata sang Phân loại Đa-Token, Khử ε & Hopcroft/Moore", 3, TOTAL)
+    add_header(s3, "02 · MÔ HÌNH HÌNH THỨC", "Mô hình Đa-Token, Phân hoạch Unicode Động Σ(U) & Ma trận Giao L(Rᵢ)∩L(Rⱼ)", 3, TOTAL)
 
     cards3 = [
         (
@@ -480,7 +480,7 @@ def build_slides() -> None:
             C_BLUE,
             C_BLUE_BG,
             "1. Combined ε-NFA & Khử ε (ĐL 2)",
-            "N_lex = (Q_N, Σ, δ_N, q_start, F_N, τ_N)\n\n"
+            "N_lex = (Q_N, Σ(U), δ_N, q_start, F_N, τ_N)\n\n"
             "• Dựng N(Rᵢ) rời nhau; nối q_start --ε--> s₁..sₖ.\n"
             "• Khử ε (Định lý 2 Slide 21–22):\n"
             "  δ'(p,a) = ε-closure(Move(ε-closure({p}),a))\n"
@@ -490,31 +490,30 @@ def build_slides() -> None:
             4.65,
             C_AMBER,
             C_AMBER_BG,
-            "2. Subset DFA & Direct Đa-Token",
-            "D_lex = (Q_D, Σ/≡, δ_D, D₀, F_D, τ_D)\n\n"
-            "• Σ/≡ nén 99 ký hiệu xuống 43 lớp tương đương.\n"
-            "• Giải xung đột theo Rule Priority:\n"
-            "  τ_D(S) = argmin priority(fᵢ)\n"
-            "• Phát hiện Shadowed Rule nếu ∀q ∈ F_min:\n"
-            "  τ(q) ≠ Tᵢ (VD: ID đặt trước KW_IF).",
+            "2. Subset DFA & Ma trận L(Rᵢ)∩L(Rⱼ)",
+            "D_lex = (Q_D, Σ(U)/≡, δ_D, D₀, F_D, τ_D)\n\n"
+            "• Σ(U)/≡ nén thành 44 lớp tương đương.\n"
+            "• Quét tĩnh C(39,2) = 741 cặp quy tắc:\n"
+            "  chỉ ra 9 cặp KW_*/BOOL ⊂ IDENTIFIER\n"
+            "  kèm chứng nhân ('if'..'true') & 0 che khuất.",
         ),
         (
             8.85,
             C_GREEN,
             C_GREEN_BG,
-            "3. Moore & Hopcroft + Myhill–Nerode ★",
-            "Phân hoạch khởi đầu Π₀ = {Q\\F} ∪ {F_{T₁}..F_{Tₘ}}\n\n"
-            "• Moore O(p·|Q|²): xuất vết Π₀ → Πₖ.\n"
-            "• Hopcroft O(p·|Q|log|Q|): đẩy khối nhỏ vào W.\n"
-            "• Chứng minh Myhill–Nerode: tìm chuỗi phân\n"
-            "  biệt w cho 100% cặp trạng thái (3003/3003).",
+            "3. Moore/Hopcroft & GNFA 360° ★",
+            "Phân hoạch Π₀ = {Q\\F} ∪ {F_{T₁}..F_{Tₘ}}\n\n"
+            "• Moore O(p·|Q|²) & Hopcroft O(p·|Q|log|Q|).\n"
+            "• Myhill–Nerode: 3003/3003 cặp phân biệt.\n"
+            "• GNFA State Elimination (DFA → RE):\n"
+            "  chứng minh tự động L(R_gốc) ≡ L(R_sinh)!",
         ),
     ]
     for x, col, bgc, heading, body in cards3:
         add_rect(s3, x, 1.18, 4.03, 3.65, C_WHITE, border_color=col, border_pt=1.5, rounded=True)
         add_rect(s3, x, 1.18, 4.03, 0.48, col, rounded=False)
-        add_text(s3, x + 0.12, 1.21, 3.8, 0.42, heading, size=13.5, bold=True, color=C_WHITE, valign=MSO_ANCHOR.MIDDLE)
-        add_text(s3, x + 0.16, 1.76, 3.72, 2.95, body, size=12.1, color=C_TEXT)
+        add_text(s3, x + 0.12, 1.21, 3.8, 0.42, heading, size=13.3, bold=True, color=C_WHITE, valign=MSO_ANCHOR.MIDDLE)
+        add_text(s3, x + 0.16, 1.76, 3.72, 2.95, body, size=12.0, color=C_TEXT)
 
     add_rect(s3, 0.45, 5.05, 12.43, 1.88, C_WHITE, border_color=C_BORDER, rounded=True)
     add_text(
@@ -523,7 +522,7 @@ def build_slides() -> None:
         5.18,
         11.9,
         0.35,
-        "Bảng chữ cái Mở rộng UTF-8 Hữu hạn (|Σ| = 99) & Quy ước Biểu thức chính quy",
+        "Bảng chữ cái Unicode Động Σ(U), Đại số Boole ~(~A) = A & Chống Bom Nhân bản AST",
         size=14,
         bold=True,
         color=C_UEH,
@@ -536,27 +535,27 @@ def build_slides() -> None:
         1.28,
         [
             (
-                "Bảng chữ cái Σ = 98 ASCII ∪ {NON_ASCII (0x80)}: ",
-                "Mọi ký tự ord(c) ≥ 128 ánh xạ vào NON_ASCII → chuỗi/comment khớp tiếng Việt \"Xin chào UEH\", nhưng 100€ ngoài chuỗi vẫn báo lỗi U+20AC!",
+                "Σ(U) = 128 ASCII (0x00..0x7F) ∪ U ∪ {NON_ASCII (U+FDD0)}: ",
+                "Tự động tách riêng ký tự Unicode tường minh U (VD: nếu, €, [^€]) khỏi phần còn lại NON_ASCII, đồng thời bảo toàn đối hợp ~(~A) = A!",
             ),
             (
-                "Cú pháp RE mở rộng đầy đủ: ",
-                "Hỗ trợ '|', '*', '+', '?', định lượng đếm '{m}', '{m,}', '{m,n}' (n≤64), '[-a]', '[a-]', '[^^]', '\\d', '\\w', '\\s', '\\f', '\\v' và BLOCK_COMMENT /*...*/.",
+                "Chống bom AST lồng nhau (MAX_AST_NODES = 4096): ",
+                "Chặn tức thì (<0.1 ms) các biểu thức nhân bản cấp số nhân như (((a{64}){64}){64}) (528.483 nút) trước khi cấp phát bộ nhớ.",
             ),
             (
-                "An toàn chuỗi rỗng (Nullable Guard): ",
-                "Phát hiện tự động ε ∈ L(Rᵢ) và yêu cầu lexeme có độ dài ≥ 1 để không bao giờ xảy ra vòng lặp vô hạn.",
+                "STRING_LIT an toàn CRLF & Nullable Guard: ",
+                "Loại trừ cả \\r và \\n trên Windows CRLF; kiểm soát ε ∈ L(Rᵢ) không bao giờ lặp vô hạn.",
             ),
         ],
-        size=11.7,
+        size=11.4,
         space_after=4,
     )
 
     # =========================================================================
-    # SLIDE 4: KIẾN TRÚC TỔNG THỂ 6 GIAI ĐOẠN
+    # SLIDE 4: KIẾN TRÚC TỔNG THỂ v2.0
     # =========================================================================
     s4 = prs.slides.add_slide(blank)
-    add_header(s4, "03 · KIẾN TRÚC HỆ THỐNG", "Đường ống Biên dịch 6 Phương pháp Automata & Kiểm chứng Hình thức", 4, TOTAL)
+    add_header(s4, "03 · KIẾN TRÚC HỆ THỐNG", "Đường ống Biên dịch v2.0: Vòng tròn Kleene 360° & Bộ Sinh Mã Lexer", 4, TOTAL)
 
     add_rect(s4, 0.45, 1.12, 12.43, 4.55, C_WHITE, border_color=C_BORDER, rounded=True)
     add_picture_fit(s4, FIG_DIR / "fig1_architecture_pipeline.png", 0.58, 1.20, 12.17, 4.38)
@@ -566,37 +565,37 @@ def build_slides() -> None:
             0.45,
             C_BLUE,
             "Chuỗi 4 Định lý + Hopcroft",
-            "Thompson ε-NFA → NFA Khử ε (ĐL 2) → Subset DFA (43 lớp Σ) → Moore & Hopcroft Min-DFA.",
+            "Thompson ε-NFA → NFA Khử ε (ĐL 2) → Subset DFA (44 lớp Σ) → Moore & Hopcroft Min-DFA.",
         ),
         (
             4.65,
             C_PURPLE,
-            "Direct DFA Đơn lẻ & Đa-Token",
-            "Cây cú pháp r·# và (R₁·#₁)|...|(Rₖ·#ₖ) qua followpos + Xuất/Đọc khứ hồi JFLAP (.jff).",
+            "Direct DFA & GNFA Kleene 360°",
+            "Cây gia tố r·# (followpos) + Khử trạng thái GNFA (Min-DFA → R_sinh, chứng minh R₀ ≡ R_sinh).",
         ),
         (
             8.85,
             C_GREEN,
-            "Product Eq & Myhill–Nerode",
-            "Chứng minh 6 Otomat tương đương 100% (0 phản ví dụ) & tìm chuỗi phân biệt cho mọi cặp trạng thái.",
+            "Ma trận L(Rᵢ)∩L(Rⱼ) & Flex Codegen",
+            "Phân tích giao nhau từng cặp kèm chứng nhân + Sinh file Lexer Python độc lập (.py) tốc độ O(n).",
         ),
     ]
     for x, col, t, d in chips:
         add_rect(s4, x, 5.82, 4.03, 1.15, C_WHITE, border_color=col, border_pt=1.3, rounded=True)
-        add_text(s4, x + 0.14, 5.88, 3.76, 0.30, t, size=12.5, bold=True, color=col)
-        add_text(s4, x + 0.14, 6.18, 3.76, 0.72, d, size=11, color=C_MUTED)
+        add_text(s4, x + 0.14, 5.88, 3.76, 0.30, t, size=12.4, bold=True, color=col)
+        add_text(s4, x + 0.14, 6.18, 3.76, 0.72, d, size=10.9, color=C_MUTED)
 
     # =========================================================================
-    # SLIDE 5: ĐƯỜNG ỐNG CHUẨN (SLIDE 38 VERIFICATION)
+    # SLIDE 5: ĐƯỜNG ỐNG CHUẨN (SLIDE 38 VERIFICATION + GNFA 360°)
     # =========================================================================
     s5 = prs.slides.add_slide(blank)
-    add_header(s5, "04 · THUẬT TOÁN CỐT LÕI (1/2)", "RE → Thompson ε-NFA → Khử ε → Subset DFA → Min-DFA (Slide 38 UEH)", 5, TOTAL)
+    add_header(s5, "04 · THUẬT TOÁN CỐT LÕI (1/2)", "RE → Thompson → Khử ε → Subset → Min-DFA → GNFA RE (Slide 38 UEH)", 5, TOTAL)
 
     add_rect(s5, 0.45, 1.14, 8.25, 5.82, C_WHITE, border_color=C_BORDER, rounded=True)
     add_picture_fit(s5, FIG_DIR / "fig2_slide38_pipeline.png", 0.55, 1.22, 8.05, 5.65)
 
     add_rect(s5, 8.90, 1.14, 3.98, 5.82, C_WHITE, border_color=C_BORDER, rounded=True)
-    add_text(s5, 9.10, 1.30, 3.6, 0.4, "Kiểm chứng trên (a|b)*abb", size=14.5, bold=True, color=C_UEH)
+    add_text(s5, 9.10, 1.30, 3.6, 0.4, "Kleene 360° trên (a|b)*abb", size=14.5, bold=True, color=C_UEH)
     add_bullets(
         s5,
         9.10,
@@ -604,12 +603,12 @@ def build_slides() -> None:
         3.6,
         4.9,
         [
-            ("Thompson ε-NFA (11 TT): ", "in-deg(start)=0, out-deg(end)=0 → phép nối gộp trực tiếp, sinh đúng q0..q10 khớp Slide 38!"),
-            ("Khử ε — Định lý 2 (6 TT): ", "Loại bỏ hoàn toàn cung ε theo Slide 21–22, rút gọn từ 11 xuống 6 trạng thái NFA."),
-            ("Subset DFA (5 TT): ", "BFS từ D0 = ε-closure({q0}) sinh đúng 5 tập con D0..D4 (khớp Slide 35)."),
-            ("Moore & Hopcroft (4 TT): ", "Gộp D0 ≡ D2 → 4 trạng thái tối giản; đủ 6/6 cặp có chuỗi phân biệt Myhill–Nerode (bb, b, ε)!"),
+            ("Thompson ε-NFA (11 TT): ", "in-deg(start)=0, out-deg(end)=0 → sinh đúng q0..q10 khớp Slide 38!"),
+            ("Khử ε — Định lý 2 (6 TT): ", "Loại bỏ toàn bộ cung ε theo Slide 21–22, rút gọn từ 11 xuống 6 TT."),
+            ("Subset → Min-DFA (5→4 TT): ", "Gộp D0 ≡ D2 còn 4 TT tối giản; đủ 6/6 cặp có chuỗi phân biệt Myhill–Nerode."),
+            ("GNFA (DFA → RE · 360°): ", "Khử lần lượt D2, D0, D3, D1 sinh b*a(a|ba|bb(a|b+a))*bb ≡ (a|b)*abb!"),
         ],
-        size=12.0,
+        size=11.7,
         space_after=8,
     )
 
@@ -626,8 +625,8 @@ def build_slides() -> None:
         1.22,
         6.8,
         0.30,
-        "Giao diện Web Tab 3: Cây phân tích r·# (nullable, FP, LP), Bảng followpos & Kiểm chứng R₁ ≡ R₂",
-        size=11.5,
+        "Giao diện Web Tab 3: Cây r·#, Bảng followpos, Huy hiệu Kleene 360° & 6 Giai đoạn",
+        size=11.4,
         bold=True,
         color=C_UEH,
     )
@@ -674,10 +673,10 @@ def build_slides() -> None:
         [
             ("Chuỗi nén trạng thái: ", "ε-NFA (57) → NFA Khử ε (26) → Subset DFA (24) → Moore & Hopcroft Min-DFA (20, giảm -16.7%)."),
             ("Chứng minh Myhill–Nerode: ", "Toàn bộ C(20, 2) = 190/190 cặp trạng thái đều có chuỗi phân biệt ngắn nhất w!"),
-            ("Từ khóa vs Định danh: ", "D0→D9→D13→D16[KW_LET] thắng ID nhờ Priority; đọc thêm chữ/số → rẽ về D8[ID] (Maximal Munch)."),
-            ("Số thực & Quay lui: ", "D0 --[0-9]--> D5[INT] --'.'--> D11 --[0-9]--> D15[FLOAT]. Gặp '3.' dừng tại D11 → quay lui về D5!"),
+            ("Từ khóa vs Định danh: ", "KW_LET ⊂ ID (giao nhau trên 'let') nhưng thắng nhờ Priority; đọc thêm chữ/số → rẽ về ID (Maximal Munch)."),
+            ("Số thực & Quay lui: ", "D0 --[0-9]--> INT --'.'--> trung gian --[0-9]--> FLOAT. Gặp '3.' quay lui về INT('3')!"),
         ],
-        size=11.8,
+        size=11.7,
         space_after=7,
     )
     add_rect(s7, 8.62, 5.70, 4.05, 1.05, C_PURPLE_BG, border_color=C_PURPLE, border_pt=1.1, rounded=True)
@@ -687,43 +686,43 @@ def build_slides() -> None:
         5.78,
         3.8,
         0.9,
-        "Kiểm chứng Khứ hồi JFLAP (.jff):\nXuất XML JFLAP 7.x & Đọc ngược lại (Round-Trip)\nChứng minh đẳng cấu 100% với Otomat gốc!",
-        size=11.1,
+        "Kiểm chứng Khứ hồi JFLAP (.jff):\nBảo toàn cả ký tự điều khiển ASCII (\\v, \\f, \\0)\n& Unicode động Σ(U) khi Xuất/Đọc ngược XML!",
+        size=11.0,
         bold=True,
         color=C_PURPLE,
         valign=MSO_ANCHOR.MIDDLE,
     )
 
     # =========================================================================
-    # SLIDE 8: SCANNER MAXIMAL MUNCH O(n) & ERROR RECOVERY
+    # SLIDE 8: SCANNER MAXIMAL MUNCH O(n) & FLEX CODEGEN
     # =========================================================================
     s8 = prs.slides.add_slide(blank)
-    add_header(s8, "06 · BỘ QUÉT TỪ VỰNG O(n)", "Maximal Munch Tuyến tính O(n) (Reps, 1998) & Phục hồi lỗi Kép", 8, TOTAL)
+    add_header(s8, "06 · BỘ QUÉT O(n) & CODEGEN", "Maximal Munch O(n) (Reps, 1998), Phục hồi lỗi & Sinh Lexer Độc lập Kiểu Flex", 8, TOTAL)
 
     steps8 = [
         (
             0.45,
             C_BLUE,
             "1 · Maximal Munch + Bảng nhớ Reps",
-            "Tra δ(cur, class[ch]) trong O(1); lưu mốc last_accept. Nếu (cur, cursor) ∈ failed_states thì cắt nhánh O(1) ngay lập tức → chống quay lui bậc hai O(n²)!",
+            "Tra δ(cur, class[ch]) trong O(1); lưu mốc last_accept. Nếu (cur, cursor) ∈ failed_states thì cắt nhánh O(1) ngay → chống quay lui bậc hai O(n²)!",
         ),
         (
             4.65,
             C_AMBER,
-            "2 · Quay lui & Chuỗi UTF-8 / /*...*/",
-            "Khi gặp DEAD/EOF: quay lui về last_accept (VD: 1.5e → FLOAT('1.5') + ID('e')). Hỗ trợ trọn vẹn chuỗi tiếng Việt UTF-8 và bình luận nhiều dòng /*...*/.",
+            "2 · Phục hồi lỗi & An toàn CRLF",
+            "STRING_LIT loại trừ cả \\r và \\n trên Windows CRLF; chuyển đổi tức thì giữa Panic-mode (dịch 1 ký tự) và Smart-Sync (gom trọn chuỗi/comment lỗi).",
         ),
         (
             8.85,
-            C_ROSE,
-            "3 · Panic-mode vs Smart-Sync",
-            "Chuyển đổi trực tiếp giữa Panic-mode (tiến 1 ký tự cổ điển) và Smart-Sync (gom trọn chuỗi chưa đóng \"abc... hoặc /*... thành 1 lỗi duy nhất).",
+            C_GREEN,
+            "3 · Sinh Lexer Độc lập (.py) Kiểu Flex",
+            "cli.py codegen đóng gói ASCII_CLASS_MAP[128], UNICODE_CLASS_MAP, TRANSITIONS[78][44] thành 1 file .py độc lập (Zero re, khớp 100% engine gốc)!",
         ),
     ]
     for x, col, st_t, st_d in steps8:
         add_rect(s8, x, 1.18, 4.03, 1.95, C_WHITE, border_color=col, border_pt=1.6, rounded=True)
-        add_text(s8, x + 0.16, 1.28, 3.72, 0.35, st_t, size=13.0, bold=True, color=col)
-        add_text(s8, x + 0.16, 1.66, 3.72, 1.38, st_d, size=11.6, color=C_TEXT)
+        add_text(s8, x + 0.16, 1.28, 3.72, 0.35, st_t, size=12.8, bold=True, color=col)
+        add_text(s8, x + 0.16, 1.66, 3.72, 1.38, st_d, size=11.4, color=C_TEXT)
 
     add_text(
         s8,
@@ -746,12 +745,12 @@ def build_slides() -> None:
         [
             ["ifx / a===b", "Ăn trọn 'ifx' (3 ký tự); tách '===' thành '==' + '='", "ID('ifx') / ID('a'), EQ('=='), ASSIGN('='), ID('b')", "Maximal Munch > Priority"],
             ["1.5e + 2", "D0→'1.5'(FLOAT, lưu)→'e'→' '(DEAD)→quay lui 1; ghi failed_states", "FLOAT_LIT('1.5'), ID('e'), OP_PLUS, INT('2')", "Backtracking + Memoization"],
-            ['"Xin chào" /*a*/ 100€', "Chữ tiếng Việt đi qua cung NON_ASCII; '€' ngoài chuỗi rơi vào DEAD", "STRING_LIT('\"Xin chào\"'), INT('100'), ERR('€' U+20AC)", "UTF-8 an toàn + Block Comment"],
-            ['"Quên đóng\\nlet x=1;', "Panic: tách chữ bên trong thành ID | Smart-Sync: gom trọn dòng 1", "Smart-Sync: 1 lỗi '\"Quên đóng' + giữ nguyên let x=1;", "Smart-Sync vs Panic-mode"],
-            ['"' + '\\"' * 5000, "Chuỗi 10.000 ký tự lỗi: kích hoạt 5.000 lần cắt nhánh failed_states", "Quét hoàn tất trong ~24 ms (Panic) / ~4.3 ms (Smart)", "Chống O(n²) theo Reps (1998)"],
+            ['"Xin chào" / nếu_1€', "Hỗ trợ đồng thời chuỗi UTF-8 & quy tắc từ khóa Unicode động Σ(U)", "STRING_LIT('\"Xin chào\"') / TOKEN('nếu_1€')", "Unicode Động Σ(U) v2.0"],
+            ['"Quên đóng\\r\\nlet x=1;', "STRING_LIT dừng ngay trước \\r\\n; Smart-Sync giữ sạch dòng 2", "1 lỗi '\"Quên đóng' + bảo toàn let x = 1; (dòng 2:1)", "CRLF-Safe + Smart-Sync"],
+            ['"' + '\\"' * 5000, "Chuỗi 10.000 ký tự lỗi: kích hoạt 5.000 lần cắt nhánh failed_states", "Tuyến tính chặt O(n) trên cả Engine & Standalone .py", "Reps (1998) + Flex Codegen"],
         ],
         [2.05, 4.55, 3.63, 2.2],
-        font_size=11.0,
+        font_size=10.9,
     )
 
     # =========================================================================
@@ -772,12 +771,12 @@ def build_slides() -> None:
         3.45,
         4.0,
         [
-            ("Tab 1 (Quét & Phục hồi lỗi): ", "Quét mã UTF-8 & /*...*/ → bật/tắt Panic-mode vs Smart-Sync trên chuỗi chưa đóng → chạy hoạt ảnh '1.5e'."),
-            ("Tab 2 (6 Otomat & Myhill–Nerode): ", "So sánh Moore vs Hopcroft, xem bảng chuỗi phân biệt Myhill–Nerode (3003/3003 cặp)."),
-            ("Tab 3 (Slide UEH & R₁ ≡ R₂?): ", "Xem cây r# Slide 54 & kiểm chứng tương đương 2 RE bất kỳ."),
-            ("Tab 4 (Bẫy Luật Che khuất): ", "Đưa IDENTIFIER lên trên KW_IF → Hệ thống bật cảnh báo đỏ Shadowed Rule ngay lập tức!"),
+            ("Tab 1 & ⬇ Sinh Lexer (.py): ", "Quét mã UTF-8/CRLF, đối sánh Panic vs Smart-Sync, tải ngay bộ quét Python độc lập kiểu Flex!"),
+            ("Tab 2 (Ma trận L(Rᵢ)∩L(Rⱼ)): ", "Xem bản đồ nhiệt 39×39 (9/741 cặp giao nhau) & bảng chứng minh Myhill–Nerode 3003/3003 cặp."),
+            ("Tab 3 (Kleene 360° & Slide 54): ", "Xem cây r# Slide 54 & quá trình khử trạng thái GNFA (DFA → R_sinh ≡ R_gốc)."),
+            ("Tab 4 (Unicode Động & Che khuất): ", "Thêm quy tắc Unicode (nếu / €) & thử bẫy Shadowed Rule báo động đỏ tức thì!"),
         ],
-        size=11.4,
+        size=11.1,
         space_after=7,
     )
     add_rect(s9, 9.28, 5.88, 3.42, 0.88, C_BLUE_BG, border_color=C_BLUE, border_pt=1.2, rounded=True)
@@ -787,8 +786,8 @@ def build_slides() -> None:
         5.95,
         3.22,
         0.74,
-        "Khởi chạy độc lập 100% stdlib:\npython3 app.py\n(Hỗ trợ cả Codespaces & Render Cloud)",
-        size=11.2,
+        "Khởi chạy độc lập 100% stdlib:\npython3 app.py  |  cli.py codegen\n(Hỗ trợ cả Codespaces & Render Cloud)",
+        size=11.0,
         bold=True,
         color=C_UEH,
         align=PP_ALIGN.CENTER,
@@ -799,18 +798,18 @@ def build_slides() -> None:
     # SLIDE 10: KIỂM THỬ TỰ ĐỘNG & ĐỐI CHỨNG
     # =========================================================================
     s10 = prs.slides.add_slide(blank)
-    add_header(s10, "08 · KIỂM THỬ & BẤT BIẾN", "Bộ Kiểm thử Không Lỗ Hổng (62/62 PASS) & 5 Bất biến Toán học", 10, TOTAL)
+    add_header(s10, "08 · KIỂM THỬ & BẤT BIẾN", "Bộ Kiểm thử Không Lỗ Hổng (72/72 PASS · 22 Suites) & Đối chứng Vi sai", 10, TOTAL)
 
     kpis10 = [
-        (0.45, C_GREEN, "62 / 62 PASS", "100% JSON Test Cases (16 RE · 20 Trap · 26 Scan)"),
-        (3.62, C_BLUE, "16 / 16 OK", "Unittest Suites + 400+ Chuỗi Fuzzing"),
+        (0.45, C_GREEN, "72 / 72 PASS", "100% JSON Cases (20 RE · 24 Trap · 28 Scan)"),
+        (3.62, C_BLUE, "22 / 22 OK", "Unittest Suites + Kleene 360° + ~(~A)=A"),
         (6.79, C_PURPLE, "4.519 / 4.519", "Cặp trạng thái có chuỗi phân biệt Myhill–Nerode"),
-        (9.96, C_AMBER, "< 25 ms", "Stress Test 10.000 ký tự lỗi (5.000 Cutoffs)"),
+        (9.96, C_AMBER, "100% Match", "Đối chứng Vi sai Engine gốc ≡ Standalone .py"),
     ]
     for x, col, big, sub in kpis10:
         add_rect(s10, x, 1.16, 2.92, 1.15, C_WHITE, border_color=col, border_pt=1.6, rounded=True)
-        add_text(s10, x + 0.1, 1.24, 2.72, 0.52, big, size=21, bold=True, color=col, align=PP_ALIGN.CENTER)
-        add_text(s10, x + 0.1, 1.78, 2.72, 0.42, sub, size=10.2, color=C_MUTED, align=PP_ALIGN.CENTER)
+        add_text(s10, x + 0.1, 1.24, 2.72, 0.52, big, size=20.5, bold=True, color=col, align=PP_ALIGN.CENTER)
+        add_text(s10, x + 0.1, 1.78, 2.72, 0.42, sub, size=10.0, color=C_MUTED, align=PP_ALIGN.CENTER)
 
     add_styled_table(
         s10,
@@ -820,22 +819,22 @@ def build_slides() -> None:
         4.40,
         ["Nhóm kiểm thử / Bất biến", "Số lượng", "Các kịch bản & Định lý toán học đã kiểm chứng tự động", "Kết quả"],
         [
-            ["1. Single RE & {m,n} Edge", "16 cases", "(a|b)*abb (11→6→5→4), (a|ba)(a|b)*ba (Slide 54), [-a], [a-], [^^], [0-9]{2,4}, (a*)*, (a|ε)b*", "16/16 PASS ✓"],
-            ["2. Bẫy lỗi cú pháp RE", "20 cases", "'', '()', '(|a)', 'a||b', '*a', '[z-a]', '[]', '[^]', 'a{5,2}', 'a{100}', 'a{abc}', 'abc\\'", "20/20 PASS ✓"],
-            ["3. Scanner Đa ngôn ngữ", "26 cases", "Maximal Munch, UTF-8 \"Xin chào UEH\", /*...*/, /***a*b***/, 1.5e quay lui, 100€ (U+20AC), CRLF", "26/26 PASS ✓"],
-            ["4. Bất biến Zero-Loss & 6-Way", "390+ Fuzz", "Ghép mọi lexeme (token + skip + lỗi) tái tạo 100% mã nguồn; ε-NFA ≡ Khử ε ≡ Sub ≡ Moore ≡ Hop ≡ Direct", "100% PASS ✓"],
-            ["5. Myhill–Nerode & Shadowed", "3 Presets", "3003/3003 (MiniLang), 190/190 (CalcLang), 1326/1326 (MiniSQL); tự động bắt luật KW_IF bị che khuất", "100% PASS ✓"],
-            ["6. Stress O(n) & JFLAP .jff", "16 Suites", "Chuỗi lỗi 10.000 ký tự quét < 25 ms (memoized_cutoffs=5000); xuất & đọc ngược XML JFLAP khớp 100%", "16/16 OK ✓"],
+            ["1. Single RE, Σ(U) & GNFA", "20 cases", "(a|b)*abb, Slide 54, (nếu|lặp)_[0-9]+€, [^€\\n]+, [\\f\\v]+; chứng minh L(R_0) ≡ L(R_sinh)", "20/20 PASS ✓"],
+            ["2. Bẫy RE & Bom nhân bản AST", "24 cases", "(((a{64}){64}){64}), (a{64}){64} (>4096 nút), \\u12G4, [a-\\uffff], a{5,2}, [z-a], '[]'", "24/24 PASS ✓"],
+            ["3. Scanner, CRLF & ASCII 0..127", "28 cases", "Maximal Munch, UTF-8 \"Xin chào UEH\", \"unclosed\\r\\nlet ok=1;, \\f, \\v, /*...*/", "28/28 PASS ✓"],
+            ["4. Đại số Boole ~(~A) = A", "Char & DFA", "Đối hợp phần bù trên 128 ASCII + U + NON_ASCII và L(D) ∩ L(~D) = ∅ cho mọi DFA", "100% PASS ✓"],
+            ["5. Myhill–Nerode & Ma trận Giao", "898 cặp", "3003/3003 (MiniLang), 190/190 (CalcLang), 1326/1326 (MiniSQL); 9/741 cặp giao nhau tĩnh", "100% PASS ✓"],
+            ["6. Reps O(n) & Flex Codegen", "22 Suites", "5.000 lần cắt nhánh failed_states; file Lexer Python độc lập khớp 100% Engine gốc", "22/22 OK ✓"],
         ],
         [2.75, 1.25, 6.93, 1.5],
-        font_size=11.2,
+        font_size=11.0,
     )
 
     # =========================================================================
     # SLIDE 11: THỰC NGHIỆM & BENCHMARK
     # =========================================================================
     s11 = prs.slides.add_slide(blank)
-    add_header(s11, "09 · THỰC NGHIỆM & PHÂN TÍCH", "Đánh giá 6 Phương pháp Automata & Hiệu năng Tuyến tính O(n)", 11, TOTAL)
+    add_header(s11, "09 · THỰC NGHIỆM & PHÂN TÍCH", "Đánh giá Đa-Otomat, Ma trận Giao nhau & Hiệu năng Tuyến tính O(n)", 11, TOTAL)
 
     add_rect(s11, 0.45, 1.12, 12.43, 3.85, C_WHITE, border_color=C_BORDER, rounded=True)
     add_picture_fit(s11, FIG_DIR / "fig4_benchmark_comparison.png", 0.58, 1.18, 12.17, 3.72)
@@ -844,26 +843,26 @@ def build_slides() -> None:
         (
             0.45,
             C_BLUE,
-            "6 Phương pháp trên MiniLang (39 token)",
-            "ε-NFA (170) → NFA Khử ε (96) → Subset DFA (86) → Combined Direct DFA (79) → Moore & Hopcroft Min-DFA (78, -9.3%).",
+            "MiniLang (39 token · 44 lớp Σ)",
+            "ε-NFA (170) → Khử ε (96) → Subset (86) → Direct (79) → Moore/Hopcroft Min-DFA (78, -9.3%) · 9/741 cặp giao nhau.",
         ),
         (
             4.65,
             C_GREEN,
-            "Moore ≡ Hopcroft & Myhill–Nerode 100%",
-            "CalcLang (57→26→24→20, -16.7%, 190/190 cặp); MiniSQL (128→67→64→52, -18.8%, 1326/1326 cặp phân biệt đôi một).",
+            "Moore ≡ Hopcroft & Myhill–Nerode",
+            "CalcLang (57→26→24→20, 190/190 cặp, 2/66 giao); MiniSQL (128→67→64→52, 1326/1326 cặp, 5/91 giao).",
         ),
         (
             8.85,
             C_AMBER,
-            "Chống O(n²) Tuyệt đối (< 25 ms / 10 KB lỗi)",
-            "Bảng nhớ failed_states (Reps, 1998) cắt 5.000 nhánh quay lui dư thừa trên chuỗi '\"' + '\\\"'*5000, giữ tốc độ tuyến tính chặt O(n).",
+            "Reps O(n) & Standalone Lexer (.py)",
+            "Bảng nhớ failed_states cắt 5.000 nhánh quay lui dư thừa; xuất file MiniLangLexer (~527 dòng, 0 phụ thuộc).",
         ),
     ]
     for x, col, it, idesc in insights:
         add_rect(s11, x, 5.14, 4.03, 1.82, C_WHITE, border_color=col, border_pt=1.4, rounded=True)
-        add_text(s11, x + 0.15, 5.24, 3.74, 0.34, it, size=12.6, bold=True, color=col)
-        add_text(s11, x + 0.15, 5.62, 3.74, 1.24, idesc, size=11.3, color=C_TEXT)
+        add_text(s11, x + 0.15, 5.24, 3.74, 0.34, it, size=12.4, bold=True, color=col)
+        add_text(s11, x + 0.15, 5.62, 3.74, 1.24, idesc, size=11.2, color=C_TEXT)
 
     # =========================================================================
     # SLIDE 12: GIỚI HẠN LÝ THUYẾT, HƯỚNG PHÁT TRIỂN & PHÂN CÔNG
@@ -872,7 +871,7 @@ def build_slides() -> None:
     add_header(s12, "10 · ĐÁNH GIÁ & TỔ CHỨC NHÓM", "Giới hạn Lý thuyết (Bổ đề Bơm), Hướng phát triển & Phân công", 12, TOTAL)
 
     add_rect(s12, 0.45, 1.16, 6.05, 5.80, C_WHITE, border_color=C_BORDER, rounded=True)
-    add_text(s12, 0.68, 1.30, 5.6, 0.36, "Các thách thức đã giải quyết & Giới hạn lý thuyết DFA", size=13.8, bold=True, color=C_ROSE)
+    add_text(s12, 0.68, 1.30, 5.6, 0.36, "Các lỗ hổng tinh vi đã vá & Giới hạn lý thuyết DFA", size=13.6, bold=True, color=C_ROSE)
     add_bullets(
         s12,
         0.68,
@@ -880,10 +879,10 @@ def build_slides() -> None:
         5.6,
         2.40,
         [
-            ("Đã giải quyết triệt để trong đồ án: ", "Hỗ trợ UTF-8 qua NON_ASCII, bình luận /*...*/, định lượng {m,n}, Smart-Sync, Shadowed Rules & chống O(n²) bằng Reps (1998)."),
-            ("Giới hạn lý thuyết của DFA (Bổ đề Bơm Chương 3.2): ", "Bình luận lồng nhau sâu tùy ý /* /* ... */ */ đẳng cấu với L = {a^n b^n | n≥1} (Ngôn ngữ phi ngữ cảnh - CFL, vượt khả năng bộ nhớ hữu hạn của DFA)."),
+            ("Đã giải quyết triệt để ở v2.0: ", "Unicode động Σ(U), bù kép ~(~A)=A trên 128 ASCII, chặn bom AST ≤4096, CRLF, GNFA 360°, Ma trận giao & Flex Codegen."),
+            ("Giới hạn lý thuyết của DFA (Bổ đề Bơm Chương 3.2): ", "Bình luận lồng nhau sâu tùy ý /* /* ... */ */ đẳng cấu với L = {a^n b^n | n≥1} (Ngôn ngữ phi ngữ cảnh - CFL, vượt bộ nhớ hữu hạn DFA)."),
         ],
-        size=11.4,
+        size=11.2,
         space_after=5,
         lead_color=C_ROSE,
     )
@@ -897,9 +896,9 @@ def build_slides() -> None:
         2.15,
         [
             ("Ngăn xếp Ngữ cảnh Từ vựng: ", "Kết hợp Start Conditions (push_state / pop_state) và bộ đếm độ sâu cho bình luận lồng nhau & chuỗi nội suy."),
-            ("Kết nối Parser CFG/PDA (Chương 4–5): ", "Đưa luồng Token vào bộ phân tích cú pháp LL(1) / LR(1) để hoàn chỉnh front-end trình biên dịch."),
+            ("Kết nối Parser CFG/PDA (Chương 4–5): ", "Đưa luồng Token của Lexer độc lập (.py) vào bộ phân tích cú pháp LL(1) / LR(1)."),
         ],
-        size=11.4,
+        size=11.3,
         space_after=5,
         lead_color=C_GREEN,
     )
@@ -914,13 +913,13 @@ def build_slides() -> None:
         2.95,
         ["Thành viên", "Phần việc phụ trách chính", "Tỷ lệ"],
         [
-            ["TV 1 [Điền tên]", "Lý thuyết Chương 1–3, Myhill–Nerode/Bổ đề Bơm, báo cáo & slide", "25%"],
-            ["TV 2 [Điền tên]", "RE Parser ({m,n}, NON_ASCII), Thompson, Khử ε (ĐL 2), Direct DFA", "25%"],
-            ["TV 3 [Điền tên]", "Subset DFA, Shadowed Rules, Moore & Hopcroft, Verifier, JFLAP", "25%"],
-            ["TV 4 [Điền tên]", "Scanner O(n) Reps 1998, Smart-Sync, Web Studio 5 Tab, 62 Tests", "25%"],
+            ["TV 1 [Điền tên]", "Lý thuyết Kleene 360°, ~(~A)=A, Myhill–Nerode/Bổ đề Bơm, báo cáo", "25%"],
+            ["TV 2 [Điền tên]", "RE Parser (Σ(U), ≤4096 AST), Thompson, Khử ε (ĐL 2), Direct DFA", "25%"],
+            ["TV 3 [Điền tên]", "Subset, Moore/Hopcroft, GNFA (DFA→RE), Ma trận L(Rᵢ)∩L(Rⱼ)", "25%"],
+            ["TV 4 [Điền tên]", "Scanner O(n), Flex Codegen (.py), Web Studio 5 Tab, 72 Tests", "25%"],
         ],
         [1.50, 3.40, 0.80],
-        font_size=10.5,
+        font_size=10.4,
     )
     add_rect(s12, 6.95, 4.92, 5.70, 1.82, C_AMBER_BG, border_color=C_AMBER, border_pt=1.2, rounded=True)
     add_text(s12, 7.12, 5.02, 5.38, 0.30, "Khai báo minh bạch việc sử dụng AI (Mục 10.2 Báo cáo)", size=11.8, bold=True, color=C_AMBER)
@@ -930,9 +929,9 @@ def build_slides() -> None:
         5.34,
         5.38,
         1.32,
-        "• Công cụ: Google Gemini / Antigravity hỗ trợ rà soát lý thuyết, kiểm tra trường hợp biên, dựng giao diện SVG 5 Tab và chuẩn hóa tài liệu.\n"
-        "• Kiểm chứng: Cả nhóm đọc hiểu từng dòng thuật toán trong lexer_engine/, đối chiếu 100% Slide Chương 3.1 và chịu trách nhiệm hoàn toàn khi bảo vệ.",
-        size=10.6,
+        "• Công cụ: Google Gemini / Antigravity hỗ trợ rà soát lý thuyết, kiểm tra các lỗ hổng tinh vi, dựng giao diện SVG 5 Tab và chuẩn hóa tài liệu.\n"
+        "• Kiểm chứng: Cả nhóm đọc hiểu từng dòng thuật toán trong lexer_engine/, chạy 72/72 JSON + 22/22 Unittest và chịu trách nhiệm 100% khi bảo vệ.",
+        size=10.5,
         color=C_TEXT,
     )
 
@@ -944,29 +943,29 @@ def build_slides() -> None:
     add_rect(s13, 0, 0, 13.333, 0.14, C_SKY)
     add_rect(s13, 0, 7.36, 13.333, 0.14, C_BLUE)
 
-    add_text(s13, 0.9, 1.25, 11.5, 0.5, "KẾT LUẬN ĐỒ ÁN T13", size=14, bold=True, color=C_SKY, align=PP_ALIGN.CENTER)
+    add_text(s13, 0.9, 1.25, 11.5, 0.5, "KẾT LUẬN ĐỒ ÁN T13 — VERSION 2.0 ULTIMATE", size=14, bold=True, color=C_SKY, align=PP_ALIGN.CENTER)
     add_text(
         s13,
         0.9,
         1.85,
         11.5,
         1.2,
-        "Từ Lý thuyết Automata Hữu hạn đến\nBộ Phân Tích Từ Vựng Tuyến Tính O(n) Hoàn Chỉnh",
-        size=32,
+        "Khép kín Vòng tròn Định lý Kleene 360° &\nBộ Sinh Mã Phân Tích Từ Vựng Tuyến Tính O(n)",
+        size=31,
         bold=True,
         color=C_WHITE,
         align=PP_ALIGN.CENTER,
     )
 
     final_boxes = [
-        (1.2, "6 Phương pháp Automata", "Zero import re · Thompson · Khử ε\nSubset · Moore · Hopcroft · Direct r#"),
-        (5.1, "Chứng minh Toán học", "Product Eq 6-Way · Myhill–Nerode\nShadowed Rules · Reps (1998) O(n)"),
-        (9.0, "62/62 PASS + 16 Suites", "Khớp 100% Slide UEH · UTF-8 & /*...*/\nJFLAP Round-Trip · Web Studio 5 Tab"),
+        (1.2, "Kleene 360° (Zero re)", "Thompson · Khử ε · Subset · Direct r#\nMoore · Hopcroft · GNFA (DFA → RE)"),
+        (5.1, "Đại số Σ(U) & Ma trận Giao", "128 ASCII (~(~A)=A) · Bom AST ≤4096\nMyhill–Nerode · Chứng nhân L(Rᵢ)∩L(Rⱼ)"),
+        (9.0, "72/72 PASS & Flex Codegen", "Reps (1998) O(n) · Sinh Lexer (.py)\n22 Unittest Suites · Web Studio 5 Tab"),
     ]
     for x, ft, fd in final_boxes:
         add_rect(s13, x, 3.45, 3.15, 1.45, RGBColor(0x16, 0x24, 0x47), border_color=C_SKY, border_pt=1.3, rounded=True)
-        add_text(s13, x + 0.12, 3.58, 2.91, 0.40, ft, size=15.5, bold=True, color=C_SKY, align=PP_ALIGN.CENTER)
-        add_text(s13, x + 0.12, 4.04, 2.91, 0.74, fd, size=11.4, color=RGBColor(0xE2, 0xE8, 0xF0), align=PP_ALIGN.CENTER)
+        add_text(s13, x + 0.12, 3.58, 2.91, 0.40, ft, size=15.0, bold=True, color=C_SKY, align=PP_ALIGN.CENTER)
+        add_text(s13, x + 0.12, 4.04, 2.91, 0.74, fd, size=11.1, color=RGBColor(0xE2, 0xE8, 0xF0), align=PP_ALIGN.CENTER)
 
     add_text(
         s13,
@@ -997,99 +996,97 @@ def build_slides() -> None:
         (
             "[Thành viên 1 | 0:00 – 0:30 | Slide 1: Trang bìa]\n"
             "Em xin kính chào Cô và các bạn. Hôm nay Nhóm 6 chúng em xin trình bày báo cáo đồ án cuối kỳ môn Ngôn ngữ hình thức "
-            "với đề tài T13: Automata-based Lexical Analyzer — Xây dựng Bộ phân tích từ vựng tổng quát từ Biểu thức chính quy và Ô-tô-mát hữu hạn.\n"
-            "Điểm cốt lõi nhất của đồ án là toàn bộ hệ thống được lập trình 100% từ gốc bằng Python Standard Library, tuyệt đối không dùng "
-            "thư viện 'import re' trong lõi, hiện thực trọn vẹn 6 phương pháp Automata Chương 3.1 và vượt qua 62/62 kịch bản kiểm thử."
+            "với đề tài T13: Automata-based Lexical Analyzer — Xây dựng Bộ phân tích từ vựng tổng quát khép kín vòng tròn Định lý Kleene 360°.\n"
+            "Điểm nổi bật nhất của phiên bản v2.0 là toàn bộ lõi được lập trình 100% bằng Python Standard Library (Zero 'import re'), "
+            "phân hoạch bảng chữ cái Unicode động Σ(U) bảo toàn đại số Boole ~(~A)=A, tích hợp GNFA (DFA → RE), Ma trận Giao nhau L(Rᵢ)∩L(Rⱼ), "
+            "Bộ sinh mã Lexer độc lập kiểu Flex và vượt qua tuyệt đối 72/72 kịch bản kiểm thử cùng 22 bộ Unittest."
         ),
         (
             "[Thành viên 1 | 0:30 – 1:15 | Slide 2: Đặt vấn đề & 4 Mục tiêu đột phá]\n"
             "Trong trình biên dịch, Lexical Analyzer là cầu nối đầu tiên chuyển dòng ký tự thô thành luồng Token, lọc bỏ khoảng trắng/bình luận "
             "và phát hiện lỗi từ vựng. Vì mọi lớp token đều thuộc Ngôn ngữ chính quy nên có thể quét bằng DFA trong thời gian tuyến tính chặt O(n).\n"
-            "Nhóm đặt ra 4 mục tiêu đột phá: (1) 100% thuần Python (Zero import re), hỗ trợ {m,n} và UTF-8 NON_ASCII; "
-            "(2) Kiểm chứng tương đương 6 chiều và chứng minh tối giản Myhill–Nerode; "
-            "(3) Bộ quét O(n) theo thuật toán Reps (1998) chống quay lui O(n²) và phát hiện Shadowed Rules; "
-            "(4) Web Studio 5 Tab cùng 62 test cases và 16 bộ unittest."
+            "Nhóm đặt ra 4 mục tiêu đột phá: (1) Zero import re, đại số Boole Σ(U) trên 128 ASCII & chống bom AST ≤ 4096 nút; "
+            "(2) Khép kín vòng tròn Kleene 360° với GNFA (DFA → RE), chứng minh Myhill–Nerode & Ma trận Giao nhau L(Rᵢ)∩L(Rⱼ); "
+            "(3) Bộ quét O(n) Reps (1998), an toàn CRLF & sinh file Lexer Python độc lập kiểu Flex; "
+            "(4) Web Studio 5 Tab cùng 72 test cases JSON và 22 bộ unittest."
         ),
         (
-            "[Thành viên 1 | 1:15 – 2:00 | Slide 3: Mô hình hình thức Đa-Token & Bảng chữ cái UTF-8]\n"
-            "Slide 3 trình bày mở rộng ô-tô-mát đơn lẻ sang Đa-Token:\n"
+            "[Thành viên 1 | 1:15 – 2:00 | Slide 3: Mô hình Đa-Token, Unicode Động Σ(U) & Ma trận Giao L(Rᵢ)∩L(Rⱼ)]\n"
+            "Slide 3 trình bày 3 trụ cột hình thức:\n"
             "1. Combined ε-NFA & Khử ε (Định lý 2 Slide 21–22): rút gọn MiniLang từ 170 xuống 96 trạng thái NFA không ε.\n"
-            "2. Subset DFA (43 lớp ký tự tương đương): giải xung đột theo Rule Priority và tự động bắt lỗi Shadowed Rule.\n"
-            "3. Moore & Hopcroft + Myhill–Nerode: phân hoạch Π₀ theo từng nhãn token chiến thắng, tìm chuỗi phân biệt cho 3003/3003 cặp.\n"
-            "Bảng chữ cái |Σ| = 99 (98 ASCII + NON_ASCII 0x80) giúp khớp chuỗi tiếng Việt 'Xin chào UEH' nhưng vẫn bắt lỗi '100€' (U+20AC)."
+            "2. Subset DFA (44 lớp tương đương) & Ma trận Giao nhau L(Rᵢ)∩L(Rⱼ): quét tĩnh 741 cặp quy tắc của MiniLang, chỉ ra đúng 9 cặp từ khóa bao hàm trong IDENTIFIER kèm chứng nhân ngắn nhất.\n"
+            "3. Moore/Hopcroft, Myhill–Nerode (3003/3003 cặp) & GNFA State Elimination (DFA → RE).\n"
+            "Đặc biệt, bảng chữ cái động Σ(U) = 128 ASCII ∪ U ∪ {NON_ASCII U+FDD0} bảo toàn đối hợp ~(~A)=A, cho phép dùng trực tiếp từ khóa tiếng Việt 'nếu' và ký hiệu '€' mà không va chạm NON_ASCII, đồng thời chặn bom AST lồng nhau (((a{64}){64}){64}) bằng ngưỡng MAX_AST_NODES = 4096."
         ),
         (
-            "[Thành viên 2 | 2:00 – 2:40 | Slide 4: Kiến trúc đường ống 6 phương pháp Automata]\n"
-            "Slide 4 mô tả kiến trúc 6 nhánh biên dịch song song:\n"
-            "• Nhánh chuẩn đi qua chuỗi 4 định lý Chương 3.1: RE Parser → Thompson ε-NFA (ĐL 3) → NFA Khử ε (ĐL 2) → Subset DFA (ĐL 1) → Moore & Hopcroft Min-DFA.\n"
-            "• Nhánh đối chứng đi trực tiếp từ cây cú pháp gia tố r·# và (R₁·#₁)|...|(Rₖ·#ₖ) qua bảng followpos để sinh Direct DFA đơn lẻ và Đa-Token.\n"
-            "• Mô-đun Product Automaton Verifier kiểm chứng tương đương 100% giữa cả 6 mô hình và kiểm chứng khứ hồi JFLAP 7.x."
+            "[Thành viên 2 | 2:00 – 2:40 | Slide 4: Kiến trúc đường ống v2.0 Kleene 360° & Bộ sinh mã Lexer]\n"
+            "Slide 4 mô tả kiến trúc v2.0 khép kín vòng tròn Kleene 360°:\n"
+            "• Nhánh chuẩn đi qua chuỗi 4 định lý Chương 3.1: RE Parser (≤4096 nút, Σ(U)) → Thompson ε-NFA → NFA Khử ε → Subset DFA → Moore & Hopcroft Min-DFA.\n"
+            "• Nhánh đối chứng & chiều ngược Kleene: cây gia tố r·# (followpos) sinh Direct DFA, và thuật toán GNFA State Elimination chuyển ngược Min-DFA về biểu thức chính quy R_sinh.\n"
+            "• Cuối cùng, Min-DFA vừa vận hành trực tiếp bộ quét O(n), vừa được mô-đun codegen đóng gói thành file Lexer Python độc lập kiểu Flex."
         ),
         (
-            "[Thành viên 2 | 2:40 – 3:25 | Slide 5: Kiểm chứng Slide 38 UEH trên (a|b)*abb]\n"
+            "[Thành viên 2 | 2:40 – 3:25 | Slide 5: Kiểm chứng Slide 38 UEH & GNFA Kleene 360° trên (a|b)*abb]\n"
             "Kiểm chứng trên biểu thức kinh điển (a|b)*abb của Slide 38 Chương 3.1:\n"
             "• Hình (a) Thompson ε-NFA: sinh đúng 11 trạng thái (q0..q10) khớp tuyệt đối Slide 38.\n"
-            "• Bước Khử ε (Định lý 2 Slide 21–22): loại bỏ toàn bộ cung ε, rút gọn từ 11 xuống 6 trạng thái NFA.\n"
-            "• Hình (b) Subset DFA: sinh đúng 5 trạng thái (D0..D4) khớp Slide 35.\n"
-            "• Hình (c) Moore & Hopcroft Min-DFA: gộp D0 ≡ D2 còn 4 trạng thái tối giản, đủ 6/6 cặp có chuỗi phân biệt Myhill–Nerode (bb, b, ε)."
+            "• Bước Khử ε (Định lý 2 Slide 21–22): rút gọn từ 11 xuống 6 trạng thái NFA.\n"
+            "• Hình (b) & (c) Subset → Min-DFA: 5 tập con D0..D4 gộp D0 ≡ D2 còn 4 trạng thái tối giản (đủ 6/6 cặp Myhill–Nerode).\n"
+            "• Bước GNFA (DFA → RE): khử lần lượt D2, D0, D3, D1 sinh biểu thức b*a(a|ba|bb(a|b+a))*bb, và Product Automaton chứng minh tự động L(R_gốc) ≡ L(R_sinh)!"
         ),
         (
             "[Thành viên 2 | 3:25 – 4:15 | Slide 6: Nhánh đối chứng Direct RE → DFA (Slide 46–57)]\n"
             "Kiểm chứng phương pháp trực tiếp trên r = (a|ba)(a|b)*ba# (Slide 54 Chương 3.1):\n"
             "• Cây cú pháp gia tố có đúng 8 vị trí lá; bảng followpos trên giao diện Web Tab 3 khớp 100% từng con số với Slide 54: "
-            "followpos(1)=3=4=5={4,5,6}, (2)={3}, (6)={7}, (7)={8}.\n"
+            "followpos(1)=3=4=5={4,5,6}, (2)={3}, (6)={7}, (7)={8}, kèm huy hiệu xác nhận Kleene 360°.\n"
             "• Đồ thị Direct DFA sinh trực tiếp 5 trạng thái tối giản A..E khớp Slide 55–57.\n"
             "• Mở rộng Đa-Token (Rᵢ·#ᵢ) sinh Combined Direct DFA tương đương 100% với Min-DFA trên cả MiniLang (79 TT), CalcLang (20), MiniSQL (52)."
         ),
         (
             "[Thành viên 3 | 4:15 – 4:55 | Slide 7: Đồ thị Combined Minimized DFA — Ngôn ngữ CalcLang]\n"
             "Đồ thị Combined Minimized DFA hoàn chỉnh của CalcLang (12 token): nén từ 57 ε-NFA → 26 NFA khử ε → 24 Subset DFA → 20 trạng thái tối giản (190/190 cặp Myhill–Nerode).\n"
-            "• Từ khóa vs Định danh: D0 → D9 → D13 → D16 nhận KW_LET nhờ Priority; nếu đọc thêm chữ/số (như letx) thì rẽ sang D8 nhận ID nhờ Maximal Munch.\n"
-            "• Số thực & Quay lui: D0 → D5[INT] → '.' → D11 (trung gian) → D15[FLOAT]. Gặp '3.' dừng ở D11 rồi quay lui về D5 phát INT('3')."
+            "• Từ khóa vs Định danh: KW_LET ⊂ ID (giao nhau trên từ tố chứng nhân 'let') nhưng thắng nhờ Priority; nếu đọc thêm chữ/số (như letx) thì rẽ sang ID nhờ Maximal Munch.\n"
+            "• Số thực & Quay lui: đọc chữ số vào INT, gặp '.' sang trạng thái trung gian, đọc tiếp chữ số mới vào FLOAT. Gặp '3.' quay lui về INT('3')."
         ),
         (
-            "[Thành viên 3 | 4:55 – 5:35 | Slide 8: Bộ quét Maximal Munch Tuyến tính O(n) (Reps, 1998) & Phục hồi lỗi Kép]\n"
-            "3 cơ chế nổi bật của scanner.py:\n"
-            "1. Bảng nhớ failed_states (Reps, 1998): ghi nhớ các cấu hình (state, cursor) không dẫn tới trạng thái kết thúc để cắt nhánh O(1). "
-            "Trên chuỗi lỗi 10.000 ký tự '\"' + '\\\"'*5000, hệ thống cắt nhánh đúng 5.000 lần và quét xong trong ~24 ms!\n"
-            "2. Hỗ trợ UTF-8 qua cung NON_ASCII và bình luận nhiều dòng /*...*/.\n"
-            "3. Phục hồi lỗi kép: chuyển đổi trực tiếp giữa Panic-mode (dịch 1 ký tự) và Smart-Sync (gom trọn chuỗi chưa đóng thành 1 lỗi duy nhất)."
+            "[Thành viên 3 | 4:55 – 5:35 | Slide 8: Bộ quét O(n) (Reps, 1998) & Sinh Lexer Độc lập Kiểu Flex]\n"
+            "3 cơ chế nổi bật ở tầng thực thi:\n"
+            "1. Bảng nhớ failed_states (Reps, 1998): cắt nhánh O(1) chống quay lui bậc hai O(n²); chuỗi lỗi 10.000 ký tự kích hoạt đúng 5.000 lần cắt nhánh.\n"
+            "2. STRING_LIT loại trừ cả \\r và \\n trên Windows CRLF, kết hợp công tắc Panic-mode vs Smart-Sync.\n"
+            "3. Bộ sinh mã kiểu Flex (codegen.py): đóng gói các bảng tĩnh ASCII_CLASS_MAP[128], UNICODE_CLASS_MAP, TRANSITIONS[78][44] thành 1 file Python độc lập (~527 dòng, Zero import re) trùng khớp 100% luồng token với engine gốc!"
         ),
         (
             "[Thành viên 3 | 5:35 – 7:15 | Slide 9: Trình diễn trực tiếp LexAutomata Studio 5 Tab]\n"
             "Chuyển sang trình duyệt thực hiện Live Demo 90 giây qua 4 bước:\n"
-            "• Tab 1: Quét mã UTF-8 & /*...*/, bật/tắt Panic-mode vs Smart-Sync trên chuỗi chưa đóng, chạy hoạt ảnh quay lui '1.5e'.\n"
-            "• Tab 2: Chuyển đổi 6 mô hình Automata, xem bảng chuỗi phân biệt Myhill–Nerode (3003/3003 cặp).\n"
-            "• Tab 3: Xem cây r# Slide 54 và kiểm chứng tương đương 2 biểu thức R₁ ≡ R₂.\n"
-            "• Tab 4: Đưa IDENTIFIER lên trên KW_IF → Hệ thống bật cảnh báo đỏ Shadowed Rule ngay lập tức!"
+            "• Tab 1 & Thanh công cụ: Quét mã UTF-8/CRLF, gạt Panic-mode vs Smart-Sync, bấm nút '⬇ Sinh Lexer (.py)' tải ngay bộ quét Python độc lập.\n"
+            "• Tab 2: Mở thẻ con 'Ma Trận Giao Nhau L(Rᵢ) ∩ L(Rⱼ)' xem bản đồ nhiệt 39×39 (9/741 cặp giao nhau) & bảng Myhill–Nerode.\n"
+            "• Tab 3: Xem cây r# Slide 54 và mở thẻ con thứ 6 'GNFA Khử Trạng Thái (DFA → RE · Kleene 360°)' xem từng bước khử đỉnh.\n"
+            "• Tab 4: Bấm '+ Thêm Unicode (nếu / €)' quét thử từ khóa tiếng Việt, rồi thử bẫy Shadowed Rule báo động đỏ tức thì!"
         ),
         (
-            "[Thành viên 4 | 7:15 – 7:50 | Slide 10: Bộ Kiểm thử Không Lỗ Hổng (62/62 PASS) & 5 Bất biến Toán học]\n"
-            "Kết quả kiểm thử tự động:\n"
-            "• 62/62 JSON Test Cases PASS (100%): 16 mẫu RE đơn & {m,n}, 20 bẫy lỗi cú pháp RE, 26 kịch bản quét đa ngôn ngữ.\n"
-            "• 16/16 bộ Unittest OK cùng hơn 400 chuỗi Fuzzing kiểm chứng 5 bất biến toán học: Zero-Loss Reconstruction, 6-Way Equivalence, "
-            "Myhill–Nerode (4.519/4.519 cặp trên 3 ngôn ngữ), Reps O(n) (< 25 ms / 10 KB lỗi) và JFLAP 7.x Round-Trip."
+            "[Thành viên 4 | 7:15 – 7:50 | Slide 10: Bộ Kiểm thử Không Lỗ Hổng (72/72 PASS · 22 Suites) & Đối chứng Vi sai]\n"
+            "Kết quả kiểm thử tự động phiên bản v2.0:\n"
+            "• 72/72 JSON Test Cases PASS (100%): 20 mẫu RE đơn/Unicode/Kleene 360°, 24 bẫy lỗi RE & bom AST (((a{64}){64}){64}), 28 ca quét CRLF & điều khiển ASCII.\n"
+            "• 22/22 bộ Unittest OK kiểm chứng: Zero-Loss Reconstruction, đại số Boole ~(~A)=A trên cả CharSet & DFA, GNFA Kleene 360°, Ma trận giao nhau, Reps O(n) và đối chứng vi sai 100% với file Standalone Lexer (.py)."
         ),
         (
             "[Thành viên 4 | 7:50 – 8:25 | Slide 11: Thực nghiệm & Phân tích Hiệu năng trên 3 Ngôn ngữ]\n"
-            "Tổng hợp thực nghiệm 6 phương pháp Automata:\n"
-            "• MiniLang (39 token): 170 ε-NFA → 96 NFA khử ε → 86 Subset DFA → 79 Combined Direct DFA → 78 Moore/Hopcroft Min-DFA (-9.3%, 3003/3003 cặp).\n"
-            "• CalcLang (12 token): 57 → 26 → 24 → 20 → 20 Min-DFA (-16.7%, 190/190 cặp).\n"
-            "• MiniSQL (14 token): 128 → 67 → 64 → 52 → 52 Min-DFA (-18.8%, 1326/1326 cặp).\n"
-            "• Tốc độ quét đạt 26.000 – 51.000 tokens/giây chỉ với Python thuần."
+            "Tổng hợp thực nghiệm:\n"
+            "• MiniLang (39 token, 44 lớp Σ): 170 ε-NFA → 96 Khử ε → 86 Subset → 79 Direct → 78 Moore/Hopcroft Min-DFA (-9.3%, 3003/3003 cặp, 9/741 cặp giao nhau hợp lệ).\n"
+            "• CalcLang (12 token): 57 → 26 → 24 → 20 → 20 Min-DFA (-16.7%, 190/190 cặp, 2/66 cặp giao).\n"
+            "• MiniSQL (14 token): 128 → 67 → 64 → 52 → 52 Min-DFA (-18.8%, 1326/1326 cặp, 5/91 cặp giao)."
         ),
         (
             "[Thành viên 4 | 8:25 – 9:05 | Slide 12: Giới hạn Lý thuyết (Bổ đề Bơm), Hướng phát triển & Phân công]\n"
-            "• Giới hạn lý thuyết DFA (Bổ đề Bơm Chương 3.2): Bình luận lồng nhau sâu tùy ý /* /* ... */ */ đẳng cấu với L = {a^n b^n | n ≥ 1} "
-            "thuộc lớp Ngôn ngữ phi ngữ cảnh (CFL - Chương 4), vượt khả năng bộ nhớ hữu hạn của DFA.\n"
-            "• Hướng phát triển: Bổ sung ngăn xếp ngữ cảnh từ vựng và kết nối Parser CFG LL(1)/LR(1).\n"
-            "• Phân công đều 25% cho 4 thành viên và khai báo minh bạch việc sử dụng AI hỗ trợ rà soát, kiểm chứng."
+            "• Bên cạnh việc vá triệt để các lỗ hổng kỹ thuật tinh vi ở v2.0, nhóm phân tích rõ giới hạn lý thuyết DFA theo Bổ đề Bơm Chương 3.2: "
+            "bình luận lồng nhau sâu tùy ý /* /* ... */ */ đẳng cấu với L = {a^n b^n | n ≥ 1} thuộc lớp Ngôn ngữ phi ngữ cảnh (CFL - Chương 4).\n"
+            "• Hướng phát triển: Bổ sung ngăn xếp ngữ cảnh từ vựng và kết nối luồng Token của Lexer độc lập (.py) vào Parser CFG LL(1)/LR(1).\n"
+            "• Phân công đều 25% cho 4 thành viên và khai báo minh bạch việc sử dụng AI hỗ trợ rà soát, kiểm định."
         ),
         (
             "[Thành viên 4 | 9:05 – 9:30 | Slide 13: Kết luận & Hỏi đáp Q&A]\n"
-            "Tổng kết 3 trụ cột của đồ án T13: (1) 6 phương pháp Automata 100% tự cài đặt (Zero import re); "
-            "(2) Chứng minh toán học Product Automaton 6 chiều, Myhill–Nerode, Shadowed Rules & Reps O(n); "
-            "(3) 62/62 PASS + 16 Unittest Suites khớp 100% bài giảng UEH.\n"
+            "Tổng kết 3 trụ cột của đồ án T13 v2.0 Ultimate: (1) Khép kín vòng tròn Kleene 360° với 7 biểu diễn tương đương (Zero import re); "
+            "(2) Đại số Boole Σ(U) (~(~A)=A), chống bom AST ≤ 4096, Myhill–Nerode & Ma trận Giao nhau L(Rᵢ)∩L(Rⱼ); "
+            "(3) 72/72 PASS + 22 Unittest Suites + Bộ sinh mã Lexer Python độc lập kiểu Flex.\n"
             "Em xin chân thành cảm ơn Cô Hồ Thị Thanh Tuyến và các bạn đã lắng nghe. Nhóm rất mong nhận được câu hỏi phản biện từ Cô và các bạn!"
         ),
     ]

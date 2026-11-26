@@ -8,7 +8,7 @@ on:
 
 jobs:
   verify-automata-engine:
-    name: Verify 6-Way Automata Engine & 62 Test Cases (Python ${{ matrix.python-version }})
+    name: Verify v2.0 Kleene 360° Automata Engine & 72 Test Cases (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -24,17 +24,22 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Run 16 Unit & Mathematical Invariant Test Suites (incl. Zero `import re` AST Guard)
+      - name: Run 22 Unit & Mathematical Invariant Test Suites (incl. Zero `import re` AST Guard)
         run: python3 tests/test_suite.py -v
 
-      - name: Run 62 Structured JSON Test Cases via CLI
+      - name: Run 72 Structured JSON Test Cases via CLI
         run: python3 cli.py test
 
-      - name: Verify Exact UEH Chap 3.1 Lecture Slide Examples & Regex Equivalence
+      - name: Verify UEH Chap 3.1 Slides, Kleene 360° GNFA, Intersection Matrix & Standalone Codegen
         run: |
           python3 cli.py inspect "(a|b)*abb" --test abb aabb ab aba
           python3 cli.py inspect "(a|ba)(a|b)*ba" --test aba baba aabba ba
+          python3 cli.py gnfa "(a|b)*abb"
+          python3 cli.py gnfa "(nếu|lặp)_[0-9]+€"
           python3 cli.py equiv "(a|b)*" "(a*b*)*"
+          python3 cli.py intersections --preset minilang
+          python3 cli.py codegen --preset minilang -o /tmp/minilang_lexer.py
+          python3 /tmp/minilang_lexer.py --code 'let x = 42; if (x >= 10) { print("ok"); }'
 
-      - name: Run 6-Way Automata Compilation & O(n) Scanner Benchmark
+      - name: Run 7-Way Automata Compilation & O(n) Scanner Benchmark
         run: python3 cli.py benchmark

@@ -27,7 +27,7 @@ MINILANG_SPECS: List[TokenSpec] = [
     # Literals
     TokenSpec("FLOAT_LIT", r"[0-9]+\.[0-9]+([eE][+-]?[0-9]+)?", 13, False, "literal", "Số thực (hỗ trợ dạng khoa học)"),
     TokenSpec("INT_LIT", r"[0-9]+", 14, False, "literal", "Số nguyên không dấu"),
-    TokenSpec("STRING_LIT", r'"([^"\\\n]|\\.)*"', 15, False, "literal", "Chuỗi ký tự (hỗ trợ ký tự escape & UTF-8)"),
+    TokenSpec("STRING_LIT", r'"([^"\\\n\r]|\\.)*"', 15, False, "literal", "Chuỗi ký tự (hỗ trợ ký tự escape, CRLF & UTF-8)"),
     # Identifier
     TokenSpec("IDENTIFIER", r"[a-zA-Z_][a-zA-Z0-9_]*", 16, False, "identifier", "Định danh biến / tên hàm"),
     # Multi-character operators
@@ -84,7 +84,7 @@ MINISQL_SPECS: List[TokenSpec] = [
     TokenSpec("KW_AND", r"AND|and", 6, False, "keyword", "Từ khóa AND"),
     TokenSpec("KW_OR", r"OR|or", 7, False, "keyword", "Từ khóa OR"),
     TokenSpec("NUMBER", r"[0-9]+(\.[0-9]+)?", 8, False, "literal", "Hằng số nguyên hoặc thực"),
-    TokenSpec("STRING", r"'[^'\n]*'", 9, False, "literal", "Chuỗi SQL trong nháy đơn"),
+    TokenSpec("STRING", r"'[^'\n\r]*'", 9, False, "literal", "Chuỗi SQL trong nháy đơn"),
     TokenSpec("IDENT", r"[a-zA-Z_][a-zA-Z0-9_]*", 10, False, "identifier", "Tên bảng / tên cột"),
     TokenSpec("COMP_OP", r"<=|>=|<>|!=|=|<|>", 11, False, "operator", "Toán tử so sánh"),
     TokenSpec("STAR", r"\*", 12, False, "operator", "Ký tự đại diện *"),
@@ -242,8 +242,8 @@ SINGLE_REGEX_EXAMPLES: List[Dict] = [
     },
     {
         "name": "Token STRING_LIT",
-        "pattern": r'"([^"\\\n]|\\.)*"',
-        "note": "Nhận dạng chuỗi ký tự có hỗ trợ escape như \\\" và UTF-8.",
+        "pattern": r'"([^"\\\n\r]|\\.)*"',
+        "note": "Nhận dạng chuỗi ký tự hỗ trợ escape \\\", loại trừ \\r\\n CRLF và hỗ trợ UTF-8.",
         "sample_inputs": ['"hello"', '""', r'"a\"b"', '"Xin chào UEH"', '"unterminated'],
     },
     {
@@ -251,6 +251,12 @@ SINGLE_REGEX_EXAMPLES: List[Dict] = [
         "pattern": r"0[xX][0-9a-fA-F]{2,4}",
         "note": "Nhận dạng số hệ 16 có độ dài từ 2 đến 4 chữ số hex ({m,n}).",
         "sample_inputs": ["0xFF", "0x1A2B", "0x007", "0xF", "0x12345"],
+    },
+    {
+        "name": "Unicode Động: (nếu|lặp)_[0-9]+€",
+        "pattern": r"(nếu|lặp)_[0-9]+€",
+        "note": "Minh họa Dynamic Unicode Alphabet Partitioning (từ khóa tiếng Việt & ký hiệu tiền tệ €).",
+        "sample_inputs": ["nếu_10€", "lặp_2026€", "nếu_5$", "neu_10€"],
     },
 ]
 

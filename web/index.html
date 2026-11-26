@@ -40,6 +40,9 @@
         Đang biên dịch Automata...
       </div>
 
+      <button id="btn-export-py-top" class="btn btn-outline btn-sm" title="Sinh và tải bộ quét Python độc lập kiểu Flex (Standalone Table-Driven Lexer .py)">
+        ⬇ Sinh Lexer (.py)
+      </button>
       <button id="btn-export-jff-top" class="btn btn-outline btn-sm" title="Xuất Minimized DFA sang định dạng JFLAP (.jff)">
         ⬇ JFLAP (.jff)
       </button>
@@ -223,6 +226,7 @@
             <button class="subtab-btn" data-view="combined_nfa">Combined ε-NFA</button>
             <button class="subtab-btn" data-view="table">Bảng Chuyển Trạng Thái</button>
             <button class="subtab-btn" data-view="minimization">Tối Thiểu Hóa (Moore &amp; Hopcroft)</button>
+            <button class="subtab-btn" data-view="intersections">Ma Trận Giao Nhau L(Rᵢ) ∩ L(Rⱼ)</button>
           </div>
           <div class="toolbar-right">
             <button id="btn-zoom-in" class="btn btn-outline btn-sm">＋</button>
@@ -288,6 +292,34 @@
           <div id="min-myhill-nerode-box" class="proof-banner" style="margin-bottom:12px;"></div>
           <div id="min-partitions-container" class="partitions-list"></div>
         </div>
+
+        <!-- Static Pairwise Intersection Matrix View L(R_i) ∩ L(R_j) -->
+        <div id="auto-intersections-view" class="hidden">
+          <div id="inter-summary-cards" class="kpi-strip"></div>
+          <div id="inter-cell-banner" class="alert-inline alert-ok">
+            Nhấp vào một ô bất kỳ trên Ma trận giao nhau <code>L(Rᵢ) ∩ L(Rⱼ)</code> bên dưới để xem quan hệ tập hợp và chuỗi chứng nhân ngắn nhất!
+          </div>
+          <h3 style="font-size:13.5px; margin: 8px 0 6px;">Bảng Ký Hiệu Các Cặp Quy Tắc Có Giao Nhau Khác Rỗng (<code>L(Rᵢ) ∩ L(Rⱼ) ≠ ∅</code>) &amp; Chuỗi Chứng Nhân Ngắn Nhất</h3>
+          <div class="table-scroll" style="max-height: 250px; margin-bottom: 14px;">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Quy tắc Ưu tiên cao Rᵢ</th>
+                  <th>Quan hệ</th>
+                  <th>Quy tắc Ưu tiên thấp Rⱼ</th>
+                  <th>Chứng nhân ngắn nhất w ∈ L(Rᵢ) ∩ L(Rⱼ)</th>
+                  <th>Token thắng</th>
+                  <th>Phân tích Tĩnh (Product Automaton)</th>
+                </tr>
+              </thead>
+              <tbody id="inter-overlaps-tbody"></tbody>
+            </table>
+          </div>
+          <h3 style="font-size:13.5px; margin: 8px 0 6px;">Ma Trận Giao Nhau Đôi Một Toàn Cục (<code>k × k</code>): <code>∅</code> Rời nhau · <code>⊂</code> Tập con hợp lệ · <code>∩</code> Giao một phần · <code>⊃/≡</code> Che khuất</h3>
+          <div class="imatrix-scroll">
+            <table class="imatrix-table" id="inter-heatmap-table"></table>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -296,19 +328,20 @@
       <div class="card">
         <div class="card-header">
           <div>
-            <h2>Phòng Thí Nghiệm Biểu Thức Chính Quy Đơn Lẻ (6-Chiều Automata)</h2>
+            <h2>Phòng Thí Nghiệm Biểu Thức Chính Quy Đơn Lẻ (Vòng Tròn Định Lý Kleene 360°)</h2>
             <p class="muted">
               Đối chiếu toàn diện chuỗi Định lý Chương 3.1 (UEH):
-              <strong>(1) RE → Thompson ε-NFA → NFA khử ε (Định lý 2) → Subset DFA → Moore/Hopcroft Min-DFA</strong> và
-              <strong>(2) Direct RE → Cây phân tích r# (nullable, firstpos, lastpos, followpos) → Direct DFA</strong>
+              <strong>(1) RE → Thompson ε-NFA → NFA khử ε (ĐL 2) → Subset DFA → Moore/Hopcroft Min-DFA</strong> ·
+              <strong>(2) Direct RE → Cây r# (followpos) → Direct DFA</strong> ·
+              <strong>(3) GNFA State Elimination (Min-DFA → R_sinh, kiểm chứng R_gốc ≡ R_sinh)</strong>
             </p>
           </div>
         </div>
 
         <div class="re-lab-form">
           <div class="input-col grow">
-            <label for="re-input">Biểu thức chính quy (RE — hỗ trợ cả <code>{m,n}</code>, <code>[^...]</code>, UTF-8):</label>
-            <input type="text" id="re-input" class="code-input" value="(a|ba)(a|b)*ba" placeholder="VD: (a|b)*abb hoặc 0[xX][0-9a-fA-F]{2,4}" />
+            <label for="re-input">Biểu thức chính quy (RE — hỗ trợ <code>{m,n}</code>, <code>[^...]</code>, Unicode động <code>nếu</code>, <code>€</code>):</label>
+            <input type="text" id="re-input" class="code-input" value="(a|ba)(a|b)*ba" placeholder="VD: (a|b)*abb hoặc (nếu|lặp)_[0-9]+€" />
           </div>
           <div class="input-col">
             <label for="re-name">Tên Token:</label>
@@ -338,6 +371,7 @@
           <button class="subtab-btn" data-review="subset">3. Subset DFA &amp; Trace</button>
           <button class="subtab-btn" data-review="direct">4. Direct RE → DFA (Cây r# &amp; Followpos)</button>
           <button class="subtab-btn" data-review="min">5. Minimized DFA (Moore &amp; Hopcroft)</button>
+          <button class="subtab-btn" data-review="gnfa">6. GNFA Khử Trạng Thái (DFA → RE · Kleene 360°)</button>
         </div>
 
         <!-- Single-RE Stage Display -->
@@ -379,6 +413,35 @@
             <div class="svg-viewport re-svg-viewport" id="direct-dfa-viewport">
               <svg id="direct-dfa-svg" class="automata-svg"></svg>
             </div>
+          </div>
+        </div>
+
+        <!-- GNFA State Elimination (DFA -> RE) Dedicated Panel -->
+        <div id="re-stage-gnfa" class="re-stage-panel hidden" style="margin-top: 12px;">
+          <div id="gnfa-proof-banner" class="proof-banner"></div>
+          <div class="gnfa-re-box">
+            <div>
+              <div class="muted small" style="font-weight:700; margin-bottom:3px;">Biểu thức chính quy tổng hợp từ Minimized DFA qua GNFA State Elimination (<code>R_sinh</code>):</div>
+              <div id="gnfa-regex-text" class="gnfa-re-code"></div>
+            </div>
+            <div class="toolbar-right">
+              <button id="btn-gnfa-to-cmp" class="btn btn-outline btn-sm">↗ Đưa vào Kiểm chứng R₁ ≡ R₂</button>
+            </div>
+          </div>
+          <h4 style="font-size:13.5px; margin-bottom:6px;">Nhật Ký Khử Trạng Thái GNFA Từng Bước: <code>R'ᵢⱼ = Rᵢⱼ | Rᵢ,rip · (R_rip,rip)* · R_rip,j</code></h4>
+          <div class="table-scroll" style="max-height: 320px;">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Bước</th>
+                  <th>Đỉnh bị khử (q_rip)</th>
+                  <th>Khuyên tự thân R_rip,rip</th>
+                  <th>Số cầu nối cập nhật</th>
+                  <th>Phương trình cập nhật cung R'(u → v)</th>
+                </tr>
+              </thead>
+              <tbody id="gnfa-steps-tbody"></tbody>
+            </table>
           </div>
         </div>
       </div>
@@ -424,16 +487,18 @@
           <div>
             <h2>Trình Soạn Thảo Đặc Tả Token Bằng Biểu Thức Chính Quy</h2>
             <p class="muted">
-              Thêm, xóa, chỉnh sửa RE hoặc thay đổi thứ tự ưu tiên rồi nhấn <strong>Biên Dịch Lại Automata</strong> —
-              hệ thống tự động phát hiện <strong>Quy tắc bị che khuất (Shadowed Rules)</strong> nếu xảy ra xung đột thứ tự ưu tiên!
+              Thêm, xóa, chỉnh sửa RE (hỗ trợ cả từ khóa Unicode như <code>nếu</code>, <code>€</code>) rồi nhấn <strong>Biên Dịch Lại Automata</strong> —
+              tự động phân tích <strong>Giao nhau L(Rᵢ) ∩ L(Rⱼ)</strong>, bắt lỗi <strong>Shadowed Rules</strong> và xuất <strong>Standalone Python Lexer (.py)</strong>!
             </p>
           </div>
           <div class="toolbar-right">
             <button id="btn-demo-shadow" class="btn btn-outline btn-sm" title="Đưa IDENTIFIER lên trên KW_IF để minh họa phát hiện luật bị che khuất">⚠ Thử Che Khuất (IDENTIFIER &gt; KW_IF)</button>
+            <button id="btn-add-unicode-demo" class="btn btn-outline btn-sm" title="Thêm từ khóa tiếng Việt KW_NEU (nếu) và toán tử tiền tệ EURO (€)">+ Thêm Unicode (nếu / €)</button>
             <button id="btn-add-hex-demo" class="btn btn-outline btn-sm">+ Thêm HEX_LIT (0x{2,4})</button>
             <button id="btn-add-rule" class="btn btn-outline btn-sm">+ Thêm quy tắc</button>
             <button id="btn-reset-preset" class="btn btn-outline btn-sm">↺ Khôi phục Preset gốc</button>
             <button id="btn-export-spec" class="btn btn-outline btn-sm">⬇ Lưu Spec JSON</button>
+            <button id="btn-export-lexer-ed" class="btn btn-outline btn-sm" title="Sinh bộ quét Python độc lập kiểu Flex (Zero import re)">⬇ Tải Standalone Lexer (.py)</button>
             <button id="btn-recompile" class="btn btn-primary">⚙ Biên Dịch Lại Automata</button>
           </div>
         </div>
@@ -458,6 +523,30 @@
           </table>
         </div>
       </div>
+
+      <div class="card" style="margin-top: 16px;">
+        <div class="card-header">
+          <div>
+            <h2>Bộ Phân Tích Tĩnh Giao Nhau Ngôn Ngữ <code>L(Rᵢ) ∩ L(Rⱼ) ≠ ∅</code> &amp; Chuỗi Chứng Nhân Ngắn Nhất</h2>
+            <p class="muted">Duyệt <strong>Product Automaton BFS</strong> trên từng cặp quy tắc để chứng minh tính rời nhau hoặc giải thích lý do cần thứ tự ưu tiên</p>
+          </div>
+          <span id="editor-inter-badge" class="step-badge"></span>
+        </div>
+        <div class="table-scroll" style="max-height: 260px;">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Quy tắc Ưu tiên cao Rᵢ</th>
+                <th>Quan hệ</th>
+                <th>Quy tắc Ưu tiên thấp Rⱼ</th>
+                <th>Chứng nhân ngắn nhất w</th>
+                <th>Kết quả phân giải ưu tiên</th>
+              </tr>
+            </thead>
+            <tbody id="editor-inter-tbody"></tbody>
+          </table>
+        </div>
+      </div>
     </section>
 
     <!-- ==================== TAB 5: TEST SUITE & BENCHMARK ==================== -->
@@ -465,8 +554,8 @@
       <div class="card">
         <div class="card-header">
           <div>
-            <h2>Bộ Kiểm Thử Tự Động (62 Test Case Có Cấu Trúc: Hợp Lệ · Trường Hợp Biên · Lỗi)</h2>
-            <p class="muted">Kiểm chứng 6-chiều ε-NFA ≡ NFA khử ε ≡ Subset DFA ≡ Direct DFA ≡ Moore Min-DFA ≡ Hopcroft Min-DFA &amp; Bất biến Bảo toàn Từ tố (Zero-Loss)</p>
+            <h2 id="test-suite-heading">Bộ Kiểm Thử Tự Động Toàn Diện (Hợp Lệ · Trường Hợp Biên · Lỗi &amp; Kleene 360°)</h2>
+            <p class="muted">Kiểm chứng 7-chiều ε-NFA ≡ NFA khử ε ≡ Subset DFA ≡ Direct DFA ≡ Moore Min-DFA ≡ Hopcroft Min-DFA ≡ GNFA RE &amp; Bất biến Zero-Loss</p>
           </div>
           <div class="toolbar-right">
             <button id="btn-run-tests" class="btn btn-primary">▶ Chạy Toàn Bộ Kiểm Thử</button>

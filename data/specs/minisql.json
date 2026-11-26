@@ -69,7 +69,7 @@
     },
     {
       "name": "STRING",
-      "pattern": "'[^'\\n]*'",
+      "pattern": "'[^'\\n\\r]*'",
       "priority": 9,
       "skip": false,
       "category": "literal",

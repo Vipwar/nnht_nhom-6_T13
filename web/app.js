@@ -1094,6 +1094,7 @@
     $("#graph-cat-filter-bar")?.classList.toggle("hidden", !isGraph);
     $("#auto-table-view").classList.toggle("hidden", view !== "table");
     $("#auto-min-view").classList.toggle("hidden", view !== "minimization");
+    $("#auto-intersections-view")?.classList.toggle("hidden", view !== "intersections");
     ["#btn-zoom-in", "#btn-zoom-out", "#btn-zoom-fit", "#btn-export-svg"].forEach((sel) => {
       $(sel)?.classList.toggle("hidden", !isGraph);
     });
@@ -1137,7 +1138,120 @@
       renderTransitionMatrix();
     } else if (view === "minimization") {
       renderMinimizationView();
+    } else if (view === "intersections") {
+      renderIntersectionsView();
     }
+  }
+
+  function renderIntersectionsView() {
+    const inter = AppState.automataData?.intersections;
+    if (!inter) return;
+
+    $("#inter-summary-cards").innerHTML = `
+      <div class="kpi-box"><div class="kpi-val">${inter.total_pairs}</div><div class="kpi-lbl">Tổng cặp C(${inter.rule_names.length}, 2)</div></div>
+      <div class="kpi-box"><div class="kpi-val kpi-ok">${inter.disjoint_count}</div><div class="kpi-lbl">Rời nhau L(Rᵢ)∩L(Rⱼ)=∅</div></div>
+      <div class="kpi-box"><div class="kpi-val">${inter.safe_priority_count}</div><div class="kpi-lbl">Giao có kiểm soát (Ưu tiên)</div></div>
+      <div class="kpi-box"><div class="kpi-val ${inter.shadow_conflict_count ? "kpi-err" : "kpi-ok"}">${inter.shadow_conflict_count}</div><div class="kpi-lbl">Cặp Che khuất (Shadowed)</div></div>
+      <div class="kpi-box"><div class="kpi-val">${inter.elapsed_ms.toFixed(2)} ms</div><div class="kpi-lbl">Thời gian Product BFS</div></div>
+    `;
+
+    const overlaps = inter.overlaps || [];
+    const ovMap = new Map();
+    overlaps.forEach((ov) => {
+      ovMap.set(`${ov.rule_i}|${ov.rule_j}`, ov);
+      ovMap.set(`${ov.rule_j}|${ov.rule_i}`, ov);
+    });
+
+    const ovTbody = $("#inter-overlaps-tbody");
+    if (ovTbody) {
+      ovTbody.innerHTML = overlaps.length
+        ? overlaps
+            .map((ov) => {
+              const wDisp = ov.shortest_witness === "" ? "ε (rỗng)" : `"${formatLexeme(ov.shortest_witness)}"`;
+              const winBadge = ov.severity === "danger"
+                ? `<span class="tok-badge badge-fail">⚠ ${escHtml(ov.rule_j)} BỊ CHE KHUẤT</span>`
+                : `<span class="tok-badge badge-pass">✓ ${escHtml(ov.winner)} thắng</span>`;
+              return `
+                <tr>
+                  <td><code>#${ov.priority_i} ${escHtml(ov.rule_i)}</code></td>
+                  <td style="text-align:center"><strong>${escHtml(ov.relation_symbol)}</strong></td>
+                  <td><code>#${ov.priority_j} ${escHtml(ov.rule_j)}</code></td>
+                  <td><code>${escHtml(wDisp)}</code></td>
+                  <td>${winBadge}</td>
+                  <td class="muted">${escHtml(ov.description)}</td>
+                </tr>
+              `;
+            })
+            .join("")
+        : '<tr><td colspan="6" class="muted" style="text-align:center">Mọi cặp quy tắc token đều rời nhau hoàn toàn (L(Rᵢ) ∩ L(Rⱼ) = ∅)!</td></tr>';
+    }
+
+    const names = inter.rule_names || [];
+    const cells = inter.matrix_cells || [];
+    const tbl = $("#inter-heatmap-table");
+    if (!tbl) return;
+
+    const shortLbl = (name, idx) => `${idx + 1}.${name.length > 9 ? name.slice(0, 8) + "…" : name}`;
+    const thead = `<thead><tr><th class="corner-hdr">Rᵢ \\ Rⱼ</th>${names
+      .map((n, j) => `<th title="#${inter.rule_priorities[j]} ${escHtml(n)}">${escHtml(shortLbl(n, j))}</th>`)
+      .join("")}</tr></thead>`;
+
+    const symbolForCell = (code) => {
+      if (code === "self") return "—";
+      if (code === "disjoint") return "∅";
+      if (code === "subset_ok") return "⊂";
+      if (code === "superset_of_higher") return "⊃";
+      if (code === "partial_overlap") return "∩";
+      if (code === "identical_shadow") return "≡";
+      if (code === "superset_shadow" || code === "shadowed_by_higher") return "⚠";
+      return "·";
+    };
+
+    const classForCell = (code) => {
+      if (code === "self") return "icell icell-self";
+      if (code === "disjoint") return "icell icell-disjoint";
+      if (code === "subset_ok") return "icell icell-subset";
+      if (code === "superset_of_higher") return "icell icell-superset-ok";
+      if (code === "partial_overlap") return "icell icell-overlap";
+      return "icell icell-danger";
+    };
+
+    const tbody = `<tbody>${names
+      .map((rName, i) => {
+        const tds = names
+          .map((cName, j) => {
+            const code = cells[i]?.[j] || "disjoint";
+            const sym = symbolForCell(code);
+            const cls = classForCell(code);
+            return `<td class="${cls}" data-ri="${i}" data-rj="${j}" title="${escHtml(rName)} × ${escHtml(cName)}">${sym}</td>`;
+          })
+          .join("");
+        return `<tr><th class="row-hdr" title="#${inter.rule_priorities[i]} ${escHtml(rName)}">${escHtml(shortLbl(rName, i))}</th>${tds}</tr>`;
+      })
+      .join("")}</tbody>`;
+
+    tbl.innerHTML = thead + tbody;
+    const banner = $("#inter-cell-banner");
+    tbl.querySelectorAll("td.icell").forEach((td) => {
+      td.addEventListener("click", () => {
+        const i = Number(td.dataset.ri);
+        const j = Number(td.dataset.rj);
+        if (i === j) return;
+        const ni = names[i];
+        const nj = names[j];
+        const ov = ovMap.get(`${ni}|${nj}`);
+        if (!ov) {
+          banner.className = "alert-inline alert-ok";
+          banner.innerHTML = `✅ <strong>Rời nhau tuyệt đối:</strong> <code>L(${escHtml(ni)}) ∩ L(${escHtml(nj)}) = ∅</code> — Không tồn tại chuỗi nào thuộc đồng thời cả hai quy tắc.`;
+        } else {
+          const wDisp = ov.shortest_witness === "" ? "ε (rỗng)" : `"${formatLexeme(ov.shortest_witness)}"`;
+          banner.className = ov.severity === "danger" ? "alert-inline alert-err" : "alert-inline alert-warn";
+          banner.innerHTML =
+            `${ov.severity === "danger" ? "⚠" : "ℹ"} <strong>Cặp (${escHtml(ov.rule_i)}, ${escHtml(ov.rule_j)}):</strong> ` +
+            `Chứng nhân ngắn nhất <code>w = ${escHtml(wDisp)}</code> — ${escHtml(ov.description)}`;
+        }
+      });
+    });
   }
 
   function renderTransitionMatrix() {
@@ -1282,16 +1396,18 @@
     const eq1 = info.equivalence.subset_vs_minimized.equivalent;
     const eq2 = info.equivalence.subset_vs_direct.equivalent;
     const eq3 = info.equivalence.moore_vs_hopcroft?.equivalent !== false;
+    const eqKleene = info.gnfa ? info.gnfa.kleene_equivalent : true;
+    const allOk = eq1 && eq2 && eq3 && eqKleene;
     const epsFreeCount = info.eps_free_nfa ? info.eps_free_nfa.state_count : info.nfa.state_count;
 
     $("#re-summary-strip").innerHTML = `
-      <div class="kpi-box"><div class="kpi-val" style="font-size:13px">${escHtml(info.postfix)}</div><div class="kpi-lbl">Hậu tố (Postfix)</div></div>
+      <div class="kpi-box"><div class="kpi-val" style="font-size:13px">${escHtml(info.postfix)}</div><div class="kpi-lbl">Hậu tố (${info.ast_nodes || "—"} nút AST)</div></div>
       <div class="kpi-box"><div class="kpi-val">${info.nfa.state_count}</div><div class="kpi-lbl">Thompson ε-NFA</div></div>
       <div class="kpi-box"><div class="kpi-val">${epsFreeCount}</div><div class="kpi-lbl">NFA Khử ε (ĐL 2)</div></div>
       <div class="kpi-box"><div class="kpi-val">${info.subset_dfa.state_count}</div><div class="kpi-lbl">Subset DFA</div></div>
       <div class="kpi-box"><div class="kpi-val">${info.direct_dfa.dfa.state_count}</div><div class="kpi-lbl">Direct DFA (r#)</div></div>
       <div class="kpi-box"><div class="kpi-val kpi-ok">${info.minimized_dfa.state_count}</div><div class="kpi-lbl">Min-DFA (Moore/Hopcroft)</div></div>
-      <div class="kpi-box"><div class="kpi-val ${eq1 && eq2 && eq3 ? "kpi-ok" : "kpi-err"}">${eq1 && eq2 && eq3 ? "✓ 100%" : "✗"}</div><div class="kpi-lbl">Tương đương & Tối giản</div></div>
+      <div class="kpi-box"><div class="kpi-val ${allOk ? "kpi-ok" : "kpi-err"}">${allOk ? "✓ 360°" : "✗"}</div><div class="kpi-lbl">Kleene 360° (R₀ ≡ R_sinh)</div></div>
     `;
 
     $("#re-string-tests").innerHTML = (info.string_tests || [])
@@ -1310,8 +1426,9 @@
     if (!info) return;
     const v = AppState.singleReView;
 
-    $("#re-stage-graph").classList.toggle("hidden", v === "direct");
+    $("#re-stage-graph").classList.toggle("hidden", v === "direct" || v === "gnfa");
     $("#re-stage-direct").classList.toggle("hidden", v !== "direct");
+    $("#re-stage-gnfa")?.classList.toggle("hidden", v !== "gnfa");
 
     if (v === "direct") {
       renderSyntaxTreeSVG($("#direct-tree-svg"), $("#direct-tree-svg").parentElement, info.direct_dfa.syntax_tree);
@@ -1325,9 +1442,43 @@
       return;
     }
 
+    if (v === "gnfa") {
+      const g = info.gnfa;
+      if (!g) return;
+      const pBanner = $("#gnfa-proof-banner");
+      if (pBanner) {
+        pBanner.innerHTML = `
+          <span>${g.kleene_equivalent ? "✅" : "❌"} <strong>${escHtml(g.verification_message)}</strong></span>
+          <span>Thời gian khử ${g.live_state_count} đỉnh: <strong>${g.elapsed_ms.toFixed(2)} ms</strong></span>
+        `;
+      }
+      const reTxt = $("#gnfa-regex-text");
+      if (reTxt) reTxt.textContent = g.synthesized_regex;
+      const gTbody = $("#gnfa-steps-tbody");
+      if (gTbody) {
+        gTbody.innerHTML = (g.elimination_steps || [])
+          .map((st) => {
+            const eqs = (st.updates || [])
+              .map((u) => `<code>R'(${escHtml(u.from)}→${escHtml(u.to)}) = ${escHtml(u.regex)}</code>`)
+              .join("<br/>");
+            return `
+              <tr>
+                <td><strong>#${st.step}</strong></td>
+                <td><code>${escHtml(st.eliminated_state)}</code> (còn ${st.remaining_states} đỉnh)</td>
+                <td><code>${escHtml(st.self_loop)}</code></td>
+                <td>${st.bridge_count}</td>
+                <td>${eqs || '<span class="muted">—</span>'}</td>
+              </tr>
+            `;
+          })
+          .join("");
+      }
+      return;
+    }
+
     const extra = $("#re-extra-panel");
     if (v === "nfa") {
-      $("#re-stage-caption").textContent = `Thompson ε-NFA (Định lý 1): ${info.nfa.state_count} trạng thái, ${info.nfa.edge_count} cung (${info.nfa.epsilon_edge_count} ε-chuyển tiếp)`;
+      $("#re-stage-caption").textContent = `Thompson ε-NFA (Định lý 3): ${info.nfa.state_count} trạng thái, ${info.nfa.edge_count} cung (${info.nfa.epsilon_edge_count} ε-chuyển tiếp)`;
       renderAutomataSVG($("#re-automata-svg"), $("#re-graph-viewport"), info.nfa, "single-re");
       extra.innerHTML = `<div class="muted">Biểu thức trung tố tường minh: <code>${escHtml(info.explicit_infix)}</code> · Hậu tố: <code>${escHtml(info.postfix)}</code></div>`;
     } else if (v === "eps_free") {
@@ -1336,7 +1487,7 @@
       renderAutomataSVG($("#re-automata-svg"), $("#re-graph-viewport"), ef, "single-re");
       extra.innerHTML = `<div class="muted">Khử toàn bộ ε-chuyển tiếp bằng bao đóng ε-closure(q) và tích hợp trạng thái kết thúc theo đúng Định lý 2 (Chương 3.1).</div>`;
     } else if (v === "subset") {
-      $("#re-stage-caption").textContent = `Subset Construction DFA (Định lý 3): ${info.subset_dfa.state_count} trạng thái từ ε-closure & Move`;
+      $("#re-stage-caption").textContent = `Subset Construction DFA (Định lý 1): ${info.subset_dfa.state_count} trạng thái từ ε-closure & Move`;
       renderAutomataSVG($("#re-automata-svg"), $("#re-graph-viewport"), info.subset_dfa, "single-re");
       extra.innerHTML = `
         <h4 style="margin-bottom:6px;font-size:13px">Nhật ký xây dựng tập con (Subset Construction Steps):</h4>
@@ -1351,7 +1502,7 @@
       `;
     } else if (v === "min") {
       const mp = info.minimality;
-      $("#re-stage-caption").textContent = `Minimized DFA (Định lý 4 — Moore & Hopcroft): ${info.minimized_dfa.state_count} trạng thái (giảm từ ${info.subset_dfa.state_count} trạng thái)`;
+      $("#re-stage-caption").textContent = `Minimized DFA (Moore & Hopcroft): ${info.minimized_dfa.state_count} trạng thái (giảm từ ${info.subset_dfa.state_count} trạng thái)`;
       renderAutomataSVG($("#re-automata-svg"), $("#re-graph-viewport"), info.minimized_dfa, "single-re");
       const witnessHtml = mp && mp.sample_witnesses && mp.sample_witnesses.length
         ? `<div style="margin-top:6px;font-size:12px" class="muted"><strong>Chứng minh tối giản Myhill-Nerode (${mp.distinguishable_pairs}/${mp.total_pairs} cặp phân biệt):</strong> ` +
@@ -1366,7 +1517,7 @@
       extra.innerHTML = `
         <div class="proof-banner" style="margin-bottom:8px">
           <span>✅ Subset ≡ Moore Min ≡ Hopcroft Min: ${escHtml(info.equivalence.subset_vs_minimized.message)}</span>
-          <span>✅ Subset ≡ Direct (r#): ${escHtml(info.equivalence.subset_vs_direct.message)}</span>
+          <span>✅ Kleene 360° GNFA R_sinh: <code>${escHtml(info.gnfa ? info.gnfa.synthesized_regex : "")}</code></span>
         </div>
         <div class="partitions-list">${(info.minimization.partition_history || [])
           .map(
@@ -1479,6 +1630,40 @@
         renderSpecEditor();
       });
     });
+
+    renderEditorIntersections();
+  }
+
+  function renderEditorIntersections() {
+    const inter = AppState.automataData?.intersections;
+    const tbody = $("#editor-inter-tbody");
+    const badge = $("#editor-inter-badge");
+    if (!inter || !tbody) return;
+
+    if (badge) {
+      badge.textContent = `${inter.overlap_count} cặp giao nhau / ${inter.total_pairs} cặp (${inter.disjoint_count} cặp rời nhau ∅)`;
+    }
+
+    const overlaps = inter.overlaps || [];
+    tbody.innerHTML = overlaps.length
+      ? overlaps
+          .map((ov) => {
+            const wDisp = ov.shortest_witness === "" ? "ε (rỗng)" : `"${formatLexeme(ov.shortest_witness)}"`;
+            const statusHtml = ov.severity === "danger"
+              ? `<span class="tok-badge badge-fail">⚠ ${escHtml(ov.rule_j)} BỊ CHE KHUẤT</span> ${escHtml(ov.description)}`
+              : `<span class="tok-badge badge-pass">✓ ${escHtml(ov.winner)} thắng</span> ${escHtml(ov.description)}`;
+            return `
+              <tr>
+                <td><code>#${ov.priority_i} ${escHtml(ov.rule_i)}</code></td>
+                <td style="text-align:center"><strong>${escHtml(ov.relation_symbol)}</strong></td>
+                <td><code>#${ov.priority_j} ${escHtml(ov.rule_j)}</code></td>
+                <td><code>${escHtml(wDisp)}</code></td>
+                <td class="muted">${statusHtml}</td>
+              </tr>
+            `;
+          })
+          .join("")
+      : '<tr><td colspan="5" class="muted" style="text-align:center">Tất cả các quy tắc đều rời nhau đôi một (L(Rᵢ) ∩ L(Rⱼ) = ∅)!</td></tr>';
   }
 
   function syncEditorFromDOM() {
@@ -1540,6 +1725,10 @@
   function renderTestReport() {
     const r = AppState.testReport;
     if (!r) return;
+    const hEl = $("#test-suite-heading");
+    if (hEl) {
+      hEl.textContent = `Bộ Kiểm Thử Tự Động (${r.total} Test Case Có Cấu Trúc: Hợp Lệ · Trường Hợp Biên · Lỗi & Kleene 360°)`;
+    }
     $("#test-kpis").innerHTML = `
       <div class="kpi-box"><div class="kpi-val">${r.total}</div><div class="kpi-lbl">Tổng Test Cases</div></div>
       <div class="kpi-box"><div class="kpi-val kpi-ok">${r.passed}</div><div class="kpi-lbl">Đạt (PASSED)</div></div>
@@ -1669,7 +1858,10 @@
     // Preset selector
     $("#preset-select").addEventListener("change", (e) => loadPreset(e.target.value));
 
-    // Topbar JFLAP export
+    // Topbar Standalone Lexer (.py) & JFLAP (.jff) export
+    $("#btn-export-py-top")?.addEventListener("click", () => {
+      window.location.href = "/api/export-lexer";
+    });
     $("#btn-export-jff-top").addEventListener("click", () => {
       window.location.href = "/api/export-jflap?stage=min_dfa";
     });
@@ -1789,7 +1981,7 @@
     $("#table-search").addEventListener("input", renderTransitionMatrix);
     $$('input[name="table-source"]').forEach((r) => r.addEventListener("change", renderTransitionMatrix));
 
-    // Tab 3 Single-RE Lab & Equivalence Checker
+    // Tab 3 Single-RE Lab, GNFA Kleene 360° & Equivalence Checker
     $("#btn-inspect-re").addEventListener("click", runSingleRegexInspect);
     $("#re-input").addEventListener("keydown", (e) => { if (e.key === "Enter") runSingleRegexInspect(); });
     $$("#re-subtabs .subtab-btn").forEach((btn) => {
@@ -1811,6 +2003,14 @@
           : "min_dfa";
       window.location.href = `/api/export-jflap?pattern=${pat}&stage=${stage}&expand=true`;
     });
+    $("#btn-gnfa-to-cmp")?.addEventListener("click", () => {
+      const info = AppState.singleReData;
+      if (!info?.gnfa?.synthesized_regex) return;
+      $("#cmp-re-a").value = info.pattern;
+      $("#cmp-re-b").value = info.gnfa.synthesized_regex;
+      runRegexCompare();
+      $("#cmp-re-a").scrollIntoView({ behavior: "smooth", block: "center" });
+    });
     $("#btn-compare-re")?.addEventListener("click", runRegexCompare);
     $$("[data-cmp-a]").forEach((btn) => {
       btn.addEventListener("click", () => {
@@ -1820,7 +2020,7 @@
       });
     });
 
-    // Tab 4 Spec Editor
+    // Tab 4 Spec Editor & Standalone Codegen
     $("#btn-add-rule").addEventListener("click", () => {
       syncEditorFromDOM();
       AppState.editorSpecs.push({
@@ -1832,6 +2032,34 @@
         description: "Quy tắc mới",
       });
       renderSpecEditor();
+    });
+    $("#btn-add-unicode-demo")?.addEventListener("click", async () => {
+      syncEditorFromDOM();
+      if (!AppState.editorSpecs.some((s) => s.name === "KW_NEU")) {
+        const kwIdx = AppState.editorSpecs.findIndex((s) => s.name.startsWith("KW_"));
+        const at = kwIdx >= 0 ? kwIdx : 2;
+        AppState.editorSpecs.splice(at, 0, {
+          priority: at + 1,
+          name: "KW_NEU",
+          pattern: "nếu",
+          category: "keyword",
+          skip: false,
+          description: "Từ khóa tiếng Việt Unicode động (nếu)",
+        });
+      }
+      if (!AppState.editorSpecs.some((s) => s.name === "OP_EURO")) {
+        AppState.editorSpecs.push({
+          priority: AppState.editorSpecs.length + 1,
+          name: "OP_EURO",
+          pattern: "€",
+          category: "operator",
+          skip: false,
+          description: "Ký hiệu tiền tệ Unicode tường minh (€)",
+        });
+      }
+      renumberPriorities();
+      renderSpecEditor();
+      await recompileCustomSpecs();
     });
     $("#btn-add-hex-demo").addEventListener("click", () => {
       syncEditorFromDOM();
@@ -1869,6 +2097,15 @@
     $("#btn-export-spec").addEventListener("click", () => {
       syncEditorFromDOM();
       downloadBlob(JSON.stringify({ tokens: AppState.editorSpecs }, null, 2), `spec_${AppState.activePreset}.json`, "application/json");
+    });
+    $("#btn-export-lexer-ed")?.addEventListener("click", async () => {
+      syncEditorFromDOM();
+      try {
+        const res = await apiPost("/api/codegen", { specs: AppState.editorSpecs });
+        downloadBlob(res.code, res.filename, "text/x-python;charset=utf-8");
+      } catch (err) {
+        showGlobalAlert(`Không thể sinh mã Lexer: ${err.message}`, "err");
+      }
     });
 
     // Tab 5 Tests & Benchmark
@@ -1908,6 +2145,12 @@
       if (initTab) {
         const btn = document.querySelector(`.tab-btn[data-tab="${initTab}"]`);
         if (btn) btn.click();
+      }
+      const initView = qs.get("view");
+      if (initTab === "automata" && initView) {
+        AppState.currentAutoView = initView;
+        $$("#auto-subtabs .subtab-btn").forEach((b) => b.classList.toggle("active", b.dataset.view === initView));
+        renderActiveAutoSubView();
       }
       const initReview = qs.get("review");
       if (initTab === "single-re" && initReview) {

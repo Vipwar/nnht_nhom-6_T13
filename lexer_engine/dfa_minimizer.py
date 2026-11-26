@@ -19,7 +19,7 @@ from collections import deque
 from dataclasses import dataclass
 from typing import Callable, Dict, FrozenSet, List, Optional, Set, Tuple
 
-from .models import DFA, AcceptInfo
+from .models import DFA, AcceptInfo, build_dynamic_sigma
 
 DEAD_STATE = -1
 
@@ -186,12 +186,22 @@ def _build_minimized_from_partition(
             trans_row[cid] = block_to_new_id[dst_block]
         new_transitions[new_id] = trans_row
 
+    # Keep only character classes that participate in at least one surviving transition
+    used_cids = sorted({cid for row in new_transitions.values() for cid in row.keys()})
+    cid_remap = {old_cid: new_cid for new_cid, old_cid in enumerate(used_cids)}
+    compact_classes = [dfa.char_classes[old_cid] for old_cid in used_cids]
+    compact_transitions: Dict[int, Dict[int, int]] = {
+        st: {cid_remap[old_cid]: dst for old_cid, dst in row.items()}
+        for st, row in new_transitions.items()
+    }
+
     min_dfa = DFA(
         states=set(block_to_new_id.values()),
         start_state=0,
         accept_states=new_accept,
-        char_classes=list(dfa.char_classes),
-        transitions=new_transitions,
+        char_classes=compact_classes,
+        transitions=compact_transitions,
+        unicode_chars=dfa.unicode_chars,
         merged_from=new_merged_from,
         all_matched_tokens=new_all_matched,
         name=f"Minimized {dfa.name}",
@@ -477,4 +487,60 @@ def minimize_dfa_hopcroft(dfa: DFA) -> MinimizationResult:
         algorithm="hopcroft",
         elapsed_ms=elapsed_ms,
     )
+
+
+def complement_dfa(dfa: DFA, token_name: str = "COMPLEMENT") -> DFA:
+    """
+    Compute the exact Boolean complement DFA ~D over Sigma(U) = build_dynamic_sigma(dfa.unicode_chars)
+    recognizing Sigma(U)* \\ L(dfa), minimized canonically.
+
+    Guarantees strict Boolean algebra involution:
+        complement_dfa(complement_dfa(D)) ≡ D  (for all single-language DFAs D over Sigma(U)).
+    """
+    sigma_u = build_dynamic_sigma(dfa.unicode_chars)
+    reachable = _find_reachable(dfa)
+
+    char_classes: List[FrozenSet[str]] = list(dfa.char_classes)
+    used_chars: Set[str] = set()
+    for cs in char_classes:
+        used_chars.update(cs)
+    unused_chars = frozenset(sigma_u - used_chars)
+    if unused_chars:
+        char_classes.append(unused_chars)
+
+    num_classes = len(char_classes)
+    needs_sink = any(
+        len(dfa.transitions.get(q, {})) < num_classes for q in reachable
+    )
+
+    total_states: Set[int] = set(reachable)
+    total_trans: Dict[int, Dict[int, int]] = {}
+    if needs_sink:
+        sink_id = (max(reachable) + 1) if reachable else 1
+        total_states.add(sink_id)
+        for q in reachable:
+            q_row = dfa.transitions.get(q, {})
+            total_trans[q] = {cid: q_row.get(cid, sink_id) for cid in range(num_classes)}
+        total_trans[sink_id] = {cid: sink_id for cid in range(num_classes)}
+    else:
+        for q in reachable:
+            total_trans[q] = dict(dfa.transitions.get(q, {}))
+
+    acc_info = AcceptInfo(token_name=token_name, priority=0)
+    comp_accept: Dict[int, AcceptInfo] = {
+        q: acc_info for q in total_states if q not in dfa.accept_states
+    }
+
+    raw_comp = DFA(
+        states=total_states,
+        start_state=dfa.start_state,
+        accept_states=comp_accept,
+        char_classes=char_classes,
+        transitions=total_trans,
+        unicode_chars=dfa.unicode_chars,
+        name=f"~({dfa.name})",
+        pattern=f"~({dfa.pattern})",
+    )
+    return minimize_dfa(raw_comp).minimized_dfa
+
 

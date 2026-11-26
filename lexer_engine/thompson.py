@@ -1,20 +1,21 @@
 """
 Thompson's Construction: Regular Expression (AST) -> Epsilon-NFA,
-plus Multi-token Combined Epsilon-NFA Construction for Lexical Analysis.
+Multi-token Combined Epsilon-NFA Construction, and Theorem 2 Epsilon Elimination.
 
 Implements the exact inductive rules from Hopcroft-Motwani-Ullman & UEH Chap 3.1:
-- Base cases: epsilon, single symbol / character class
+- Base cases: epsilon, single symbol / character class (over dynamic Sigma(U))
 - Inductive cases: Union (r|s), Concatenation (rs), Kleene Star (r*),
   Positive Closure (r+), Optional (r?)
 - Multi-token union: fresh global start q0 with epsilon edges to each token's NFA,
-  preserving per-token priority and metadata on each accepting state.
+  lifting all token ASTs onto the shared dynamic Unicode alphabet U = U_1 u ... u U_k
+  and preserving per-token priority and metadata on each accepting state.
 """
 
 from __future__ import annotations
 
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, FrozenSet, List, Optional, Tuple
 
-from .models import NFA, AcceptInfo, TokenSpec
+from .models import NFA, NON_ASCII, AcceptInfo, TokenSpec, format_charset
 from .regex_parser import (
     CharSetNode,
     ConcatNode,
@@ -112,10 +113,14 @@ class _ThompsonBuilder:
 
         raise TypeError(f"Không hỗ trợ nút AST: {type(node)}")
 
-    def renumber_compact(self, start: int, accept_map: Dict[int, AcceptInfo]) -> Tuple[NFA, Dict[int, int]]:
+    def renumber_compact(
+        self,
+        start: int,
+        accept_map: Dict[int, AcceptInfo],
+        unicode_chars: FrozenSet[str] = frozenset(),
+    ) -> Tuple[NFA, Dict[int, int]]:
         """Renumber states cleanly to 0..N-1 in ascending creation order (no gaps)."""
         ordered = sorted(self.states)
-        # Ensure start state is always 0
         if start in ordered:
             ordered.remove(start)
             ordered.insert(0, start)
@@ -136,6 +141,7 @@ class _ThompsonBuilder:
             start_state=mapping[start],
             accept_states=new_accept,
             transitions=new_transitions,
+            unicode_chars=unicode_chars,
         )
         return nfa, mapping
 
@@ -146,9 +152,12 @@ def build_token_nfa(
     priority: int = 0,
     skip: bool = False,
     category: str = "other",
+    extra_unicode: FrozenSet[str] = frozenset(),
 ) -> Tuple[NFA, RegexNode]:
     """Build a single-token epsilon-NFA from a regular expression string."""
-    ast = parse_regex(pattern)
+    cleaned_extra = frozenset(c for c in extra_unicode if ord(c) >= 128 and c != NON_ASCII)
+    ast = parse_regex(pattern, extra_unicode=cleaned_extra)
+    u_chars = ast.explicit_unicode_chars() | cleaned_extra
     builder = _ThompsonBuilder(start_id=0)
     start, end = builder.build_node(ast)
     accept_info = AcceptInfo(
@@ -157,7 +166,7 @@ def build_token_nfa(
         skip=skip,
         category=category,
     )
-    nfa, _ = builder.renumber_compact(start, {end: accept_info})
+    nfa, _ = builder.renumber_compact(start, {end: accept_info}, unicode_chars=u_chars)
     nfa.name = f"ε-NFA({token_name})"
     nfa.pattern = pattern
     return nfa, ast
@@ -166,23 +175,32 @@ def build_token_nfa(
 def build_combined_nfa(specs: List[TokenSpec]) -> Tuple[NFA, List[Dict]]:
     """
     Combine k token specifications R_1, ..., R_k into a single multi-token epsilon-NFA:
-        - Global start state q0 = 0
-        - For each token spec i, build N(R_i) and add epsilon edge q0 --ε--> start(N(R_i))
+        - Collect shared explicit Unicode alphabet U = U_1 u ... u U_k across all specs
+        - Materialize every AST over Sigma(U) so explicit Unicode tokens (e.g. `nếu`, `€`)
+          harmonize cleanly with wildcard/negated classes (`.`, `[^...]`)
+        - Global start state q0 = 0 with epsilon edges to each start(N(R_i))
         - Tag accept(N(R_i)) with (token_name_i, priority_i, skip_i, category_i)
-
-    Also returns per-token compilation metadata (including nullable warning check).
     """
     if not specs:
         raise ValueError("Danh sách đặc tả token không được rỗng")
+
+    raw_asts: List[RegexNode] = [parse_regex(spec.pattern) for spec in specs]
+    global_unicode: FrozenSet[str] = frozenset().union(
+        *(ast.explicit_unicode_chars() for ast in raw_asts)
+    )
+    materialized_asts: List[RegexNode] = (
+        [ast.materialize_unicode(global_unicode) for ast in raw_asts]
+        if global_unicode
+        else raw_asts
+    )
 
     builder = _ThompsonBuilder(start_id=0)
     global_start = builder._new_state()  # state 0
     accept_map: Dict[int, AcceptInfo] = {}
     token_reports: List[Dict] = []
 
-    for idx, spec in enumerate(specs):
+    for idx, (spec, ast) in enumerate(zip(specs, materialized_asts)):
         effective_priority = spec.priority if spec.priority is not None else idx
-        ast = parse_regex(spec.pattern)
         nullable = ast.is_nullable()
 
         before_states = len(builder.states)
@@ -205,13 +223,16 @@ def build_combined_nfa(specs: List[TokenSpec]) -> Tuple[NFA, List[Dict]]:
                 "skip": spec.skip,
                 "category": spec.category,
                 "nullable": nullable,
+                "ast_nodes": ast.node_count(),
                 "postfix": " ".join(ast.to_postfix_tokens()),
                 "explicit_infix": ast.to_explicit_infix(),
                 "nfa_states": sub_state_count,
             }
         )
 
-    combined, _ = builder.renumber_compact(global_start, accept_map)
+    combined, _ = builder.renumber_compact(
+        global_start, accept_map, unicode_chars=global_unicode
+    )
     combined.name = f"Combined ε-NFA ({len(specs)} tokens)"
     combined.pattern = " | ".join(spec.name for spec in specs)
     return combined, token_reports
@@ -219,18 +240,13 @@ def build_combined_nfa(specs: List[TokenSpec]) -> Tuple[NFA, List[Dict]]:
 
 def eliminate_epsilon(nfa: NFA) -> NFA:
     """
-    Convert an ε-NFA N = (Q, Σ, δ, q0, F) into an equivalent ε-free NFA N' = (Q', Σ, δ', q0, F')
-    following Theorem 2 (UEH Formal Languages Chap 3.1 Slides 21-22):
-      - E(q) = ε-closure({q})
-      - q ∈ F' iff E(q) ∩ F ≠ ∅ (inheriting the highest-priority AcceptInfo in E(q) ∩ F)
-      - For each non-ε transition p --C--> r with p ∈ E(q), add transition q --C--> r in δ'
-      - Prune states not reachable from q0 via non-ε transitions and renumber compactly 0..M-1.
+    Convert an ε-NFA N = (Q, Σ(U), δ, q0, F) into an equivalent ε-free NFA N' = (Q', Σ(U), δ', q0, F')
+    following Theorem 2 (UEH Formal Languages Chap 3.1 Slides 21-22).
     """
     closures: Dict[int, frozenset[int]] = {
         q: nfa.epsilon_closure({q}) for q in nfa.states
     }
 
-    # Build raw non-epsilon transitions and accept map over original state IDs
     raw_transitions: Dict[int, List[Tuple[Optional[frozenset], int, str]]] = {}
     raw_accept: Dict[int, AcceptInfo] = {}
 
@@ -245,14 +261,14 @@ def eliminate_epsilon(nfa: NFA) -> NFA:
         for p in sorted(eq):
             for chars, dst, lbl in nfa.transitions.get(p, ()):
                 if chars is not None:
-                    key = (chars, dst, lbl)
+                    clean_lbl = lbl or format_charset(chars, unicode_chars=nfa.unicode_chars)
+                    key = (chars, dst, clean_lbl)
                     if key not in seen_edges:
                         seen_edges.add(key)
-                        edges_out.append((chars, dst, lbl))
+                        edges_out.append((chars, dst, clean_lbl))
         if edges_out:
             raw_transitions[q] = edges_out
 
-    # BFS from start_state over non-epsilon edges to keep only active reachable states
     reachable_order: List[int] = [nfa.start_state]
     visited: set[int] = {nfa.start_state}
     idx = 0
@@ -280,13 +296,12 @@ def eliminate_epsilon(nfa: NFA) -> NFA:
         mapping[q]: info for q, info in raw_accept.items() if q in mapping
     }
 
-    eps_free = NFA(
+    return NFA(
         states=set(mapping.values()),
         start_state=0,
         accept_states=new_accept,
         transitions=new_transitions,
+        unicode_chars=nfa.unicode_chars,
         name=nfa.name.replace("ε-NFA", "ε-free NFA"),
         pattern=nfa.pattern,
     )
-    return eps_free
-

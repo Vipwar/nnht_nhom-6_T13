@@ -1237,6 +1237,119 @@ code {
   outline-offset: -1.5px;
 }
 
+/* ==================== INTERSECTION MATRIX & GNFA KLEENE 360° ==================== */
+.imatrix-scroll {
+  max-height: 440px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+}
+
+.imatrix-table {
+  border-collapse: collapse;
+  font-family: var(--mono);
+  font-size: 11px;
+  width: max-content;
+  min-width: 100%;
+}
+
+.imatrix-table th,
+.imatrix-table td {
+  border: 1px solid var(--border);
+  padding: 4px 6px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.imatrix-table th {
+  position: sticky;
+  top: 0;
+  background: var(--surface-alt);
+  z-index: 2;
+  color: var(--text-muted);
+  font-weight: 700;
+}
+
+.imatrix-table th.row-hdr {
+  position: sticky;
+  left: 0;
+  z-index: 3;
+  text-align: left;
+  background: var(--surface-alt);
+}
+
+.imatrix-table th.corner-hdr {
+  position: sticky;
+  top: 0;
+  left: 0;
+  z-index: 4;
+}
+
+.icell {
+  cursor: pointer;
+  font-weight: 700;
+  min-width: 28px;
+  transition: transform 0.08s ease;
+}
+
+.icell:hover {
+  outline: 2px solid var(--primary);
+  z-index: 1;
+}
+
+.icell-self {
+  background: var(--surface-alt);
+  color: var(--text-muted);
+  cursor: default;
+}
+
+.icell-disjoint {
+  background: var(--surface);
+  color: #94a3b8;
+  font-weight: 400;
+}
+
+.icell-subset {
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+
+.icell-superset-ok {
+  background: rgba(14, 165, 233, 0.12);
+  color: var(--accent);
+}
+
+.icell-overlap {
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+
+.icell-danger {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.gnfa-re-box {
+  background: var(--surface-alt);
+  border: 1.5px solid var(--primary);
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.gnfa-re-code {
+  font-family: var(--mono);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--primary);
+  word-break: break-all;
+}
+
 .footer {
   border-top: 1px solid var(--border);
   background: var(--surface);

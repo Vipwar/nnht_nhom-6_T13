@@ -64,7 +64,7 @@ def _render_dot(dot_src: str, out_png: Path, dpi: int = 240) -> bool:
 
 
 def fig1_architecture_pipeline() -> None:
-    """Crisp visual architecture diagram of the 6-stage Automata-based Lexical Analyzer."""
+    """Crisp visual architecture diagram of the v2.0 Kleene 360° Automata-based Lexical Analyzer."""
     fig, ax = plt.subplots(figsize=(11.5, 4.8), dpi=300)
     ax.set_xlim(0, 11.5)
     ax.set_ylim(0, 4.8)
@@ -80,18 +80,20 @@ def fig1_architecture_pipeline() -> None:
     )
     ax.text(
         5.75, 4.35,
-        "KIẾN TRÚC TỔNG THỂ HỆ THỐNG PHÂN TÍCH TỪ VỰNG DỰA TRÊN AUTOMATA (ĐỀ TÀI T13)",
-        ha="center", va="center", fontsize=11.5, fontweight="bold", color="#0F172A",
+        "KIẾN TRÚC TỔNG THỂ BỘ PHÂN TÍCH TỪ VỰNG DỰA TRÊN AUTOMATA v2.0 (ĐỀ TÀI T13 — KLEENE 360°)",
+        ha="center", va="center", fontsize=11.0, fontweight="bold", color="#0F172A",
     )
 
     # Top main compile pipeline (5 boxes)
     stages = [
-        (0.45, 2.55, 1.85, 1.35, "#EFF6FF", "#2563EB", "1. Đặc tả Token", "Tập RE: R₁..Rₖ + Priority\n+ Cờ Skip + Phát hiện\nLuật bị che khuất"),
-        (2.65, 2.55, 1.85, 1.35, "#EEF2FF", "#4F46E5", "2. Regex Parser", "Đệ quy (Zero `re`)\nHỗ trợ {m,n}, UTF-8\n→ AST, Infix & Postfix"),
-        (4.85, 2.55, 1.85, 1.35, "#F0FDF4", "#16A34A", "3. Thompson & Khử ε", "Combined ε-NFA (ĐL 1)\n→ NFA không ε (ĐL 2)\nGắn nhãn đích Fᵢ"),
-        (7.05, 2.55, 1.95, 1.35, "#FFFBEB", "#D97706", "4. Subset DFA", "Định lý 3: ε-closure & Move\nPhân hoạch bảng chữ Σ\nGiải xung đột ưu tiên"),
-        (9.35, 2.55, 1.80, 1.35, "#ECFDF5", "#059669", "5. Min-DFA", "Định lý 4: Moore Π₀..Πₙ\n& Hopcroft O(E|Q|log|Q|)\nBảo toàn phân loại token"),
+        (0.45, 2.55, 1.85, 1.35, "#EFF6FF", "#2563EB", "1. Đặc tả Token", "Tập RE: R₁..Rₖ + Priority\nMa trận giao L(Rᵢ)∩L(Rⱼ)\n& Cảnh báo che khuất"),
+        (2.65, 2.55, 1.85, 1.35, "#EEF2FF", "#4F46E5", "2. Regex Parser", "Đệ quy (Zero re, ≤4096 nút)\nΣ(U) Unicode động & ASCII\n0x00..0x7F (~(~A) = A)"),
+        (4.85, 2.55, 1.85, 1.35, "#F0FDF4", "#16A3AA", "3. Thompson & Khử ε", "Combined ε-NFA (ĐL 1)\n→ NFA không ε (ĐL 2)\nGắn nhãn đích Fᵢ"),
+        (7.05, 2.55, 1.95, 1.35, "#FFFBEB", "#D97706", "4. Subset DFA", "Định lý 3: ε-closure & Move\nPhân hoạch lớp tương đương\nGiải xung đột ưu tiên"),
+        (9.35, 2.55, 1.80, 1.35, "#ECFDF5", "#059669", "5. Min-DFA", "Định lý 4: Moore Π₀..Πₙ\n& Hopcroft O(|Σ||Q|log|Q|)\nBảo toàn phân loại token"),
     ]
+    # Keep exact green border on stage 3
+    stages[2] = (4.85, 2.55, 1.85, 1.35, "#F0FDF4", "#16A34A", "3. Thompson & Khử ε", "Combined ε-NFA (ĐL 1)\n→ NFA không ε (ĐL 2)\nGắn nhãn đích Fᵢ")
 
     for x, y, w, h, fc, ec, title, desc in stages:
         ax.add_patch(
@@ -101,8 +103,8 @@ def fig1_architecture_pipeline() -> None:
                 facecolor=fc, edgecolor=ec, linewidth=1.8,
             )
         )
-        ax.text(x + w / 2, y + h - 0.28, title, ha="center", va="center", fontsize=9.1, fontweight="bold", color=ec)
-        ax.text(x + w / 2, y + 0.50, desc, ha="center", va="center", fontsize=7.5, color="#1E293B", linespacing=1.35)
+        ax.text(x + w / 2, y + h - 0.28, title, ha="center", va="center", fontsize=9.0, fontweight="bold", color=ec)
+        ax.text(x + w / 2, y + 0.50, desc, ha="center", va="center", fontsize=7.35, color="#1E293B", linespacing=1.35)
 
     # Arrows between top boxes
     for i in range(len(stages) - 1):
@@ -111,11 +113,11 @@ def fig1_architecture_pipeline() -> None:
         ym = 2.55 + 1.35 / 2
         ax.annotate("", xy=(x2, ym), xytext=(x1, ym), arrowprops=dict(arrowstyle="-|>", color="#334155", lw=1.8))
 
-    # Bottom row: Verification branch, Direct RE->DFA branch, and Runtime Scanner
+    # Bottom row: Direct RE->DFA + GNFA 360°, Formal Verifier, and O(n) Scanner + Flex Codegen
     bottom_boxes = [
-        (0.45, 0.48, 2.85, 1.32, "#F5F3FF", "#7C3AED", "Nhánh Đối Chứng: Direct RE → DFA", "Cây gia tố r·# & Đa-Token (Rᵢ·#ᵢ)\nfollowpos + Khứ hồi JFLAP (.jff)"),
-        (3.75, 0.48, 3.15, 1.32, "#ECFDF5", "#047857", "Chứng Minh Toán Học (Verifier)", "Product Automaton 6-Chiều (0 phản ví dụ)\n+ Chứng minh tối giản Myhill-Nerode"),
-        (7.35, 0.48, 3.80, 1.32, "#FEF2F2", "#DC2626", "6. Bộ Quét Từ Vựng (O(n) Scanner)", "Maximal Munch + Reps Memoization chống O(n²)\nPhục hồi lỗi Panic-mode / Smart-Sync → Tokens"),
+        (0.45, 0.48, 2.95, 1.32, "#F5F3FF", "#7C3AED", "Direct RE→DFA & GNFA 360°", "Cây gia tố r·# (followpos) + JFLAP\n& GNFA Khử Trạng Thái (DFA → RE)"),
+        (3.75, 0.48, 3.15, 1.32, "#ECFDF5", "#047857", "Chứng Minh Toán Học (Verifier)", "Product Automaton 7-Chiều (R₀ ≡ R_sinh)\nMyhill-Nerode + Chứng nhân L(Rᵢ)∩L(Rⱼ)"),
+        (7.25, 0.48, 3.90, 1.32, "#FEF2F2", "#DC2626", "6. O(n) Scanner & Flex Codegen", "Maximal Munch + Reps Memoization chống O(n²)\nPanic/Smart-Sync + Sinh Lexer Độc Lập (.py)"),
     ]
     for x, y, w, h, fc, ec, title, desc in bottom_boxes:
         ax.add_patch(
@@ -125,11 +127,11 @@ def fig1_architecture_pipeline() -> None:
                 facecolor=fc, edgecolor=ec, linewidth=1.8,
             )
         )
-        ax.text(x + w / 2, y + h - 0.28, title, ha="center", va="center", fontsize=9.0, fontweight="bold", color=ec)
-        ax.text(x + w / 2, y + 0.46, desc, ha="center", va="center", fontsize=7.5, color="#1E293B", linespacing=1.35)
+        ax.text(x + w / 2, y + h - 0.28, title, ha="center", va="center", fontsize=8.9, fontweight="bold", color=ec)
+        ax.text(x + w / 2, y + 0.46, desc, ha="center", va="center", fontsize=7.35, color="#1E293B", linespacing=1.35)
 
     # Connectors from top row to bottom row
-    ax.annotate("", xy=(2.2, 1.86), xytext=(3.55, 2.49), arrowprops=dict(arrowstyle="-|>", color="#7C3AED", lw=1.5, ls="--"))
+    ax.annotate("", xy=(2.1, 1.86), xytext=(3.55, 2.49), arrowprops=dict(arrowstyle="-|>", color="#7C3AED", lw=1.5, ls="--"))
     ax.annotate("", xy=(5.1, 1.86), xytext=(7.8, 2.49), arrowprops=dict(arrowstyle="-|>", color="#047857", lw=1.5, ls="--"))
     ax.annotate("", xy=(5.6, 1.86), xytext=(9.9, 2.49), arrowprops=dict(arrowstyle="-|>", color="#047857", lw=1.5, ls="--"))
     ax.annotate("", xy=(9.6, 1.86), xytext=(10.25, 2.49), arrowprops=dict(arrowstyle="-|>", color="#DC2626", lw=2.0))
@@ -153,8 +155,8 @@ def fig2_slide38_pipeline() -> None:
         lines = [
             'digraph NFA {',
             '  rankdir=LR; bgcolor="white"; pad="0.2";',
-            '  node [fontname="Segoe UI", fontsize=11, shape=circle, style=filled, fillcolor="#FFFFFF", color="#334155", penwidth=1.6];',
-            '  edge [fontname="Segoe UI", fontsize=10, color="#475569"];',
+            '  node [fontname="DejaVu Sans", fontsize=11, shape=circle, style=filled, fillcolor="#FFFFFF", color="#334155", penwidth=1.6];',
+            '  edge [fontname="DejaVu Sans", fontsize=10, color="#475569"];',
             '  __start [shape=none, label="start", fontcolor="#059669", fontsize=10, width=0.2];',
             f'  __start -> q{n.start_state} [color="#059669", penwidth=2.0];',
         ]
@@ -176,8 +178,8 @@ def fig2_slide38_pipeline() -> None:
         lines = [
             'digraph DFA {',
             '  rankdir=LR; bgcolor="white"; pad="0.2";',
-            '  node [fontname="Segoe UI", fontsize=11, shape=circle, style=filled, fillcolor="#FFFFFF", color="#334155", penwidth=1.6];',
-            '  edge [fontname="Segoe UI", fontsize=10, color="#334155"];',
+            '  node [fontname="DejaVu Sans", fontsize=11, shape=circle, style=filled, fillcolor="#FFFFFF", color="#334155", penwidth=1.6];',
+            '  edge [fontname="DejaVu Sans", fontsize=10, color="#334155"];',
             '  __start [shape=none, label="start", fontcolor="#059669", fontsize=10, width=0.2];',
             f'  __start -> D{d.start_state} [color="#059669", penwidth=2.0];',
         ]
@@ -219,7 +221,7 @@ def fig2_slide38_pipeline() -> None:
     ax3 = fig.add_subplot(gs[1, 1])
     ax3.imshow(im_min)
     ax3.axis("off")
-    ax3.set_title("(c) Minimized DFA — 4 trạng thái (tối giản, gộp D0 ≡ D2)", fontsize=10.2, fontweight="bold", color="#059669", pad=6)
+    ax3.set_title("(c) Minimized DFA — 4 trạng thái (GNFA sinh R_sinh ≡ R_gốc)", fontsize=10.2, fontweight="bold", color="#059669", pad=6)
 
     plt.savefig(out_path, dpi=280, bbox_inches="tight", facecolor="white")
     plt.close(fig)
@@ -248,10 +250,10 @@ def fig3_calclang_combined_dfa() -> None:
     lines = [
         'digraph CalcLangDFA {',
         '  rankdir=LR; bgcolor="white"; pad="0.25"; nodesep="0.32"; ranksep="0.55";',
-        '  labelloc="t"; fontname="Segoe UI"; fontsize=13;',
+        '  labelloc="t"; fontname="DejaVu Sans"; fontsize=13;',
         '  label="Minimized Combined Multi-token DFA — Ngôn ngữ CalcLang (12 Token → 20 Trạng thái tối giản)";',
-        '  node [fontname="Segoe UI", fontsize=9.5, shape=circle, style=filled, fillcolor="#FFFFFF", color="#334155", penwidth=1.5];',
-        '  edge [fontname="Consolas", fontsize=8.5, color="#475569"];',
+        '  node [fontname="DejaVu Sans", fontsize=9.5, shape=circle, style=filled, fillcolor="#FFFFFF", color="#334155", penwidth=1.5];',
+        '  edge [fontname="DejaVu Sans Mono", fontsize=8.5, color="#475569"];',
         '  __start [shape=none, label="START", fontcolor="#059669", fontsize=9.5];',
         f'  __start -> D{d.start_state} [color="#059669", penwidth=2.2];',
     ]
@@ -353,10 +355,10 @@ def fig5_direct_dfa_slide46() -> None:
     lines = [
         'digraph DirectSlide46 {',
         '  rankdir=LR; bgcolor="white"; pad="0.25"; nodesep="0.45"; ranksep="0.65";',
-        '  labelloc="t"; fontname="Segoe UI"; fontsize=12;',
+        '  labelloc="t"; fontname="DejaVu Sans"; fontsize=12;',
         '  label="Direct RE → DFA cho r = (a|ba)(a|b)*ba# (5 trạng thái tối giản, khớp Slide 55-57 Chương 3.1)";',
-        '  node [fontname="Segoe UI", fontsize=10, shape=circle, style=filled, fillcolor="#FFFFFF", color="#334155", penwidth=1.6];',
-        '  edge [fontname="Consolas", fontsize=10, color="#334155"];',
+        '  node [fontname="DejaVu Sans", fontsize=10, shape=circle, style=filled, fillcolor="#FFFFFF", color="#334155", penwidth=1.6];',
+        '  edge [fontname="DejaVu Sans Mono", fontsize=10, color="#334155"];',
         '  __start [shape=none, label="start", fontcolor="#059669"];',
         f'  __start -> D{d.start_state} [color="#059669", penwidth=2.0];',
     ]

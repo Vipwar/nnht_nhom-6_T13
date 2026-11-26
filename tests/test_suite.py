@@ -21,28 +21,38 @@ import ast
 import json
 import random
 import re as _oracle_re  # Used ONLY as an independent external test oracle!
+import subprocess
 import sys
+import tempfile
 import time
 import unittest
 import xml.etree.ElementTree as ET
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Tuple
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from lexer_engine import (  # noqa: E402
+    MAX_AST_NODES,
     PRESETS,
     LexicalAnalyzer,
     RegexSyntaxError,
     TokenSpec,
+    analyze_token_intersections,
     build_combined_direct_dfa,
+    build_dynamic_sigma,
     check_dfa_equivalence,
+    check_dfa_intersection,
     compare_regex_equivalence,
+    complement_charset,
+    complement_dfa,
+    dfa_to_regex,
     eliminate_epsilon,
     export_dfa_to_jflap,
     export_nfa_to_jflap,
+    generate_standalone_lexer,
     import_jflap_to_dfa,
     import_jflap_to_nfa,
     inspect_single_regex,
@@ -52,6 +62,7 @@ from lexer_engine import (  # noqa: E402
 )
 from lexer_engine.dfa_minimizer import minimize_dfa  # noqa: E402
 from lexer_engine.direct_dfa import build_direct_dfa  # noqa: E402
+from lexer_engine.models import ASCII_SIGMA, NON_ASCII, SIGMA  # noqa: E402
 from lexer_engine.regex_parser import parse_regex  # noqa: E402
 from lexer_engine.scanner import scan_source  # noqa: E402
 from lexer_engine.subset_construction import nfa_to_dfa  # noqa: E402
@@ -111,7 +122,7 @@ def run_json_test_report() -> Dict:
             compiled_cache[preset_id] = LexicalAnalyzer.from_preset(preset_id)
         return compiled_cache[preset_id]
 
-    # 1. Single Regex 6-way equivalence & membership tests
+    # 1. Single Regex 7-way Kleene 360° equivalence & membership tests
     for tc in data["single_regex_cases"]:
         info = inspect_single_regex(tc["pattern"], tc["id"])
         nfa, _ = build_token_nfa(tc["pattern"], tc["id"])
@@ -124,6 +135,7 @@ def run_json_test_report() -> Dict:
         eq1 = check_dfa_equivalence(sub_dfa, min_dfa, check_token_names=False)
         eq2 = check_dfa_equivalence(sub_dfa, dir_dfa, check_token_names=False)
         eq3 = check_dfa_equivalence(min_dfa, hop_dfa, check_token_names=False)
+        kleene_ok = info["gnfa"]["kleene_equivalent"]
         min_proof = verify_dfa_is_minimal(min_dfa, check_token_names=False)
 
         failures = []
@@ -133,6 +145,8 @@ def run_json_test_report() -> Dict:
             failures.append(f"Subset != DirectDFA: {eq2.message}")
         if not eq3.equivalent:
             failures.append(f"MooreMin != HopcroftMin: {eq3.message}")
+        if not kleene_ok:
+            failures.append(f"GNFA Kleene 360° failed: {info['gnfa']['verification_message']}")
         if not min_proof.is_minimal:
             failures.append(f"Not minimal: {min_proof.message}")
 
@@ -168,8 +182,8 @@ def run_json_test_report() -> Dict:
                 "passed": len(failures) == 0,
                 "detail": (
                     f"εNFA:{info['nfa']['state_count']} → NFA:{len(eps_free.states)} → Sub:{info['subset_dfa']['state_count']} "
-                    f"→ Dir:{info['direct_dfa']['dfa']['state_count']} → Min:{info['minimized_dfa']['state_count']} (Moore≡Hopcroft) "
-                    f"| {len(tc['accept'])} accept + {len(tc['reject'])} reject | 6-Way Eq=✓"
+                    f"→ Dir:{info['direct_dfa']['dfa']['state_count']} → Min:{info['minimized_dfa']['state_count']} "
+                    f"→ GNFA:✓ | {len(tc['accept'])} accept + {len(tc['reject'])} reject | Kleene 360°=✓"
                     if not failures
                     else "; ".join(failures)
                 ),
@@ -281,9 +295,9 @@ class TestAutomataLexicalAnalyzer(unittest.TestCase):
                         self.fail(f"{py_file.name} must not call __import__('re')!")
 
     def test_all_json_cases(self) -> None:
-        """Execute all 62 structured test cases in tests/test_cases.json."""
+        """Execute all 72 structured test cases in tests/test_cases.json."""
         report = run_json_test_report()
-        self.assertGreaterEqual(report["total"], 50, "test_cases.json must contain at least 50 test cases")
+        self.assertGreaterEqual(report["total"], 72, "test_cases.json must contain at least 72 test cases")
         for item in report["results"]:
             with self.subTest(case=item["id"], name=item["name"]):
                 self.assertTrue(item["passed"], f"{item['id']} failed: {item['detail']}")
@@ -643,6 +657,289 @@ class TestAutomataLexicalAnalyzer(unittest.TestCase):
                 imp_nfa_dfa, _ = nfa_to_dfa(imported_nfa, record_steps=False)
                 eq_nfa = check_dfa_equivalence(lex.minimized_dfa, imp_nfa_dfa, check_token_names=True)
                 self.assertTrue(eq_nfa.equivalent, f"JFLAP NFA round-trip failed on {pid}: {eq_nfa.message}")
+
+    def test_v2_1_dynamic_unicode_alphabet_partitioning(self) -> None:
+        """
+        Verify Dynamic Unicode Alphabet Partitioning:
+        Explicit Unicode keywords/symbols (e.g., `nếu`, `lặp`, `€`, `₫`) coexist cleanly with
+        general UTF-8 wildcard/negated classes (`//[^\n]*`, `"([^"\\\n\r]|\\.)*"`, `[^€]+`)
+        without colliding with `NON_ASCII`.
+        """
+        specs = [
+            TokenSpec("COMMENT", r"//[^\n]*", 1, True, "comment"),
+            TokenSpec("WS", r"[ \t\n\r]+", 2, True, "whitespace"),
+            TokenSpec("KW_NEU", r"nếu", 3, False, "keyword"),
+            TokenSpec("KW_LAP", r"lặp", 4, False, "keyword"),
+            TokenSpec("CURRENCY", r"€|₫", 5, False, "operator"),
+            TokenSpec("STRING_LIT", r'"([^"\\\n\r]|\\.)*"', 6, False, "literal"),
+            TokenSpec("INT_LIT", r"[0-9]+", 7, False, "literal"),
+            TokenSpec("IDENTIFIER", r"[a-zA-Z_][a-zA-Z0-9_]*", 8, False, "identifier"),
+            TokenSpec("ASSIGN", r"=", 9, False, "operator"),
+        ]
+        lex = LexicalAnalyzer.compile(specs)
+        self.assertTrue(lex.equivalence.equivalent)
+        self.assertTrue(lex.minimality_proof.is_minimal)
+        combined_dir = build_combined_direct_dfa(specs)
+        self.assertTrue(check_dfa_equivalence(lex.minimized_dfa, combined_dir, check_token_names=True).equivalent)
+
+        src = 'nếu x = 100€ // nếu lặp 50₫\nlặp y = "Xin chào nếu 200€" 50¥'
+        res = lex.scan(src)
+        self.assertEqual(
+            [(t.token_type, t.lexeme) for t in res.visible_tokens],
+            [
+                ("KW_NEU", "nếu"),
+                ("IDENTIFIER", "x"),
+                ("ASSIGN", "="),
+                ("INT_LIT", "100"),
+                ("CURRENCY", "€"),
+                ("KW_LAP", "lặp"),
+                ("IDENTIFIER", "y"),
+                ("ASSIGN", "="),
+                ("STRING_LIT", '"Xin chào nếu 200€"'),
+                ("INT_LIT", "50"),
+            ],
+        )
+        self.assertEqual([e.char for e in res.errors], ["¥"])
+
+        # Negated explicit Unicode class [^€] must reject '€' while accepting '¥', 'ế', and 'a'
+        no_euro = build_direct_dfa("[^€]+", "NO_EURO").dfa
+        self.assertFalse(no_euro.simulate("€")[0])
+        self.assertFalse(no_euro.simulate("abc€def")[0])
+        self.assertTrue(no_euro.simulate("abc¥ế")[0])
+
+        # Cross-DFA equivalence lifting when one regex has explicit Unicode and the other uses '.'
+        cmp_res = compare_regex_equivalence("(nếu|lặp)+", "(lặp|nếu)(nếu|lặp)*")
+        self.assertTrue(cmp_res["equivalent"])
+        cmp_diff = compare_regex_equivalence("[^€]+", ".+")
+        self.assertFalse(cmp_diff["equivalent"])
+
+    def test_v2_2_full_ascii_boolean_algebra_and_crlf_string_lit(self) -> None:
+        """
+        Verify full 7-bit ASCII (0x00..0x7F, 128 chars including \\0, \\f, \\v, \\x7f) coverage,
+        strict Boolean algebra involution ~(~A) == A at both charset and DFA levels,
+        and `STRING_LIT` rejecting unescaped `\\r` on Windows CRLF.
+        """
+        self.assertEqual(len(ASCII_SIGMA), 128)
+        self.assertIn("\x00", ASCII_SIGMA)
+        self.assertIn("\v", ASCII_SIGMA)
+        self.assertIn("\f", ASCII_SIGMA)
+        self.assertIn("\x7f", ASCII_SIGMA)
+        self.assertEqual(len(SIGMA), 129)
+
+        # 1. Charset-level Boolean involution: ~(~A) == A across ASCII, control chars, explicit Unicode & NON_ASCII
+        u_ext = frozenset({"ế", "€"})
+        sigma_u = build_dynamic_sigma(u_ext)
+        sample_sets = [
+            frozenset(),
+            sigma_u,
+            frozenset({"\x00", "\v", "\f", "\x7f"}),
+            frozenset({"a", "ế", "€"}),
+            frozenset({NON_ASCII}),
+            sigma_u - {"\n", "\r", '"', "\\"},
+        ]
+        for cset in sample_sets:
+            neg1 = complement_charset(cset, u_ext)
+            neg2 = complement_charset(neg1, u_ext)
+            self.assertEqual(neg2, cset, f"Charset involution ~(~A) == A failed for {cset}")
+
+        # 2. DFA-level Boolean involution: complement_dfa(complement_dfa(D)) ≡ D
+        for pat in ["(a|b)*abb", r"[\x00\f\v\x7f]+", r'"([^"\\\n\r]|\\.)*"', r"[^€\n]+", "ε"]:
+            dfa = minimize_dfa(nfa_to_dfa(build_token_nfa(pat, "T")[0], record_steps=False)[0]).minimized_dfa
+            comp1 = complement_dfa(dfa)
+            comp2 = complement_dfa(comp1)
+            eq = check_dfa_equivalence(dfa, comp2, check_token_names=False)
+            self.assertTrue(eq.equivalent, f"DFA involution ~(~L) == L failed on {pat}: {eq.message}")
+            # Verify L(D) ∩ L(~D) == ∅
+            inter = check_dfa_intersection(dfa, comp1)
+            self.assertFalse(inter.intersects, f"L(D) ∩ L(~D) must be empty for {pat}")
+
+        # 3. Windows CRLF `\r` strictly excluded from MiniLang STRING_LIT
+        lex = LexicalAnalyzer.from_preset("minilang")
+        crlf_broken = 'let s = "unclosed\r\nlet ok = 1;'
+        r_panic = lex.scan(crlf_broken, error_recovery="panic_char")
+        r_smart = lex.scan(crlf_broken, error_recovery="smart_sync")
+        self.assertEqual(len(r_panic.errors), 1)
+        self.assertEqual(len(r_smart.errors), 1)
+        # In smart_sync, the unclosed string stops right before `\r\n`, preserving line 2 cleanly (`let ok = 1;`)
+        self.assertEqual(r_smart.errors[0].lexeme, '"unclosed')
+        self.assertEqual(r_smart.visible_tokens[-5].lexeme, "let")
+        self.assertEqual(r_smart.visible_tokens[-5].line, 2)
+        self.assertEqual(r_smart.visible_tokens[-5].col, 1)
+
+    def test_v2_3_anti_ast_replication_bomb(self) -> None:
+        """
+        Verify `MAX_AST_NODES = 4096` blocks nested counted-quantifier AST replication bombs
+        like `(((a{64}){64}){64})` instantaneously without memory/CPU exhaustion.
+        """
+        self.assertEqual(MAX_AST_NODES, 4096)
+        bombs = [
+            "(((a{64}){64}){64})",
+            "((((a{16}){16}){16}){16})",
+            "(a{64}){64}",
+            "((ab){45}){45}",
+            "a" * 2500,  # 2500 leaves + 2499 concats = 4999 > 4096
+        ]
+        for bomb in bombs:
+            t0 = time.perf_counter()
+            with self.assertRaises(RegexSyntaxError):
+                parse_regex(bomb)
+            elapsed_ms = (time.perf_counter() - t0) * 1000.0
+            self.assertLess(elapsed_ms, 50.0, f"AST bomb {bomb[:24]} took too long ({elapsed_ms:.2f} ms)")
+
+        # Valid bounded quantifier well within MAX_AST_NODES must still succeed
+        ok_ast = parse_regex("[0-9a-fA-F]{32}")
+        self.assertLessEqual(ok_ast.node_count(), MAX_AST_NODES)
+
+    def test_v2_4_gnfa_state_elimination_kleene_360(self) -> None:
+        """
+        Verify GNFA State Elimination (`DFA -> Regular Expression`) closes Kleene's Theorem 360°:
+        For every test regex R_0 (including Slide 38, Slide 54, FLOAT_LIT, BLOCK_COMMENT, STRING_LIT,
+        Dynamic Unicode, nullable REs, and complemented DFAs), L(R_0) == L(dfa_to_regex(MinDFA(R_0))).
+        """
+        cases = load_test_cases()["single_regex_cases"]
+        for tc in cases:
+            with self.subTest(case=tc["id"], pattern=tc["pattern"]):
+                nfa, _ = build_token_nfa(tc["pattern"], tc["id"])
+                min_d = minimize_dfa(nfa_to_dfa(nfa, record_steps=False)[0]).minimized_dfa
+                gnfa_res = dfa_to_regex(min_d, verify_roundtrip=True)
+                self.assertFalse(gnfa_res.is_empty_language)
+                self.assertTrue(gnfa_res.kleene_equivalent, gnfa_res.verification_message)
+
+        # Also test empty language DFA (complement of Sigma*)
+        all_star = minimize_dfa(nfa_to_dfa(build_token_nfa(r"(.|\n)*", "ALL")[0], record_steps=False)[0]).minimized_dfa
+        empty_dfa = complement_dfa(all_star)
+        empty_gnfa = dfa_to_regex(empty_dfa, verify_roundtrip=True)
+        self.assertTrue(empty_gnfa.is_empty_language)
+        self.assertEqual(empty_gnfa.synthesized_regex, "∅")
+
+        # Also test complement of (a|b)*abb via GNFA round-trip
+        abb_dfa = minimize_dfa(nfa_to_dfa(build_token_nfa("(a|b)*abb", "ABB")[0], record_steps=False)[0]).minimized_dfa
+        not_abb = complement_dfa(abb_dfa)
+        not_abb_gnfa = dfa_to_regex(not_abb, verify_roundtrip=True)
+        self.assertTrue(not_abb_gnfa.kleene_equivalent, not_abb_gnfa.verification_message)
+
+    def test_v2_5_standalone_table_driven_lexer_generator_differential(self) -> None:
+        """
+        Verify the Flex-style Standalone Table-Driven Python Lexer Generator (`codegen.py` & `cli.py codegen`):
+        1. Generated source has ZERO `import re` and ZERO `lexer_engine` imports.
+        2. 100% differential parity on all 3 presets, all JSON scanner cases, both `panic_char` & `smart_sync`,
+           10,000-char pathological Reps O(n) stress strings, and Dynamic Unicode specs.
+        3. Subprocess execution via `cli.py codegen` works standalone out-of-the-box.
+        """
+        data = load_test_cases()
+        generated_instances = {}
+
+        for pid in PRESETS:
+            lex = LexicalAnalyzer.from_preset(pid)
+            cls_name = f"Standalone_{pid.capitalize()}"
+            src_code = generate_standalone_lexer(lex, class_name=cls_name, preset_name=pid)
+
+            # AST guard: zero `re` and zero `lexer_engine` imports
+            tree = ast.parse(src_code)
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Import):
+                    for alias in node.names:
+                        self.assertNotIn(alias.name, ("re", "lexer_engine"))
+                elif isinstance(node, ast.ImportFrom):
+                    self.assertNotIn(node.module, ("re", "lexer_engine"))
+
+            ns: Dict = {}
+            exec(src_code, ns)
+            gen_lex = ns[cls_name]()
+            generated_instances[pid] = (lex, gen_lex)
+
+            for sample in PRESETS[pid]["samples"].values():
+                for mode in ("panic_char", "smart_sync"):
+                    r_ref = lex.scan(sample["code"], record_traces=False, error_recovery=mode)
+                    r_gen = gen_lex.scan(sample["code"], error_recovery=mode)
+                    self.assertEqual(
+                        [t.to_dict() for t in r_ref.tokens],
+                        [t.to_dict() for t in r_gen.tokens],
+                    )
+                    self.assertEqual(
+                        [e.to_dict() for e in r_ref.errors],
+                        [e.to_dict() for e in r_gen.errors],
+                    )
+
+        # Differential check across all structured JSON scanner_cases
+        for sc in data["scanner_cases"]:
+            lex_ref, lex_gen = generated_instances[sc["preset"]]
+            for mode in ("panic_char", "smart_sync"):
+                r_ref = lex_ref.scan(sc["input"], record_traces=False, error_recovery=mode)
+                r_gen = lex_gen.scan(sc["input"], error_recovery=mode)
+                self.assertEqual([t.to_dict() for t in r_ref.tokens], [t.to_dict() for t in r_gen.tokens])
+                self.assertEqual([e.to_dict() for e in r_ref.errors], [e.to_dict() for e in r_gen.errors])
+
+        # Differential check on 10k pathological Reps O(n) stress test
+        ml_ref, ml_gen = generated_instances["minilang"]
+        stress_in = '"' + '\\"' * 5000
+        s_ref = ml_ref.scan(stress_in, record_traces=False)
+        s_gen = ml_gen.scan(stress_in)
+        self.assertEqual(s_gen.memoized_cutoffs, 5000)
+        self.assertEqual(len(s_ref.errors), len(s_gen.errors))
+
+        # CLI codegen + standalone OS subprocess verification
+        with tempfile.TemporaryDirectory() as tmpdir:
+            out_py = Path(tmpdir) / "minilang_standalone.py"
+            cmd_gen = subprocess.run(
+                [sys.executable, str(PROJECT_ROOT / "cli.py"), "codegen", "--preset", "minilang", "--out", str(out_py)],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            self.assertIn("PASS", cmd_gen.stdout)
+            cmd_run = subprocess.run(
+                [sys.executable, str(out_py), "--code", 'let x = 3.14; print("UEH");', "--json"],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            parsed_out = json.loads(cmd_run.stdout)
+            self.assertEqual(parsed_out["stats"]["visible_token_count"], 10)
+            self.assertEqual(parsed_out["stats"]["error_count"], 0)
+
+    def test_v2_6_static_pairwise_intersection_matrix(self) -> None:
+        """
+        Verify Static Pairwise Intersection Matrix Analyzer `L(R_i) ∩ L(R_j)` & shortest witnesses:
+        - MiniLang: 9 safe keyword/boolean subset overlaps out of 741 pairs, 0 shadow conflicts.
+        - CalcLang: 2 safe keyword overlaps out of 66 pairs.
+        - MiniSQL: 5 safe keyword overlaps out of 91 pairs.
+        - Detects `superset_shadow`, `identical_shadow`, and `partial_overlap` with shortest witnesses.
+        """
+        ml_inter = LexicalAnalyzer.from_preset("minilang").intersection_analysis
+        self.assertEqual(ml_inter.total_pairs, 741)
+        self.assertEqual(ml_inter.overlap_count, 9)
+        self.assertEqual(ml_inter.disjoint_count, 732)
+        self.assertEqual(ml_inter.shadow_conflict_count, 0)
+        witness_by_rule = {ov.rule_i: ov.shortest_witness for ov in ml_inter.overlaps}
+        self.assertEqual(witness_by_rule["KW_IF"], "if")
+        self.assertEqual(witness_by_rule["KW_WHILE"], "while")
+        self.assertIn(witness_by_rule["BOOL_LIT"], ("true", "false"))
+
+        cl_inter = LexicalAnalyzer.from_preset("calclang").intersection_analysis
+        self.assertEqual((cl_inter.overlap_count, cl_inter.total_pairs), (2, 66))
+
+        sq_inter = LexicalAnalyzer.from_preset("minisql").intersection_analysis
+        self.assertEqual((sq_inter.overlap_count, sq_inter.total_pairs), (5, 91))
+
+        # Test superset_shadow, identical_shadow, and partial_overlap classifications
+        conflict_specs = [
+            TokenSpec("ID", r"[a-z]+", 1, False, "identifier"),
+            TokenSpec("KW_IF", r"if", 2, False, "keyword"),          # shadowed by ID (superset_shadow)
+            TokenSpec("ID_DUP", r"[a-z][a-z]*", 3, False, "other"),  # identical to ID (identical_shadow)
+            TokenSpec("ALNUM_NUM", r"[a-z]?[0-9]+", 4, False, "literal"),
+            TokenSpec("HEX_PREFIX", r"a0", 5, False, "literal"),     # subset of ALNUM_NUM
+            TokenSpec("PARTIAL_A", r"ab*", 6, False, "other"),
+            TokenSpec("PARTIAL_B", r"a*b", 7, False, "other"),       # partial overlap on 'ab'
+        ]
+        c_inter = analyze_token_intersections(conflict_specs)
+        self.assertGreaterEqual(c_inter.shadow_conflict_count, 2)
+        rel_map = {(ov.rule_i, ov.rule_j): ov for ov in c_inter.overlaps}
+        self.assertEqual(rel_map[("ID", "KW_IF")].relation, "superset_shadow")
+        self.assertEqual(rel_map[("ID", "KW_IF")].shortest_witness, "if")
+        self.assertEqual(rel_map[("ID", "ID_DUP")].relation, "identical_shadow")
+        self.assertEqual(rel_map[("PARTIAL_A", "PARTIAL_B")].relation, "partial_overlap")
+        self.assertEqual(rel_map[("PARTIAL_A", "PARTIAL_B")].shortest_witness, "ab")
 
 
 if __name__ == "__main__":

@@ -2,31 +2,42 @@
 Hand-written Regular Expression Parser (Zero `import re`).
 
 Supports:
-- Literals & escapes: \\n, \\t, \\r, \\\\, \\|, \\*, \\+, \\?, \\(, \\), \\[, \\], \\., \\-, \\^, \\", \\'
-- Shorthand classes: \\d ([0-9]), \\w ([a-zA-Z0-9_]), \\s ([ \\t\\n\\r]), \\e or ε (epsilon)
-- Dot wildcard `.` (any character in Sigma except '\\n')
-- Character classes `[a-zA-Z0-9_]`, negated classes `[^"\\n]`
+- Full 7-bit ASCII (0x00..0x7F, including \\0, \\t, \\n, \\v, \\f, \\r) + Explicit Unicode literals/classes
+  (e.g., `nếu`, `€`, `[à-ỹ]`, `[^€]`) via Dynamic Unicode Alphabet Partitioning
+- Hex & Unicode escapes: \\xHH, \\uHHHH, \\0, \\n, \\t, \\r, \\f, \\v, \\\\, \\|, \\*, \\+, \\?, etc.
+- Shorthand classes: \\d ([0-9]), \\w ([a-zA-Z0-9_]), \\s ([ \\t\\n\\r\\f\\v]), \\e or ε (epsilon)
+- Dot wildcard `.` (any character in Sigma(U) except '\\n')
+- Character classes `[a-zA-Z0-9_]`, negated classes `[^"\\\\\\n\\r]`
 - Operators with formal precedence:
     1. Grouping (...) & Atom / CharClass
-    2. Quantifiers (unary postfix): *, +, ?
+    2. Quantifiers (unary postfix): *, +, ?, {m}, {m,}, {m,n}
     3. Concatenation (implicit, binary left-associative)
     4. Alternation | (binary left-associative)
-
-Outputs:
-- Typed AST (used by both Thompson Construction and Direct RE -> DFA)
-- Explicit-concatenation infix & Shunting-Yard Postfix representation (for inspection/UI)
+- Anti-DoS AST Replication Bomb Protection:
+    Enforces both `MAX_QUANTIFIER_BOUND = 64` and `MAX_AST_NODES = 4096` on unfolded AST size
+    so nested counted quantifiers like `(((a{64}){64}){64})` are rejected in O(1) time.
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import FrozenSet, List, Optional, Set, Tuple
 
-from .models import ASCII_SIGMA, SIGMA, format_charset
+from .models import (
+    NON_ASCII,
+    build_dynamic_sigma,
+    format_charset,
+    lift_charset_to_unicode,
+)
+
+MAX_QUANTIFIER_BOUND = 64
+MAX_AST_NODES = 4096
+MAX_CHAR_RANGE_SPAN = 4096
+_HEX_DIGITS = frozenset("0123456789abcdefABCDEF")
 
 
 class RegexSyntaxError(ValueError):
-    """Raised when a Regular Expression has invalid syntax."""
+    """Raised when a Regular Expression has invalid syntax or exceeds safety bounds."""
 
     def __init__(self, message: str, position: int = -1, pattern: str = "") -> None:
         self.position = position
@@ -39,10 +50,23 @@ class RegexSyntaxError(ValueError):
 # AST Nodes
 # ---------------------------------------------------------------------------
 
+
 class RegexNode:
     """Base class for Regular Expression AST nodes."""
 
     def is_nullable(self) -> bool:
+        raise NotImplementedError
+
+    def node_count(self) -> int:
+        """Exact number of nodes in the unfolded AST tree."""
+        raise NotImplementedError
+
+    def explicit_unicode_chars(self) -> FrozenSet[str]:
+        """All explicit non-ASCII code points referenced positively or negatively in this AST."""
+        raise NotImplementedError
+
+    def materialize_unicode(self, target_unicode: FrozenSet[str]) -> "RegexNode":
+        """Lift all character sets in this AST onto Sigma(target_unicode)."""
         raise NotImplementedError
 
     def to_postfix_tokens(self) -> List[str]:
@@ -60,6 +84,15 @@ class EpsilonNode(RegexNode):
     def is_nullable(self) -> bool:
         return True
 
+    def node_count(self) -> int:
+        return 1
+
+    def explicit_unicode_chars(self) -> FrozenSet[str]:
+        return frozenset()
+
+    def materialize_unicode(self, target_unicode: FrozenSet[str]) -> "RegexNode":
+        return self
+
     def to_postfix_tokens(self) -> List[str]:
         return ["ε"]
 
@@ -74,9 +107,26 @@ class EpsilonNode(RegexNode):
 class CharSetNode(RegexNode):
     chars: FrozenSet[str]
     label: str
+    own_unicode: FrozenSet[str] = field(default_factory=frozenset)
 
     def is_nullable(self) -> bool:
         return False
+
+    def node_count(self) -> int:
+        return 1
+
+    def explicit_unicode_chars(self) -> FrozenSet[str]:
+        pos_u = frozenset(c for c in self.chars if ord(c) >= 128 and c != NON_ASCII)
+        return pos_u | self.own_unicode
+
+    def materialize_unicode(self, target_unicode: FrozenSet[str]) -> "CharSetNode":
+        merged_u = self.explicit_unicode_chars() | frozenset(
+            c for c in target_unicode if ord(c) >= 128 and c != NON_ASCII
+        )
+        if merged_u == self.own_unicode:
+            return self
+        lifted = lift_charset_to_unicode(self.chars, self.own_unicode, merged_u)
+        return CharSetNode(chars=lifted, label=self.label, own_unicode=merged_u)
 
     def to_postfix_tokens(self) -> List[str]:
         return [self.label]
@@ -92,9 +142,26 @@ class CharSetNode(RegexNode):
 class ConcatNode(RegexNode):
     left: RegexNode
     right: RegexNode
+    _size: int = field(init=False, repr=False, compare=False)
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "_size", 1 + self.left.node_count() + self.right.node_count())
 
     def is_nullable(self) -> bool:
         return self.left.is_nullable() and self.right.is_nullable()
+
+    def node_count(self) -> int:
+        return self._size
+
+    def explicit_unicode_chars(self) -> FrozenSet[str]:
+        return self.left.explicit_unicode_chars() | self.right.explicit_unicode_chars()
+
+    def materialize_unicode(self, target_unicode: FrozenSet[str]) -> "ConcatNode":
+        nl = self.left.materialize_unicode(target_unicode)
+        nr = self.right.materialize_unicode(target_unicode)
+        if nl is self.left and nr is self.right:
+            return self
+        return ConcatNode(nl, nr)
 
     def to_postfix_tokens(self) -> List[str]:
         return self.left.to_postfix_tokens() + self.right.to_postfix_tokens() + ["·"]
@@ -121,9 +188,26 @@ class ConcatNode(RegexNode):
 class UnionNode(RegexNode):
     left: RegexNode
     right: RegexNode
+    _size: int = field(init=False, repr=False, compare=False)
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "_size", 1 + self.left.node_count() + self.right.node_count())
 
     def is_nullable(self) -> bool:
         return self.left.is_nullable() or self.right.is_nullable()
+
+    def node_count(self) -> int:
+        return self._size
+
+    def explicit_unicode_chars(self) -> FrozenSet[str]:
+        return self.left.explicit_unicode_chars() | self.right.explicit_unicode_chars()
+
+    def materialize_unicode(self, target_unicode: FrozenSet[str]) -> "UnionNode":
+        nl = self.left.materialize_unicode(target_unicode)
+        nr = self.right.materialize_unicode(target_unicode)
+        if nl is self.left and nr is self.right:
+            return self
+        return UnionNode(nl, nr)
 
     def to_postfix_tokens(self) -> List[str]:
         return self.left.to_postfix_tokens() + self.right.to_postfix_tokens() + ["|"]
@@ -143,9 +227,23 @@ class UnionNode(RegexNode):
 @dataclass(frozen=True)
 class StarNode(RegexNode):
     child: RegexNode
+    _size: int = field(init=False, repr=False, compare=False)
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "_size", 1 + self.child.node_count())
 
     def is_nullable(self) -> bool:
         return True
+
+    def node_count(self) -> int:
+        return self._size
+
+    def explicit_unicode_chars(self) -> FrozenSet[str]:
+        return self.child.explicit_unicode_chars()
+
+    def materialize_unicode(self, target_unicode: FrozenSet[str]) -> "StarNode":
+        nc = self.child.materialize_unicode(target_unicode)
+        return self if nc is self.child else StarNode(nc)
 
     def to_postfix_tokens(self) -> List[str]:
         return self.child.to_postfix_tokens() + ["*"]
@@ -163,9 +261,23 @@ class StarNode(RegexNode):
 @dataclass(frozen=True)
 class PlusNode(RegexNode):
     child: RegexNode
+    _size: int = field(init=False, repr=False, compare=False)
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "_size", 1 + self.child.node_count())
 
     def is_nullable(self) -> bool:
         return self.child.is_nullable()
+
+    def node_count(self) -> int:
+        return self._size
+
+    def explicit_unicode_chars(self) -> FrozenSet[str]:
+        return self.child.explicit_unicode_chars()
+
+    def materialize_unicode(self, target_unicode: FrozenSet[str]) -> "PlusNode":
+        nc = self.child.materialize_unicode(target_unicode)
+        return self if nc is self.child else PlusNode(nc)
 
     def to_postfix_tokens(self) -> List[str]:
         return self.child.to_postfix_tokens() + ["+"]
@@ -183,9 +295,23 @@ class PlusNode(RegexNode):
 @dataclass(frozen=True)
 class OptionalNode(RegexNode):
     child: RegexNode
+    _size: int = field(init=False, repr=False, compare=False)
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "_size", 1 + self.child.node_count())
 
     def is_nullable(self) -> bool:
         return True
+
+    def node_count(self) -> int:
+        return self._size
+
+    def explicit_unicode_chars(self) -> FrozenSet[str]:
+        return self.child.explicit_unicode_chars()
+
+    def materialize_unicode(self, target_unicode: FrozenSet[str]) -> "OptionalNode":
+        nc = self.child.materialize_unicode(target_unicode)
+        return self if nc is self.child else OptionalNode(nc)
 
     def to_postfix_tokens(self) -> List[str]:
         return self.child.to_postfix_tokens() + ["?"]
@@ -204,15 +330,14 @@ class OptionalNode(RegexNode):
 # Shorthand sets & Escapes
 # ---------------------------------------------------------------------------
 
-MAX_QUANTIFIER_BOUND = 64
-
 SHORTHAND_CLASSES = {
     "d": frozenset("0123456789"),
     "w": frozenset("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_"),
-    "s": frozenset(" \t\n\r"),
+    "s": frozenset(" \t\n\r\f\v"),
 }
 
 ESCAPE_CHARS = {
+    "0": "\0",
     "n": "\n",
     "t": "\t",
     "r": "\r",
@@ -239,9 +364,20 @@ ESCAPE_CHARS = {
 }
 
 
+def _is_valid_symbol_char(ch: str) -> bool:
+    """Return True if `ch` is a valid character in ASCII_SIGMA or Unicode (excluding internal sentinel)."""
+    if ch == NON_ASCII:
+        return False
+    code = ord(ch)
+    if 0xD800 <= code <= 0xDFFF:
+        return False
+    return 0 <= code <= 0x10FFFF
+
+
 # ---------------------------------------------------------------------------
 # Recursive-Descent Regular Expression Parser
 # ---------------------------------------------------------------------------
+
 
 class RegexParser:
     """
@@ -267,7 +403,16 @@ class RegexParser:
         self.pos += 1
         return ch
 
-    def parse(self) -> RegexNode:
+    def _guard_ast_size(self, projected_size: int, pos: int) -> None:
+        if projected_size > MAX_AST_NODES:
+            raise RegexSyntaxError(
+                f"Cây cú pháp RE ({projected_size} nút) vượt quá giới hạn an toàn "
+                f"MAX_AST_NODES = {MAX_AST_NODES} (chống bom nhân bản AST lồng nhau)",
+                pos,
+                self.pattern,
+            )
+
+    def parse(self, extra_unicode: FrozenSet[str] = frozenset()) -> RegexNode:
         if self.length == 0:
             raise RegexSyntaxError("Biểu thức chính quy không được rỗng", 0, self.pattern)
         node = self._parse_expr()
@@ -277,6 +422,12 @@ class RegexParser:
                 self.pos,
                 self.pattern,
             )
+        self._guard_ast_size(node.node_count(), 0)
+        u_all = node.explicit_unicode_chars() | frozenset(
+            c for c in extra_unicode if ord(c) >= 128 and c != NON_ASCII
+        )
+        if u_all:
+            node = node.materialize_unicode(u_all)
         return node
 
     def _parse_expr(self) -> RegexNode:
@@ -287,6 +438,7 @@ class RegexParser:
             if self._peek() in (None, ")", "|"):
                 raise RegexSyntaxError("Thiếu vế phải sau toán tử '|'", bar_pos, self.pattern)
             right = self._parse_concat()
+            self._guard_ast_size(1 + left.node_count() + right.node_count(), bar_pos)
             left = UnionNode(left, right)
         return left
 
@@ -299,7 +451,9 @@ class RegexParser:
             )
         node = self._parse_repeat()
         while self._peek() not in (None, "|", ")"):
+            cat_pos = self.pos
             rhs = self._parse_repeat()
+            self._guard_ast_size(1 + node.node_count() + rhs.node_count(), cat_pos)
             node = ConcatNode(node, rhs)
         return node
 
@@ -310,7 +464,9 @@ class RegexParser:
             if ch == "{":
                 node = self._parse_counted_quantifier(node)
             else:
+                op_pos = self.pos
                 op = self._advance()
+                self._guard_ast_size(1 + node.node_count(), op_pos)
                 if op == "*":
                     node = StarNode(node)
                 elif op == "+":
@@ -322,7 +478,8 @@ class RegexParser:
     def _parse_counted_quantifier(self, child: RegexNode) -> RegexNode:
         """
         Parse `{m}`, `{m,}`, or `{m,n}` and expand it into pure AST nodes
-        (`EpsilonNode`, `ConcatNode`, `OptionalNode`, `StarNode`).
+        (`EpsilonNode`, `ConcatNode`, `OptionalNode`, `StarNode`) with strict
+        O(1) pre-allocation guard against `MAX_AST_NODES`.
         """
         open_pos = self.pos
         self._advance()  # consume '{'
@@ -390,21 +547,23 @@ class RegexParser:
                 self.pattern,
             )
 
-        # Expand into pure AST nodes
+        c_size = child.node_count()
         if unbounded:
-            # {0,} -> child*
             if m == 0:
+                self._guard_ast_size(1 + c_size, open_pos)
                 return StarNode(child)
-            # {m,} -> child . child ... (m times) . child*
+            projected = (m + 1) * c_size + 1 + m
+            self._guard_ast_size(projected, open_pos)
             acc = child
             for _ in range(m - 1):
                 acc = ConcatNode(acc, child)
             return ConcatNode(acc, StarNode(child))
 
-        # Bounded {m,n}
         if n == 0:
-            # {0} or {0,0} -> ε
             return EpsilonNode()
+
+        projected = n * c_size + (n - m) + (n - 1)
+        self._guard_ast_size(projected, open_pos)
 
         factors: List[RegexNode] = []
         for _ in range(m):
@@ -416,6 +575,38 @@ class RegexParser:
         for f in factors[1:]:
             acc = ConcatNode(acc, f)
         return acc
+
+    def _read_hex_escape(self, digits: int, esc_pos: int, prefix: str) -> str:
+        hex_chars: List[str] = []
+        for _ in range(digits):
+            c = self._peek()
+            if c is None or c not in _HEX_DIGITS:
+                raise RegexSyntaxError(
+                    f"Chuỗi escape '\\{prefix}' cần đúng {digits} chữ số hệ 16 (0-9a-fA-F)",
+                    esc_pos,
+                    self.pattern,
+                )
+            hex_chars.append(self._advance())
+        code = int("".join(hex_chars), 16)
+        ch = chr(code)
+        if not _is_valid_symbol_char(ch):
+            raise RegexSyntaxError(
+                f"Mã ký tự U+{code:04X} nằm ngoài vùng Unicode hợp lệ",
+                esc_pos,
+                self.pattern,
+            )
+        return ch
+
+    def _make_single_char_node(self, ch: str, pos: int) -> CharSetNode:
+        if not _is_valid_symbol_char(ch):
+            raise RegexSyntaxError(
+                f"Ký tự '{ch}' (U+{ord(ch):04X}) không hợp lệ trong bảng chữ cái",
+                pos,
+                self.pattern,
+            )
+        own_u = frozenset({ch}) if ord(ch) >= 128 else frozenset()
+        fset = frozenset({ch})
+        return CharSetNode(chars=fset, label=format_charset(fset, unicode_chars=own_u), own_unicode=own_u)
 
     def _parse_atom(self) -> RegexNode:
         ch = self._peek()
@@ -445,8 +636,8 @@ class RegexParser:
 
         if ch == ".":
             self._advance()
-            chars = SIGMA - {"\n"}
-            return CharSetNode(chars=chars, label=".")
+            chars = build_dynamic_sigma() - {"\n"}
+            return CharSetNode(chars=chars, label=".", own_unicode=frozenset())
 
         if ch == "ε":
             self._advance()
@@ -455,37 +646,36 @@ class RegexParser:
         if ch == "\\":
             return self._parse_escape_atom()
 
+        char_pos = self.pos
         self._advance()
-        if ch not in ASCII_SIGMA:
-            raise RegexSyntaxError(
-                f"Ký tự '{ch}' (U+{ord(ch):04X}) nằm ngoài bảng chữ cái Σ hỗ trợ",
-                self.pos - 1,
-                self.pattern,
-            )
-        fset = frozenset({ch})
-        return CharSetNode(chars=fset, label=format_charset(fset))
+        return self._make_single_char_node(ch, char_pos)
 
     def _parse_escape_atom(self) -> RegexNode:
         esc_pos = self.pos
         self._advance()  # consume '\'
         ch = self._peek()
         if ch is None:
-            raise RegexSyntaxError("Dấu '\\' ở cuối biểu thức không có ký tự theo sau", esc_pos, self.pattern)
+            raise RegexSyntaxError(
+                "Dấu '\\' ở cuối biểu thức không có ký tự theo sau", esc_pos, self.pattern
+            )
         self._advance()
 
         if ch == "e":
             return EpsilonNode()
         if ch in SHORTHAND_CLASSES:
             fset = SHORTHAND_CLASSES[ch]
-            return CharSetNode(chars=fset, label=f"\\{ch}")
+            return CharSetNode(chars=fset, label=f"\\{ch}", own_unicode=frozenset())
+        if ch == "x":
+            val = self._read_hex_escape(2, esc_pos, "x")
+            return self._make_single_char_node(val, esc_pos)
+        if ch == "u":
+            val = self._read_hex_escape(4, esc_pos, "u")
+            return self._make_single_char_node(val, esc_pos)
         if ch in ESCAPE_CHARS:
-            val = ESCAPE_CHARS[ch]
-            fset = frozenset({val})
-            return CharSetNode(chars=fset, label=format_charset(fset))
-        # Allow escaping any ASCII character in ASCII_SIGMA as literal
-        if ch in ASCII_SIGMA:
-            fset = frozenset({ch})
-            return CharSetNode(chars=fset, label=format_charset(fset))
+            return self._make_single_char_node(ESCAPE_CHARS[ch], esc_pos)
+        # Allow escaping any valid non-alphanumeric ASCII or explicit Unicode character as literal
+        if _is_valid_symbol_char(ch) and not (ch.isascii() and ch.isalnum()):
+            return self._make_single_char_node(ch, esc_pos)
         raise RegexSyntaxError(f"Chuỗi escape '\\{ch}' không được hỗ trợ", esc_pos, self.pattern)
 
     def _parse_class_item(self) -> Tuple[Optional[str], FrozenSet[str]]:
@@ -504,20 +694,31 @@ class RegexParser:
                 raise RegexSyntaxError("Dấu '\\' chưa hoàn tất trong [...]", esc_pos, self.pattern)
             self._advance()
             if nxt == "e":
-                raise RegexSyntaxError("Không thể dùng ε (\\e) bên trong lớp ký tự [...]", esc_pos, self.pattern)
+                raise RegexSyntaxError(
+                    "Không thể dùng ε (\\e) bên trong lớp ký tự [...]", esc_pos, self.pattern
+                )
             if nxt in SHORTHAND_CLASSES:
                 return None, SHORTHAND_CLASSES[nxt]
+            if nxt == "x":
+                val = self._read_hex_escape(2, esc_pos, "x")
+                return val, frozenset({val})
+            if nxt == "u":
+                val = self._read_hex_escape(4, esc_pos, "u")
+                return val, frozenset({val})
             if nxt in ESCAPE_CHARS:
                 val = ESCAPE_CHARS[nxt]
                 return val, frozenset({val})
-            if nxt in ASCII_SIGMA:
+            if _is_valid_symbol_char(nxt) and not (nxt.isascii() and nxt.isalnum()):
                 return nxt, frozenset({nxt})
-            raise RegexSyntaxError(f"Ký tự '\\{nxt}' ngoài bảng chữ cái Σ", esc_pos, self.pattern)
-        self._advance()
-        if ch not in ASCII_SIGMA:
             raise RegexSyntaxError(
-                f"Ký tự '{ch}' trong lớp ký tự nằm ngoài bảng chữ cái Σ",
-                self.pos - 1,
+                f"Chuỗi escape '\\{nxt}' không hợp lệ trong [...]", esc_pos, self.pattern
+            )
+        item_pos = self.pos
+        self._advance()
+        if not _is_valid_symbol_char(ch):
+            raise RegexSyntaxError(
+                f"Ký tự '{ch}' (U+{ord(ch):04X}) trong lớp ký tự không hợp lệ",
+                item_pos,
                 self.pattern,
             )
         return ch, frozenset({ch})
@@ -536,7 +737,6 @@ class RegexParser:
 
         while self._peek() is not None and self._peek() != "]":
             single_start, item_set = self._parse_class_item()
-            # Check for range a-z (only if '-' is followed by something other than ']')
             if (
                 single_start is not None
                 and self._peek() == "-"
@@ -545,22 +745,30 @@ class RegexParser:
             ):
                 dash_pos = self.pos
                 self._advance()  # consume '-'
-                single_end, end_set = self._parse_class_item()
+                single_end, _ = self._parse_class_item()
                 if single_end is None:
                     raise RegexSyntaxError(
                         "Không thể dùng lớp viết tắt (như \\d) làm đầu mút khoảng '-'",
                         dash_pos,
                         self.pattern,
                     )
-                if ord(single_start) > ord(single_end):
+                lo = ord(single_start)
+                hi = ord(single_end)
+                if lo > hi:
                     raise RegexSyntaxError(
                         f"Khoảng ký tự không hợp lệ '{single_start}-{single_end}'",
                         dash_pos,
                         self.pattern,
                     )
-                for code in range(ord(single_start), ord(single_end) + 1):
+                if hi - lo > MAX_CHAR_RANGE_SPAN:
+                    raise RegexSyntaxError(
+                        f"Khoảng ký tự '{single_start}-{single_end}' ({hi - lo + 1} mã) vượt giới hạn {MAX_CHAR_RANGE_SPAN}",
+                        dash_pos,
+                        self.pattern,
+                    )
+                for code in range(lo, hi + 1):
                     c = chr(code)
-                    if c in ASCII_SIGMA or c in ("\v", "\f"):
+                    if _is_valid_symbol_char(c):
                         chars.add(c)
             else:
                 chars.update(item_set)
@@ -569,26 +777,24 @@ class RegexParser:
             raise RegexSyntaxError("Thiếu dấu đóng ']' cho lớp ký tự", start_pos, self.pattern)
         self._advance()  # consume ']'
 
+        own_u = frozenset(c for c in chars if ord(c) >= 128 and c != NON_ASCII)
         if negated:
-            if ASCII_SIGMA.issubset(chars):
-                raise RegexSyntaxError("Lớp ký tự sau khi phủ định là tập rỗng ∅", start_pos, self.pattern)
-            final_set = SIGMA - chars
+            final_set = build_dynamic_sigma(own_u) - chars
         else:
             final_set = frozenset(chars)
 
         if not final_set:
             raise RegexSyntaxError("Lớp ký tự sau khi phủ định là tập rỗng ∅", start_pos, self.pattern)
         raw_label = self.pattern[start_pos : self.pos]
-        label = raw_label if len(raw_label) <= 18 else format_charset(final_set)
-        return CharSetNode(chars=final_set, label=label)
+        label = raw_label if len(raw_label) <= 18 else format_charset(final_set, unicode_chars=own_u)
+        return CharSetNode(chars=final_set, label=label, own_unicode=own_u)
 
 
-def parse_regex(pattern: str) -> RegexNode:
-    """Parse a regular expression string into its AST."""
-    return RegexParser(pattern).parse()
+def parse_regex(pattern: str, extra_unicode: FrozenSet[str] = frozenset()) -> RegexNode:
+    """Parse a regular expression string into its AST (optionally lifted over `extra_unicode`)."""
+    return RegexParser(pattern).parse(extra_unicode=extra_unicode)
 
 
 def regex_to_postfix(pattern: str) -> List[str]:
     """Return postfix token list for a regex (for display & educational inspection)."""
     return parse_regex(pattern).to_postfix_tokens()
-

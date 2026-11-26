@@ -153,7 +153,9 @@ def nfa_to_dfa(
             transitions[cur_id][cid] = dst_id
 
             if record_steps and len(steps) < 250:
-                lbl = format_charset(char_classes[cid], max_len=14)
+                lbl = format_charset(
+                    char_classes[cid], max_len=14, unicode_chars=nfa.unicode_chars
+                )
                 steps.append(
                     {
                         "action": "NEW_STATE" if is_new else "TRANSITION",
@@ -175,6 +177,7 @@ def nfa_to_dfa(
         accept_states=accept_states,
         char_classes=char_classes,
         transitions=transitions,
+        unicode_chars=nfa.unicode_chars,
         state_subsets=state_subsets,
         all_matched_tokens=all_matched_tokens,
         name=nfa.name.replace("ε-NFA", "DFA"),

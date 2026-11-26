@@ -1,7 +1,7 @@
 {
   "metadata": {
-    "topic": "T13 - Automata-based Lexical Analyzer",
-    "description": "Bộ 62 test case có cấu trúc toàn diện bao gồm trường hợp hợp lệ (valid), không hợp lệ (invalid) và trường hợp biên (edge cases) cho bộ phân tích RE, chuỗi 6-chiều Automata và bộ quét từ vựng."
+    "topic": "T13 - Automata-based Lexical Analyzer (Version 2.0 Ultimate)",
+    "description": "Bộ 72 test case có cấu trúc toàn diện bao gồm trường hợp hợp lệ (valid), không hợp lệ (invalid) và trường hợp biên (edge cases) cho bộ phân tích RE (Unicode động, ASCII 0x00..0x7F, chống bom AST), chuỗi 7-chiều Kleene 360° Automata và bộ quét từ vựng."
   },
   "single_regex_cases": [
     {
@@ -39,10 +39,10 @@
     {
       "id": "RE-05",
       "category": "edge",
-      "name": "Chuỗi có escape & tiếng Việt UTF-8 STRING_LIT",
-      "pattern": "\"([^\"\\\\\\n]|\\\\.)*\"",
+      "name": "Chuỗi có escape, loại trừ CRLF \\r\\n & tiếng Việt UTF-8 STRING_LIT",
+      "pattern": "\"([^\"\\\\\\n\\r]|\\\\.)*\"",
       "accept": ["\"\"", "\"hello\"", "\"a \\\"quoted\\\" b\"", "\"path\\\\to\\\\file\"", "\"Xin chào UEH\""],
-      "reject": ["", "\"", "\"unterminated", "\"line1\nline2\"", "hello"]
+      "reject": ["", "\"", "\"unterminated", "\"line1\nline2\"", "\"line1\r\nline2\"", "\"line1\rline2\"", "hello"]
     },
     {
       "id": "RE-06",
@@ -131,6 +131,38 @@
       "pattern": "(ε*|\\e+)(\\e|a)ε",
       "accept": ["", "a"],
       "reject": ["aa", "b", "e"]
+    },
+    {
+      "id": "RE-17",
+      "category": "valid",
+      "name": "Dynamic Unicode: Từ khóa tiếng Việt & ký hiệu tiền tệ (nếu|lặp)_[0-9]+(€|₫)",
+      "pattern": "(nếu|lặp)_[0-9]+(€|₫)",
+      "accept": ["nếu_10€", "lặp_2026₫", "nếu_0€"],
+      "reject": ["", "neu_10€", "nếu_10$", "nếu_€", "lặp_99¥"]
+    },
+    {
+      "id": "RE-18",
+      "category": "edge",
+      "name": "Dynamic Unicode phủ định tường minh [^€\\n]+ (loại trừ đúng € nhưng nhận ¥, tiếng Việt)",
+      "pattern": "[^€\\n]+",
+      "accept": ["abc", "100¥", "Xin chào UEH", "a\fb"],
+      "reject": ["", "€", "100€", "a\nb"]
+    },
+    {
+      "id": "RE-19",
+      "category": "edge",
+      "name": "Phủ kín ASCII 0x00..0x7F: Ký tự điều khiển \\x00, \\x07, \\f, \\v, \\x7f",
+      "pattern": "[\\x00\\x07\\f\\v\\x7f]+",
+      "accept": ["\u0000", "\u0007\f\u000b\u007f", "\f\f"],
+      "reject": ["", "a", " ", "\n", "€"]
+    },
+    {
+      "id": "RE-20",
+      "category": "edge",
+      "name": "Lớp phủ định toàn bộ ASCII [^\\x00-\\x7f]+ (chỉ khớp thuần ký tự UTF-8 >= 0x80)",
+      "pattern": "[^\\x00-\\x7f]+",
+      "accept": ["ế", "€₫™", "àáâã"],
+      "reject": ["", "a", "Xin chào", "\u0000", "\u007f"]
     }
   ],
   "invalid_regex_cases": [
@@ -149,11 +181,15 @@
     {"id": "RE-ERR-13", "name": "Khoảng ký tự ngược [z-a]", "pattern": "[z-a]"},
     {"id": "RE-ERR-14", "name": "Lớp ký tự rỗng []", "pattern": "[]"},
     {"id": "RE-ERR-15", "name": "Lớp ký tự phủ định rỗng [^]", "pattern": "[^]"},
-    {"id": "RE-ERR-16", "name": "Lớp phủ định phủ kín toàn bộ ASCII_SIGMA", "pattern": "[^\\t\\n\\r\\v\\f -~]"},
+    {"id": "RE-ERR-16", "name": "Mã hex escape \\x không hợp lệ: \\xZZ", "pattern": "\\xZZ"},
     {"id": "RE-ERR-17", "name": "Dấu escape \\ cuối chuỗi", "pattern": "abc\\"},
     {"id": "RE-ERR-18", "name": "Định lượng đếm m > n: a{5,2}", "pattern": "a{5,2}"},
     {"id": "RE-ERR-19", "name": "Định lượng đếm không phải số: a{abc}", "pattern": "a{abc}"},
-    {"id": "RE-ERR-20", "name": "Định lượng đếm vượt ngưỡng an toàn: a{100}", "pattern": "a{100}"}
+    {"id": "RE-ERR-20", "name": "Định lượng đếm vượt ngưỡng an toàn: a{100}", "pattern": "a{100}"},
+    {"id": "RE-ERR-21", "name": "Bom nhân bản cây AST 3 tầng lồng nhau (((a{64}){64}){64})", "pattern": "(((a{64}){64}){64})"},
+    {"id": "RE-ERR-22", "name": "Bom nhân bản cây AST 2 tầng (a{64}){64} vượt MAX_AST_NODES=4096", "pattern": "(a{64}){64}"},
+    {"id": "RE-ERR-23", "name": "Mã Unicode escape \\u thiếu chữ số hệ 16: \\u12G4", "pattern": "\\u12G4"},
+    {"id": "RE-ERR-24", "name": "Khoảng ký tự Unicode vượt ngưỡng an toàn [a-\\uffff]", "pattern": "[a-\\uffff]"}
   ],
   "scanner_cases": [
     {
@@ -561,6 +597,40 @@
       "name": "Đầu vào chỉ gồm bình luận nhiều dòng và CRLF",
       "input": "/* header\r\ncomment */\r\n/**/\t/***/",
       "expected_tokens": [],
+      "expected_errors": 0
+    },
+    {
+      "id": "SCAN-27",
+      "preset": "minilang",
+      "category": "invalid",
+      "name": "Chuỗi chưa đóng trên Windows CRLF (STRING_LIT loại trừ cả \\r và \\n)",
+      "input": "let s = \"abc\r\nlet x = 1;",
+      "expected_tokens": [
+        ["KW_LET", "let"],
+        ["IDENTIFIER", "s"],
+        ["OP_ASSIGN", "="],
+        ["IDENTIFIER", "abc"],
+        ["KW_LET", "let"],
+        ["IDENTIFIER", "x"],
+        ["OP_ASSIGN", "="],
+        ["INT_LIT", "1"],
+        ["SEMICOLON", ";"]
+      ],
+      "expected_errors": 1
+    },
+    {
+      "id": "SCAN-28",
+      "preset": "minilang",
+      "category": "edge",
+      "name": "Ký tự điều khiển ASCII \\f, \\v hợp lệ trong STRING_LIT và BLOCK_COMMENT",
+      "input": "/*\f\u000b*/ let c = \"a\fb\u000bc\";",
+      "expected_tokens": [
+        ["KW_LET", "let"],
+        ["IDENTIFIER", "c"],
+        ["OP_ASSIGN", "="],
+        ["STRING_LIT", "\"a\fb\u000bc\""],
+        ["SEMICOLON", ";"]
+      ],
       "expected_errors": 0
     }
   ]

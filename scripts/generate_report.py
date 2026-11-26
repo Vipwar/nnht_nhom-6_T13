@@ -13,6 +13,7 @@ import base64
 import html
 import json
 import re as _fmt_re
+import shutil
 import sys
 from pathlib import Path
 from typing import List, Optional, Set
@@ -612,8 +613,12 @@ def export_pdf_via_chromium(blocks: List[dict], pdf_path: Path) -> None:
     try:
         from playwright.sync_api import sync_playwright
 
+        chrome_bin = shutil.which("chromium") or shutil.which("google-chrome")
+        launch_kwargs = {"args": ["--no-sandbox"]}
+        if chrome_bin:
+            launch_kwargs["executable_path"] = chrome_bin
         with sync_playwright() as p:
-            browser = p.chromium.launch(executable_path="/usr/bin/chromium", args=["--no-sandbox"])
+            browser = p.chromium.launch(**launch_kwargs)
             page = browser.new_page()
             page.goto(f"file://{tmp_html.resolve()}", wait_until="networkidle")
             page.pdf(
@@ -716,9 +721,9 @@ def build_report() -> None:
         return p
 
     subtitle_text = (
-        "Xây dựng Bộ Phân Tích Từ Vựng Tổng Quát Dựa Trên Biểu Thức Chính Quy,\n"
-        "Thompson ε-NFA, Khử ε (Định lý 2), Subset Construction, Direct DFA Đa-Token,\n"
-        "Tối Thiểu Hóa Moore & Hopcroft O(|E|·|Q|log|Q|), Chứng Minh Myhill–Nerode & Bộ Quét O(n)"
+        "Xây dựng Bộ Phân Tích Từ Vựng Tổng Quát Khép Kín Vòng Tròn Định Lý Kleene 360°:\n"
+        "RE (Unicode Động Σ(U)) ⇄ Thompson ε-NFA · Khử ε · Subset & Direct DFA · Moore/Hopcroft Min-DFA · GNFA,\n"
+        "Ma Trận Giao Nhau L(Rᵢ)∩L(Rⱼ), Chứng Minh Myhill–Nerode, Bộ Quét O(n) & Sinh Mã Lexer Độc Lập Kiểu Flex"
     )
 
     _cp("BỘ GIÁO DỤC VÀ ĐÀO TẠO", 12, bold=True, color=NAVY, space_before=6, space_after=2)
@@ -730,7 +735,7 @@ def build_report() -> None:
 
     _cp("ĐỀ TÀI T13:", 13.5, bold=True, color=BLUE, space_before=6, space_after=4)
     _cp("AUTOMATA-BASED LEXICAL ANALYZER", 20, bold=True, color=NAVY, space_after=6)
-    _cp(subtitle_text, 11.0, italic=True, color=MUTED, space_after=30)
+    _cp(subtitle_text, 10.6, italic=True, color=MUTED, space_after=28)
 
     _cp("Mã lớp học phần: 26C1INF50915301", 11, bold=True, color=DARK, space_after=4)
     _cp("Giảng viên hướng dẫn: ThS. Hồ Thị Thanh Tuyến", 11.5, bold=True, color=NAVY, space_after=22)
@@ -749,10 +754,10 @@ def build_report() -> None:
     set_table_borders(gtbl)
     g_headers = ["STT", "Họ và Tên Sinh Viên", "Mã số sinh viên (MSSV)", "Vai trò"]
     g_rows = [
-        ["1", "[Điền Họ tên Thành viên 1]", "[MSSV 1]", "Nhóm trưởng · Lý thuyết, Myhill–Nerode & Báo cáo"],
-        ["2", "[Điền Họ tên Thành viên 2]", "[MSSV 2]", "Regex Parser ({m,n}, UTF-8) · Thompson, Khử ε & Direct DFA"],
-        ["3", "[Điền Họ tên Thành viên 3]", "[MSSV 3]", "Subset Construction · Moore & Hopcroft Min-DFA · Verifier"],
-        ["4", "[Điền Họ tên Thành viên 4]", "[MSSV 4]", "Scanner Maximal Munch O(n) · Web Studio 5 Tab & 62 Tests"],
+        ["1", "[Điền Họ tên Thành viên 1]", "[MSSV 1]", "Nhóm trưởng · Lý thuyết Kleene 360°, Myhill–Nerode & Báo cáo"],
+        ["2", "[Điền Họ tên Thành viên 2]", "[MSSV 2]", "Regex Parser (Σ(U), ≤4096 AST) · Thompson, Khử ε & Direct DFA"],
+        ["3", "[Điền Họ tên Thành viên 3]", "[MSSV 3]", "Subset · Moore/Hopcroft · GNFA 360° & Ma trận Giao L(Rᵢ)∩L(Rⱼ)"],
+        ["4", "[Điền Họ tên Thành viên 4]", "[MSSV 4]", "Scanner O(n) · Flex Codegen (.py) · Web Studio & 72 Tests"],
     ]
     g_widths = [1.3, 5.0, 3.4, 5.5]
     for ci, h in enumerate(g_headers):
@@ -794,12 +799,12 @@ def build_report() -> None:
     add_body(
         doc,
         "Trong kiến trúc của mọi trình biên dịch (compiler) và trình thông dịch (interpreter) hiện đại, "
-        "phân tích từ vựng (Lexical Analysis) là giai đoạn đầu tiên đóng vai trò đọc dòng ký tự thô của mã nguồn "
+        "phân tích từ vựng (Lexical Analysis) là giai đoạn đầu tiên đọc dòng ký tự thô của mã nguồn "
         "và nhóm chúng thành dãy các đơn vị từ vựng có nghĩa gọi là token (từ khóa, định danh, hằng số, chuỗi, toán tử, "
         "dấu phân cách), đồng thời lọc bỏ khoảng trắng, bình luận đơn dòng/nhiều dòng và phát hiện chính xác tọa độ lỗi từ vựng. "
-        "Điểm đặc biệt tạo nên cầu nối trực tiếp giữa học phần Ngôn ngữ hình thức và Kỹ thuật trình biên dịch nằm ở chỗ: "
-        "mọi lớp token của ngôn ngữ lập trình đều thuộc lớp Ngôn ngữ chính quy (Regular Languages) — do đó có thể được "
-        "đặc tả ngắn gọn bằng Biểu thức chính quy (Regular Expression — RE) và thực thi tự động bằng Automata hữu hạn đơn định (DFA) "
+        "Điểm tạo nên cầu nối trực tiếp giữa học phần Ngôn ngữ hình thức và Kỹ thuật trình biên dịch nằm ở chỗ: "
+        "mọi lớp token của ngôn ngữ lập trình đều thuộc lớp Ngôn ngữ chính quy (Regular Languages) — được "
+        "đặc tả bằng Biểu thức chính quy (Regular Expression — RE) và thực thi bằng Automata hữu hạn đơn định (DFA) "
         "với tốc độ tuyến tính O(n) theo độ dài mã nguồn mà không bao giờ chịu rủi ro treo máy hàm mũ O(2^n) (ReDoS) như các bộ khớp regex quay lui.",
     )
 
@@ -807,35 +812,33 @@ def build_report() -> None:
         doc,
         "Thay vì viết tay bộ quét bằng các câu lệnh if/else cứng nhắc cho một ngôn ngữ cố định hoặc phụ thuộc vào thư viện biểu thức "
         "chính quy hộp đen có sẵn (như module `re` của Python), đề tài T13 — Automata-based Lexical Analyzer hướng tới việc xây dựng một "
-        "bộ sinh và thực thi bộ phân tích từ vựng tổng quát (Lexical Analyzer Generator & Interactive Web Studio) hoàn toàn từ gốc lý thuyết Automata hữu hạn.",
+        "hệ thống biên dịch Automata khép kín vòng tròn Định lý Kleene 360°, bộ sinh mã Lexer độc lập kiểu Flex và môi trường trực quan Web Studio hoàn toàn từ gốc lý thuyết.",
     )
 
     add_heading_2(doc, "1.1. Mục tiêu cụ thể của đồ án")
     add_bullet(
         doc,
-        "Tự cài đặt 100% chuỗi 6 phương pháp Automata bằng Python thuần (Zero `import re` trong lõi): ",
-        "Xây dựng độc lập từ con số 0 toàn bộ đường ống: Phân tích cú pháp RE (hỗ trợ cả định lượng đếm `{m}`, `{m,}`, `{m,n}` và đại diện Unicode `NON_ASCII`) → "
-        "Cấu trúc Thompson (`RE → ε-NFA`) → Khử chuyển tiếp rỗng theo Định lý 2 Chương 3.1 (`ε-NFA → NFA không ε`) → "
-        "Thuật toán tập con (`Subset Construction`) → Tối thiểu hóa Multi-token DFA bằng cả hai thuật toán **Moore Partition Refinement** và **Hopcroft O(|E|·|Q|log|Q|)**.",
+        "Tự cài đặt 100% chuỗi 7 phương pháp Automata khép kín Định lý Kleene 360° (Zero `import re`): ",
+        "Xây dựng độc lập từ con số 0: Phân tích cú pháp RE (chặn bom AST lồng nhau `MAX_AST_NODES = 4096`, phân hoạch bảng chữ cái Unicode động `Σ(U)` & phủ kín ASCII `0x00..0x7F` bảo toàn `~(~A) = A`) → "
+        "Thompson `ε-NFA` → Khử `ε` (Định lý 2) → `Subset DFA` → `Moore & Hopcroft Min-DFA` → **Khử trạng thái GNFA (`DFA → RE`)** chứng minh `L(R_gốc) ≡ L(R_sinh)`.",
     )
     add_bullet(
         doc,
-        "Mở rộng nhánh Direct RE → DFA cho cả Biểu thức đơn lẻ và Đa-Token kết hợp: ",
-        "Triển khai thuật toán xây dựng DFA trực tiếp từ cây cú pháp gia tố `r·#` (`nullable`, `firstpos`, `lastpos`, `followpos`) khớp 100% Slide 46–57 Chương 3.1, "
-        "đồng thời mở rộng sang biểu thức đa-token `(R₁·#₁) | (R₂·#₂) | ... | (Rₖ·#ₖ)`, kiểm chứng tương đương 6 chiều bằng **Product Automaton**, "
-        "chứng minh tính tối giản tuyệt đối theo **Định lý Myhill–Nerode** và kiểm chứng đọc/ghi khứ hồi file `.jff` chuẩn JFLAP 7.x.",
+        "Direct RE → DFA Đa-Token, Ma trận Giao nhau Tĩnh L(Rᵢ) ∩ L(Rⱼ) & Chứng minh Myhill–Nerode: ",
+        "Triển khai thuật toán xây dựng DFA trực tiếp từ cây gia tố `r·#` (khớp 100% Slide 46–57 Chương 3.1) và mở rộng Đa-Token `(R₁·#₁)|...|(Rₖ·#ₖ)`, "
+        "kiểm chứng tương đương bằng **Product Automaton**, chứng minh tính tối giản **Myhill–Nerode**, phân tích tĩnh **Ma trận Giao nhau `L(Rᵢ) ∩ L(Rⱼ)`** kèm chuỗi chứng nhân ngắn nhất và đọc/ghi khứ hồi JFLAP `.jff`.",
     )
     add_bullet(
         doc,
-        "Bộ quét Maximal Munch Tuyến tính O(n) (Reps, 1998), Phát hiện Luật Che khuất & Phục hồi lỗi kép: ",
-        "Cài đặt bộ quét bảng chuyển DFA với kỹ thuật Memoization `failed_states` cắt nhánh quay lui bậc hai O(n²), tự động phát hiện quy tắc từ vựng bị che khuất "
-        "(Shadowed / Dead Token Rules), hỗ trợ bình luận nhiều dòng `/* ... */`, chuỗi tiếng Việt UTF-8 và 2 chế độ phục hồi lỗi (`panic_char` và `smart_sync`).",
+        "Bộ quét Maximal Munch Tuyến tính O(n) (Reps, 1998) & Bộ sinh mã Lexer Độc lập kiểu Flex: ",
+        "Cài đặt bộ quét bảng chuyển DFA với Memoization `failed_states` chống quay lui O(n²), chuỗi `STRING_LIT` an toàn CRLF (`\\r\\n`), hai chế độ phục hồi lỗi (`panic_char` và `smart_sync`), "
+        "cùng công cụ **`codegen`** xuất trực tiếp `Min-DFA` thành file bộ quét Python độc lập kiểu Flex (Table-Driven, 0 phụ thuộc ngoài, đối chứng vi sai 100%).",
     )
     add_bullet(
         doc,
-        "Kiểm thử toàn diện 62 Test Cases + 16 Unittest Bất biến & Trực quan hóa Web Studio 5 Tab: ",
-        "Xây dựng bộ 62 kịch bản kiểm thử JSON (16 RE đơn & biên, 20 bẫy lỗi cú pháp RE, 26 kịch bản quét mã nguồn) cùng 16 bộ Unittest kiểm chứng 5 bất biến toán học "
-        "và ứng dụng Web LexAutomata Studio 5 Tab trực quan hóa toàn bộ đồ thị SVG, bảng chuyển và hoạt ảnh từng bước.",
+        "Kiểm thử toàn diện 72 Test Cases JSON + 22 Unittest Suites & Trực quan hóa Web Studio 5 Tab: ",
+        "Xây dựng bộ 72 kịch bản kiểm thử JSON (20 RE đơn/Unicode/GNFA, 24 bẫy lỗi RE & bom AST, 28 kịch bản quét mã nguồn) cùng 22 bộ Unittest kiểm chứng các bất biến toán học "
+        "và ứng dụng Web `LexAutomata Studio` 5 Tab trực quan hóa toàn bộ đồ thị SVG, ma trận giao nhau, GNFA 360° và hoạt ảnh từng bước.",
     )
 
     # =========================================================================
@@ -850,33 +853,32 @@ def build_report() -> None:
         "Dragon Book (Aho, Lam, Sethi & Ullman, 2nd Ed.) và bài giảng Chương 1–3 môn Ngôn ngữ hình thức của ThS. Hồ Thị Thanh Tuyến (UEH):",
     )
 
-    add_heading_2(doc, "2.1. Bảng chữ cái mở rộng UTF-8 hữu hạn, Ngôn ngữ và Biểu thức chính quy (RE)")
+    add_heading_2(doc, "2.1. Đại số Boole trên Bảng chữ cái Động Σ(U), Ngôn ngữ và Biểu thức chính quy (RE)")
     add_body(
         doc,
         "Cho bảng chữ cái hữu hạn khác rỗng Σ. Tập tất cả chuỗi hữu hạn trên Σ ký hiệu là Σ* (chứa chuỗi rỗng ε). "
-        "Một ngôn ngữ L là tập con L ⊆ Σ*. Biểu thức chính quy (Regular Expression — RE) trên Σ được định nghĩa quy nạp: "
+        "Biểu thức chính quy (RE) trên Σ được định nghĩa quy nạp: "
         "(i) ∅ biểu diễn ∅; (ii) ε biểu diễn {ε}; (iii) ∀a ∈ Σ, a biểu diễn {a}; "
-        "(iv) Nếu r và s là các RE biểu diễn L(r) và L(s), thì `(r | s)` biểu diễn L(r) ∪ L(s) (phép hợp), "
-        "`(r·s)` biểu diễn L(r)L(s) (phép nối kết), và `(r*)` biểu diễn L(r)* = ⋃_{k≥0} L(r)^k (bao đóng Kleene). "
-        "Thứ tự ưu tiên toán tử từ cao đến thấp: Ngoặc đơn `(…)` > Định lượng (`*`, `+`, `?`, `{m,n}`) > Nối kết (`·`) > Phép hợp (`|`). "
-        "Các toán tử mở rộng được quy về 3 phép toán cơ sở theo luật đại số: `r+ ≡ r·r*`, `r? ≡ (r | ε)`, `r{m,n} ≡ r^m · (r?)^{n-m}`, "
-        "`r{m,} ≡ r^m · r*`, lớp ký tự `[c₁...c_m] ≡ (c₁|...|c_m)` và lớp phủ định `[^C] ≡ Σ \\ C`.",
+        "(iv) Nếu r và s là các RE biểu diễn L(r) và L(s), thì `(r | s)` biểu diễn L(r) ∪ L(s), "
+        "`(r·s)` biểu diễn L(r)L(s), và `(r*)` biểu diễn L(r)* = ⋃_{k≥0} L(r)^k. "
+        "Thứ tự ưu tiên toán tử từ cao đến thấp: `(…)` > Định lượng (`*`, `+`, `?`, `{m,n}`) > Nối kết (`·`) > Phép hợp (`|`). "
+        "Các toán tử mở rộng quy về 3 phép toán cơ sở: `r+ ≡ r·r*`, `r? ≡ (r | ε)`, `r{m,n} ≡ r^m · (r?)^{n-m}`, "
+        "`[c₁...c_m] ≡ (c₁|...|c_m)` và lớp phủ định `[^C] ≡ Σ(U) \\ C` thỏa mãn luật đối hợp đại số Boole `~(~C) = C`.",
     )
 
-    add_heading_2(doc, "2.2. Chuỗi 4 Định lý Chương 3.1: ε-NFA, NFA không ε (Định lý 2), Subset DFA & Min-DFA")
+    add_heading_2(doc, "2.2. Vòng tròn Định lý Kleene 360°: Thompson, Khử ε, Subset DFA, Min-DFA & GNFA (DFA → RE)")
     add_callout(
         doc,
-        "Chuỗi Định lý Chuyển đổi Tương đương RE → ε-NFA → NFA không ε → Subset DFA → Minimized DFA",
+        "Khép kín Vòng tròn Tương đương Định lý Kleene 360° (RE ⇄ ε-NFA ⇄ NFA ⇄ DFA ⇄ Min-DFA)",
         [
-            "• Định lý 3 (Cấu trúc Thompson, 1968 — Slide 24–30 Chương 3.1): Mọi biểu thức chính quy r đều chuyển được thành ε-NFA N = (Q, Σ, δ, q₀, {f}) "
-            "có đúng 1 trạng thái đầu (in-deg = 0), 1 trạng thái kết thúc (out-deg = 0), tối đa 2|r| trạng thái và bậc ra mỗi đỉnh ≤ 2.",
-            "• Định lý 2 (Khử chuyển tiếp rỗng ε-NFA → NFA không ε — Slide 21–22 Chương 3.1): Từ ε-NFA N = (Q, Σ, δ, q₀, F), ta dựng NFA không có ε-chuyển tiếp "
-            "N' = (Q, Σ, δ', q₀, F') tương đương (L(N') = L(N)) với: δ'(p, a) = ε-closure(Move(ε-closure({p}), a)) và F' = { p ∈ Q | ε-closure({p}) ∩ F ≠ ∅ }.",
-            "• Định lý 1 (Đơn định hóa Tập con — Rabin & Scott, 1959; Slide 18 Chương 3.1): Từ ε-NFA N, thuật toán Subset Construction dựng DFA D = (Q_D, Σ, δ_D, D₀, F_D) "
-            "với D₀ = ε-closure({q₀}) và δ_D(S, a) = ε-closure(Move(S, a)), trong đó Move(S, a) = ⋃_{p ∈ S} δ(p, a).",
-            "• Định lý Myhill–Nerode & Tối thiểu hóa DFA (Moore, 1956; Hopcroft, 1971; Giải thuật 3.6): Với mọi ngôn ngữ chính quy L, tồn tại duy nhất (sai khác đẳng cấu) "
-            "một DFA tối giản có số trạng thái nhỏ nhất. Một DFA không có trạng thái dư thừa là tối giản tuyệt đối khi và chỉ khi mọi cặp trạng thái phân biệt (p, q) "
-            "đều tồn tại chuỗi phân biệt w ∈ Σ* sao cho τ(δ̂(p, w)) ≠ τ(δ̂(q, w)).",
+            "• Định lý 3 (Cấu trúc Thompson, 1968 — Slide 24–30 Chương 3.1): Mọi RE r đều chuyển được thành ε-NFA N = (Q, Σ, δ, q₀, {f}) "
+            "có đúng 1 đỉnh đầu (in-deg = 0), 1 đỉnh kết thúc (out-deg = 0), tối đa 2|r| trạng thái và bậc ra mỗi đỉnh ≤ 2.",
+            "• Định lý 2 (Khử chuyển tiếp rỗng ε-NFA → NFA không ε — Slide 21–22 Chương 3.1): Dựng NFA không ε tương đương "
+            "N' = (Q, Σ, δ', q₀, F') với δ'(p, a) = ε-closure(Move(ε-closure({p}), a)) và F' = { p ∈ Q | ε-closure({p}) ∩ F ≠ ∅ }.",
+            "• Định lý 1 & Myhill–Nerode (Subset DFA & Tối thiểu hóa Moore/Hopcroft): D₀ = ε-closure({q₀}), δ_D(S, a) = ε-closure(Move(S, a)). "
+            "DFA tối giản là duy nhất (sai khác đẳng cấu) khi mọi cặp trạng thái phân biệt (p, q) đều tồn tại chuỗi phân biệt w sao cho τ(δ̂(p, w)) ≠ τ(δ̂(q, w)).",
+            "• Chiều ngược Kleene (Khử trạng thái GNFA: DFA → RE — Hopcroft §3.2.1): Bổ sung q_start --ε--> D₀ và ∀f ∈ F: f --ε--> q_accept, "
+            "sau đó khử lần lượt từng đỉnh trung gian q_rip theo công thức: R'(qᵢ, qⱼ) = R(qᵢ, qⱼ) | R(qᵢ, q_rip)·(R(q_rip, q_rip))*·R(q_rip, qⱼ) cho đến khi còn duy nhất R(q_start, q_accept) ≡ R_gốc.",
         ],
     )
 
@@ -884,18 +886,15 @@ def build_report() -> None:
     add_bullet(
         doc,
         "Phương pháp trực tiếp trên cây cú pháp gia tố r·# (Slide 43–57 Chương 3.1): ",
-        "Bổ sung ký hiệu kết thúc `# ∉ Σ` vào sau biểu thức (`r·#`), đánh số các nút lá mang ký hiệu thuộc Σ ∪ {#} từ `1..n`, "
-        "tính đệ quy 3 hàm `nullable(v)`, `firstpos(v)`, `lastpos(v)` và bảng `followpos(i)` tại các nút nối kết (`∀i ∈ lastpos(c₁): followpos(i) ∪= firstpos(c₂)`) "
-        "và nút sao (`∀i ∈ lastpos(c₁): followpos(i) ∪= firstpos(c₁)`). Với bài toán đa-token, nhóm mở rộng thành cây kết hợp `(R₁·#₁) | (R₂·#₂) | ... | (Rₖ·#ₖ)` "
-        "để sinh trực tiếp Combined Multi-token Direct DFA mà không cần đi qua ε-NFA.",
+        "Bổ sung ký hiệu kết thúc `# ∉ Σ` vào sau biểu thức (`r·#`), đánh số các nút lá từ `1..n`, "
+        "tính đệ quy `nullable(v)`, `firstpos(v)`, `lastpos(v)` và bảng `followpos(i)`. Với bài toán đa-token, nhóm mở rộng thành cây kết hợp `(R₁·#₁) | (R₂·#₂) | ... | (Rₖ·#ₖ)` "
+        "để sinh trực tiếp Combined Multi-token Direct DFA không cần đi qua ε-NFA.",
     )
     add_bullet(
         doc,
-        "Quy tắc Khớp Dài Nhất (Maximal Munch), Ưu Tiên Luật (Rule Priority) & Memoization Tuyến tính O(n) (Reps, 1998): ",
-        "Tại vị trí `pos`, bộ quét chọn tiền tố dài nhất đưa DFA tới trạng thái kết thúc (`ifx` → `IDENTIFIER('ifx')`, `===` → `OP_EQ('==') + OP_ASSIGN('=')`); "
-        "nếu cùng độ dài khớp nhiều luật (`if` khớp cả `KW_IF` và `IDENTIFIER`), chọn luật có chỉ số ưu tiên nhỏ nhất. "
-        "Đặc biệt, để ngăn chặn trường hợp xấu nhất quay lui bậc hai O(n²) trên chuỗi lỗi dài (ví dụ chuỗi `\"aaaa...` chưa đóng), "
-        "bộ quét ghi nhớ tập `failed_states` chứa các cặp `(state, cursor)` đã chứng minh không dẫn tới trạng thái kết thúc nào (Reps, 1998), đảm bảo mỗi cặp `(q, i)` chỉ thăm tối đa 1 lần → thời gian quét luôn chặt O(|Q|·n) = O(n).",
+        "Quy tắc Khớp Dài Nhất (Maximal Munch), Ưu Tiên Luật & Memoization Tuyến tính O(n) (Reps, 1998): ",
+        "Tại vị trí `pos`, bộ quét chọn tiền tố dài nhất đưa DFA tới trạng thái kết thúc; nếu cùng độ dài khớp nhiều luật (`if` ∈ `L(KW_IF) ∩ L(IDENTIFIER)`), chọn luật có chỉ số ưu tiên nhỏ nhất. "
+        "Để triệt tiêu quay lui bậc hai O(n²) trên chuỗi chưa đóng dài, bộ quét ghi nhớ tập `failed_states` chứa các cấu hình `(state, cursor)` thất bại (Reps, 1998), đảm bảo mỗi cặp `(q, i)` chỉ thăm tối đa 1 lần → thời gian quét luôn chặt O(|Q|·n) = O(n).",
     )
 
     # =========================================================================
@@ -903,48 +902,41 @@ def build_report() -> None:
     # =========================================================================
     add_heading_1(doc, "3. Mô hình hình thức / Automata được sử dụng")
 
-    add_heading_2(doc, "3.1. Xác định Input, Output và Bảng chữ cái Hữu hạn Mở rộng UTF-8 (|Σ| = 99)")
+    add_heading_2(doc, "3.1. Phân hoạch Bảng chữ cái Unicode Động Σ(U) & Phủ kín ASCII 0x00..0x7F (~(~A) = A)")
     add_bullet(
         doc,
-        "Đầu vào (Input): ",
-        "(1) Danh sách có thứ tự các đặc tả token `Spec = [(T₁, R₁, p₁, skip₁), ..., (Tₖ, Rₖ, pₖ, skipₖ)]` với `p₁ < p₂ < ... < pₖ` là thứ tự ưu tiên; "
-        "và (2) Chuỗi mã nguồn đầu vào `w` (hỗ trợ cả ASCII chuẩn, ký tự tiếng Việt UTF-8 và xuống dòng hỗn hợp `\\n`, `\\r\\n`, `\\r`).",
+        "Đầu vào (Input) & Đầu ra (Output): ",
+        "Từ đặc tả `Spec = [(T₁, R₁, p₁, skip₁), ..., (Tₖ, Rₖ, pₖ, skipₖ)]` và chuỗi mã nguồn `w`, hệ thống xuất: "
+        "7 biểu diễn tương đương (`Thompson ε-NFA`, `NFA không ε`, `Subset DFA`, `Moore Min-DFA`, `Hopcroft Min-DFA`, `Combined Direct DFA`, và `GNFA RE` cho biểu thức đơn), "
+        "ma trận giao nhau tĩnh `L(Rᵢ) ∩ L(Rⱼ)` kèm chuỗi chứng nhân ngắn nhất, chứng minh Myhill–Nerode, bộ quét Python độc lập `.py` và luồng `Token` / `LexicalError`.",
     )
     add_bullet(
         doc,
-        "Đầu ra (Output): ",
-        "Chuỗi 6 mô hình Automata (`Thompson ε-NFA`, `NFA không ε`, `Subset DFA`, `Moore Min-DFA`, `Hopcroft Min-DFA`, `Combined Direct DFA`), "
-        "cảnh báo quy tắc bị che khuất (`shadowed_rules`), chứng minh tương đương Product Automaton, chứng minh tối giản Myhill–Nerode kèm chuỗi phân biệt `w`, "
-        "luồng `Token` và danh sách `LexicalError` theo chế độ `panic_char` hoặc `smart_sync`.",
-    )
-    add_bullet(
-        doc,
-        "Bảng chữ cái hữu hạn mở rộng UTF-8 (|Σ| = 99 ký hiệu): ",
-        "Thay vì bị giới hạn cứng ở ASCII hoặc làm nổ kích thước bảng chuyển với 1.114.112 mã Unicode, nhóm phân hoạch tập ký tự thành **98 ký tự ASCII** "
-        "(95 ký tự in được mã `32..126` hợp với `{\\t, \\n, \\r}`) cộng thêm **1 ký hiệu đại diện lớp tương đương `NON_ASCII` (`\\x80`)** cho mọi ký tự `ord(c) ≥ 128`. "
-        "Nhờ thiết kế này, dấu chấm `.` và các lớp phủ định như `[^\"\\\\\\n]` hoặc `[^\\n]` tự động bao gồm `NON_ASCII`, giúp chuỗi và bình luận chứa tiếng Việt "
-        "(`\"Xin chào UEH\"`, `/* Tính tổng */`) được quét hợp lệ 100%, trong khi ký tự Unicode lạ nằm ngoài chuỗi như `let gia = 100€;` vẫn bị chặn đứng tại trạng thái `DEAD` và báo `LEXICAL_ERROR` kèm mã `U+20AC`!",
+        "Phủ kín 128 ký tự ASCII (0x00..0x7F) & Phân hoạch Unicode Động Σ(U) không va chạm: ",
+        "Thay vì bỏ sót các ký tự điều khiển (`\\0`, `\\f`, `\\v`, `\\x7f`) gây gãy luật bù kép `~(~A) = A` hoặc gộp cứng toàn bộ Unicode vào một hằng `0x80` gây xung đột khi biểu thức chứa từ khóa/ký hiệu Unicode tường minh (như `nếu`, `€`), "
+        "nhóm chuẩn hóa `ASCII_SIGMA` phủ trọn **128 mã ASCII `0x00..0x7F`**, dùng mã noncharacter nội bộ **`NON_ASCII = U+FDD0`** (theo chuẩn Unicode §23.7) đại diện cho phần còn lại `Unicode \\ U`, "
+        "và xây dựng bảng chữ cái động **`Σ(U) = ASCII_SIGMA ∪ U ∪ {NON_ASCII}`** với `U` là tập ký tự Unicode tường minh trích tự động từ các cây AST! "
+        "Nhờ đó: (1) Mọi phép lấy phần bù `[^C]` và `complement_dfa(D)` thỏa mãn tuyệt đối `~(~A) = A` và `L(D) ∩ L(~D) = ∅`; "
+        "(2) Biểu thức chứa trực tiếp `(nếu|lặp)_[0-9]+€` hay `[^€]` vận hành chính xác 100% đồng thời với chuỗi tiếng Việt UTF-8!",
     )
 
-    add_heading_2(doc, "3.2. Mô hình Combined Multi-token Automata & Phát hiện Luật Bị Che Khuất (Shadowed Rules)")
+    add_heading_2(doc, "3.2. Mô hình Đa-Token, Ma trận Giao nhau L(Rᵢ) ∩ L(Rⱼ) & Phát hiện Luật Che khuất")
     add_callout(
         doc,
-        "Mô hình Toán học Multi-token DFA, Khử ε, Tối thiểu hóa Hopcroft/Moore & Kiểm tra Luật Che khuất",
+        "Mô hình Toán học Multi-token DFA, Phân tích Tĩnh L(Rᵢ) ∩ L(Rⱼ) & Kiểm tra Luật Che khuất",
         [
-            "1. Combined ε-NFA & NFA Khử ε (Định lý 2): N_lex = (Q_N, Σ, δ_N, q_start, F_N, τ_N) với δ_N(q_start, ε) = {s₁, ..., sₖ} và τ_N(fᵢ) = (Tᵢ, pᵢ, skipᵢ). "
-            "Khi khử ε theo Định lý 2, mọi trạng thái p có ε-closure({p}) ∩ F_N ≠ ∅ nhận nhãn ưu tiên cao nhất τ'_{N}(p) = argmin_{f ∈ ε-closure({p}) ∩ F_N} priority(f).",
-            "2. Multi-token Subset DFA & Combined Direct DFA: D_lex = (Q_D, Σ/≡, δ_D, D₀, F_D, τ_D) với nhãn chiến thắng τ_D(S) = argmin_{f ∈ S ∩ F_N} priority(f).",
-            "3. Phân hoạch khởi đầu bảo toàn phân loại Token: Π₀ = { Q_D \\ F_D } ∪ { F_{T₁}, F_{T₂}, ..., F_{T_m} } (tách riêng từng loại token kết thúc).",
-            "4. Điều kiện Phát hiện Luật Bị Che Khuất (Shadowed / Dead Token Rule): Sau khi thu được Minimized DFA D_min = (Q_min, Σ/≡, δ_min, q₀, F_min, τ_min), "
-            "nếu tồn tại quy tắc (Tᵢ, Rᵢ, pᵢ) sao cho ∀q ∈ F_min: τ_min(q) ≠ Tᵢ (tức L(Rᵢ) ⊆ ⋃_{j < i} L(Rⱼ)), hệ thống tự động kết luận quy tắc Tᵢ bị che khuất hoàn toàn bởi quy tắc ưu tiên cao hơn.",
+            "1. Combined ε-NFA & NFA Khử ε (Định lý 2): N_lex = (Q_N, Σ(U), δ_N, q_start, F_N, τ_N). Khi khử ε, mọi đỉnh p có ε-closure({p}) ∩ F_N ≠ ∅ nhận nhãn chiến thắng τ'_{N}(p) = argmin_{f ∈ ε-closure({p}) ∩ F_N} priority(f).",
+            "2. Multi-token Subset DFA, Direct DFA & Phân hoạch Min-DFA: D_lex = (Q_D, Σ(U)/≡, δ_D, D₀, F_D, τ_D) với phân hoạch khởi đầu tách riêng từng loại token Π₀ = { Q_D \\ F_D } ∪ { F_{T₁}, ..., F_{T_m} }.",
+            "3. Ma trận Giao nhau Tĩnh L(Rᵢ) ∩ L(Rⱼ) & Chứng nhân Ngắn nhất: Với mọi cặp quy tắc i < j, Product Automaton BFS kiểm tra L(Dᵢ) ∩ L(Dⱼ) ≠ ∅, phân loại quan hệ tập hợp (∅, Rᵢ ⊂ Rⱼ, Rᵢ ≡ Rⱼ, Rᵢ ⊃ Rⱼ, giao một phần) và trích xuất từ tố chứng nhân ngắn nhất w ∈ L(Rᵢ) ∩ L(Rⱼ) (trên MiniLang: phát hiện đúng 9/741 cặp giao nhau KW_* / BOOL_LIT ⊂ IDENTIFIER).",
+            "4. Cảnh báo Luật Bị Che Khuất (Shadowed Rule): Nếu Rᵢ ≡ Rⱼ hoặc Rᵢ ⊃ Rⱼ với pᵢ < pⱼ (khiến ∀q ∈ F_min: τ_min(q) ≠ Tⱼ), hệ thống lập tức báo động quy tắc Tⱼ bị che khuất hoàn toàn.",
         ],
     )
 
     add_heading_2(doc, "3.3. Đặc tả tập Token minh họa (MiniLang 39 Token, CalcLang 12 Token & MiniSQL 14 Token)")
     add_body(
         doc,
-        "Để chứng minh tính tổng quát của bộ sinh từ vựng, nhóm thiết kế 3 bộ đặc tả ngôn ngữ hoàn chỉnh: "
-        "**MiniLang (39 token — bổ sung cả bình luận nhiều dòng `BLOCK_COMMENT`)**, **CalcLang (12 token)** và **MiniSQL (14 token)**. "
+        "Nhóm thiết kế 3 bộ đặc tả ngôn ngữ hoàn chỉnh: "
+        "**MiniLang (39 token — hỗ trợ `BLOCK_COMMENT` và `STRING_LIT` an toàn CRLF)**, **CalcLang (12 token)** và **MiniSQL (14 token)**. "
         "Bảng 1 tóm tắt các nhóm quy tắc từ vựng của MiniLang:",
     )
 
@@ -952,10 +944,10 @@ def build_report() -> None:
         ["1", "COMMENT", r"//[^\n]*", "Bỏ qua", "Bình luận 1 dòng (hỗ trợ tiếng Việt UTF-8 qua NON_ASCII)"],
         ["2", "BLOCK_COMMENT", r"/\*([^*]|\*+[^*/])*\*+/", "Bỏ qua", "Bình luận nhiều dòng chuẩn C/Java (xử lý đúng `/**/`, `/***a***/`)"],
         ["3", "WHITESPACE", r"[ \t\n\r]+", "Bỏ qua", "Khoảng trắng, tab, xuống dòng Unix LF & Windows CRLF"],
-        ["4–12", "KW_IF .. BOOL_LIT", r"if, else, while, for, let, func, return, print, true|false", "Giữ", "9 từ khóa & hằng logic (ưu tiên cao hơn IDENTIFIER)"],
+        ["4–12", "KW_IF .. BOOL_LIT", r"if, else, while, for, let, func, return, print, true|false", "Giữ", "9 từ khóa & hằng logic (Rᵢ ⊂ IDENTIFIER, thắng nhờ ưu tiên)"],
         ["13", "FLOAT_LIT", r"[0-9]+\.[0-9]+([eE][+-]?[0-9]+)?", "Giữ", "Số thực dấu phẩy động & ký hiệu khoa học 1.5e-2, 1.5e+3"],
-        ["14", "INT_LIT", r"[0-9]+", "Giữ", "Số nguyên không dấu"],
-        ["15", "STRING_LIT", r'"([^"\\\n]|\\.)*"', "Giữ", "Chuỗi ngoặc kép hỗ trợ escape \\\", \\\\ và tiếng Việt UTF-8"],
+        ["14", "INT_LIT", r"[0-9]+", "Giữ", "Số nguyên không dấu (rời nhau với FLOAT_LIT nhờ dấu chấm)"],
+        ["15", "STRING_LIT", r'"([^"\\\n\r]|\\.)*"', "Giữ", "Chuỗi ngoặc kép loại trừ cả \\r và \\n trên CRLF, hỗ trợ UTF-8"],
         ["16", "IDENTIFIER", r"[a-zA-Z_][a-zA-Z0-9_]*", "Giữ", "Tên biến, tên hàm (đặt sau từ khóa để không che khuất KW_*)"],
         ["17–22", "OP_EQ .. OP_OR", r"==, !=, <=, >=, &&, \|\|", "Giữ", "6 toán tử ghép 2 ký tự (khớp trước toán tử đơn nhờ Maximal Munch)"],
         ["23–31", "OP_ASSIGN .. OP_MOD", r"=, <, >, !, \+, -, \*, /, %", "Giữ", "9 toán tử 1 ký tự"],
@@ -977,68 +969,62 @@ def build_report() -> None:
 
     add_body(
         doc,
-        "Hình 1 trình bày kiến trúc tổng thể của hệ thống, kết nối chặt chẽ giữa nhánh biên dịch chuẩn 4 định lý "
-        "(`RE → AST → Thompson ε-NFA → NFA Khử ε → Subset DFA → Moore & Hopcroft Min-DFA → Linear-Time Scanner`) "
-        "với nhánh đối chứng trực tiếp (`Direct RE → DFA đơn lẻ & Đa-Token kết hợp`, `JFLAP Round-Trip XML`) "
-        "và bộ chứng minh hình thức (`Product Automaton Equivalence` & `Myhill–Nerode Minimality Witness Verifier`).",
+        "Hình 1 trình bày kiến trúc tổng thể phiên bản v2.0 của hệ thống, kết nối chặt chẽ giữa nhánh biên dịch 4 định lý "
+        "(`RE → AST → Thompson ε-NFA → NFA Khử ε → Subset DFA → Moore & Hopcroft Min-DFA`), nhánh đối chứng & chiều ngược Kleene 360° "
+        "(`Direct RE → DFA`, `GNFA State Elimination DFA → RE`, `JFLAP Round-Trip`), bộ chứng minh hình thức (`Product Automaton`, `Myhill–Nerode`, `Ma trận L(Rᵢ)∩L(Rⱼ)`) "
+        "và tầng thực thi (`O(n) Scanner` + `Flex-style Standalone Python Lexer Generator`).",
     )
     add_figure(
         doc,
         FIG_DIR / "fig1_architecture_pipeline.png",
-        "Hình 1: Kiến trúc tổng thể 6 phương pháp Automata và Bộ kiểm chứng tương đương / tối giản của Hệ thống (Đề tài T13).",
+        "Hình 1: Kiến trúc tổng thể Bộ phân tích từ vựng dựa trên Automata v2.0 (Vòng tròn Kleene 360° & Sinh mã Lexer độc lập).",
         width_cm=15.8,
     )
 
-    add_heading_2(doc, "4.1. Thuật toán 1 — Phân tích cú pháp RE, Định lượng đếm {m,n} & Lớp NON_ASCII")
+    add_heading_2(doc, "4.1. Thuật toán 1 — Phân tích cú pháp RE, Chống Bom AST (≤ 4096 nút) & Unicode Động Σ(U)")
     add_body(
         doc,
         "Bộ phân tích cú pháp đệ quy xuống (`regex_parser.py`) cài đặt văn phạm 4 mức ưu tiên: "
         "`expr → concat ('|' concat)*`, `concat → repeat+`, `repeat → atom ('*'|'+'|'?'|'{m,n}')*`, "
         "`atom → '(' expr ')' | char_class | '.' | escape | 'ε' | literal`. "
-        "Các điểm nâng cấp kỹ thuật then chốt gồm: (1) Mọi lớp ký tự (`[a-z]`, `[-a]`, `[a-]`, `[^^]`, `\\d`, `\\w`, `\\s`) được biên dịch thành một nút lá `CharSetNode(chars ⊆ Σ)` duy nhất; "
-        "lớp phủ định `[^C]` tự động lấy phần bù trên toàn bộ `Σ = ASCII_SIGMA ∪ {NON_ASCII}` (có kiểm tra từ chối lớp phủ định rỗng phủ hết Σ); "
-        "(2) Định lượng đếm `R{m}`, `R{m,}`, `R{m,n}` được khai triển trực tiếp sang cây AST thuần túy (`ConcatNode`, `OptionalNode`, `StarNode`) "
-        "với ngưỡng bảo vệ `MAX_QUANTIFIER_BOUND = 64` chống bùng nổ tổ hợp; "
-        "(3) Kiểm tra và bắt chính xác 20 mẫu lỗi cú pháp RE (`\"\"`, `()`, `(|a)`, `a||b`, `*a`, `[z-a]`, `a{5,2}`, `abc\\`) kèm vị trí cột lỗi.",
+        "Ba cơ chế phòng vệ và chuẩn hóa đại số then chốt gồm: "
+        "(1) **Chống bom nhân bản AST lồng nhau (`MAX_AST_NODES = 4096`)**: dù giới hạn đơn lẻ `MAX_QUANTIFIER_BOUND = 64` chặn được `a{100}`, "
+        "biểu thức lồng nhau kiểu `(((a{64}){64}){64})` có thể nhân bản cấp số nhân lên tới `528.483` nút AST gây treo RAM/CPU; nhóm cài đặt hàm ước lượng kích thước cây con trong `O(1)` ngay trước khi nhân bản, chặn đứng mọi bom AST vượt `4.096` nút trong `< 0.1 ms`; "
+        "(2) **Lớp ký tự trên `Σ(U)` đầy đủ 128 ASCII (`0x00..0x7F`, gồm cả `\\0`, `\\f`, `\\v`, `\\x7f`, `\\xHH`, `\\uHHHH`)**: trích tập `U = explicit_unicode_chars()` trước khi cụ thể hóa các nút `CharSetNode`, đảm bảo phủ định `[^C]` thỏa mãn `~(~C) = C`; "
+        "(3) Bắt chính xác **24 mẫu lỗi cú pháp RE** (`RE-ERR-01..24`) kèm tọa độ cột lỗi.",
     )
 
     add_heading_2(doc, "4.2. Thuật toán 2 — Cấu trúc Thompson & Thuật toán Khử ε (Định lý 2 Chương 3.1)")
     add_body(
         doc,
-        "Duyệt hậu tố trên AST, mỗi mảnh Thompson ε-NFA duy trì bất biến `in-deg(start) = 0` và `out-deg(end) = 0`, cho phép phép nối `ConcatNode(L, R)` "
-        "gộp trực tiếp đỉnh cuối của L với đỉnh đầu của R. Trên biểu thức `(a|b)*abb`, thuật toán sinh chính xác **11 trạng thái (`q0..q10`)** khớp tuyệt đối Slide 38 Chương 3.1 (Hình 2). "
-        "Để hoàn thiện chuỗi lý thuyết Chương 3.1, hàm `eliminate_epsilon(nfa)` trong `thompson.py` cài đặt **Định lý 2 (Slide 21–22)**: "
-        "tính `closures[s] = ε-closure({s})`, gán nhãn kết thúc `τ(s) = argmin_{q ∈ closures[s] ∩ F_N} priority(q)` và dựng cung trực tiếp "
-        "`δ_no_eps(s, c) = ε-closure(Move(closures[s], c))`, giúp rút gọn `(a|b)*abb` từ 11 trạng thái ε-NFA xuống 6 trạng thái NFA không ε (và rút gọn `MiniLang` từ 170 xuống 96 trạng thái).",
+        "Duyệt hậu tố trên AST, mỗi mảnh Thompson ε-NFA duy trì bất biến `in-deg(start) = 0` và `out-deg(end) = 0`, cho phép `ConcatNode(L, R)` "
+        "gộp trực tiếp đỉnh cuối của L với đỉnh đầu của R. Trên biểu thức `(a|b)*abb`, thuật toán sinh đúng **11 trạng thái (`q0..q10`)** khớp Slide 38 Chương 3.1 (Hình 2). "
+        "Hàm `eliminate_epsilon(nfa)` cài đặt **Định lý 2 (Slide 21–22)**: "
+        "tính `closures[s] = ε-closure({s})`, gán nhãn kết thúc ưu tiên cao nhất và dựng cung trực tiếp "
+        "`δ_no_eps(s, c) = ε-closure(Move(closures[s], c))`, rút gọn `(a|b)*abb` từ 11 xuống 6 trạng thái (và rút gọn `MiniLang` từ 170 xuống 96 trạng thái).",
     )
     add_figure(
         doc,
         FIG_DIR / "fig2_slide38_pipeline.png",
-        "Hình 2: Kết quả thực thi đường ống RE → Thompson ε-NFA (11 trạng thái) → Subset DFA (5 trạng thái) → Minimized DFA (4 trạng thái) trên (a|b)*abb.",
+        "Hình 2: Đường ống RE → Thompson ε-NFA (11 TT) → Subset DFA (5 TT) → Minimized DFA (4 TT, GNFA sinh R_sinh ≡ R_gốc) trên (a|b)*abb.",
         width_cm=15.6,
     )
 
-    add_heading_2(doc, "4.3. Thuật toán 3 — Subset Construction kết hợp Alphabet Partitioning & Phát hiện Luật Che khuất")
+    add_heading_2(doc, "4.3. Thuật toán 3 — Subset Construction, Alphabet Partitioning & Ma trận Giao nhau L(Rᵢ) ∩ L(Rⱼ)")
     add_body(
         doc,
-        "Nhóm cài đặt kỹ thuật phân hoạch bảng chữ cái (Alphabet Partitioning / Min-terms): từ tất cả tập ký tự trên các cung của Combined ε-NFA, "
-        "tinh chỉnh thành `p ≤ 99` lớp tương đương rời nhau `E₁, ..., E_p` sao cho `∀c₁, c₂ ∈ Eⱼ: Move(S, c₁) = Move(S, c₂)` với mọi `S ⊆ Q_N`. "
-        "Nhờ đó `MiniLang` nén từ 99 ký hiệu xuống **43 lớp tương đương**, giúp Subset Construction chạy trong ~4 ms. "
-        "Khi một tập trạng thái `S` chứa nhiều trạng thái kết thúc NFA (ví dụ `KW_IF` ưu tiên 4 và `IDENTIFIER` ưu tiên 16 cùng khớp `'if'`), "
-        "hàm `_resolve_accept(S)` chọn quy tắc có `priority` nhỏ nhất và ghi nhận vào bảng xung đột. "
-        "Đồng thời, sau khi biên dịch xong DFA tối giản, hệ thống đối chiếu tập quy tắc đầu vào với tập nhãn chiến thắng `{τ(q) | q ∈ F_min}`: "
-        "nếu người dùng đặt `IDENTIFIER` lên trước `KW_IF`, hệ thống lập tức phát cảnh báo **Shadowed Rule**: "
-        "\"Quy tắc `KW_IF` bị che khuất hoàn toàn bởi quy tắc ưu tiên cao hơn (`IDENTIFIER`) và sẽ không bao giờ được khớp!\".",
+        "Từ tất cả tập ký tự trên các cung của Combined ε-NFA trên `Σ(U)`, kỹ thuật Alphabet Partitioning tinh chỉnh thành `p` lớp tương đương rời nhau `E₁, ..., E_p` "
+        "sao cho `∀c₁, c₂ ∈ Eⱼ: Move(S, c₁) = Move(S, c₂)`. Trên `MiniLang`, 129 ký hiệu của `Σ` được nén gọn xuống **44 lớp tương đương** (tách riêng `\\r` và `\\n` cho `STRING_LIT` trên Windows CRLF), giúp Subset Construction chạy trong ~4 ms. "
+        "Song song đó, hàm `analyze_token_intersections(specs)` xây dựng `Min-DFA` độc lập cho từng quy tắc `Rᵢ` (nâng lên bảng chữ cái chung `Σ(U_all)`) và chạy BFS trên `C(k, 2)` ô-tô-mát tích để lập **Ma trận Giao nhau Tĩnh `L(Rᵢ) ∩ L(Rⱼ)`** "
+        "(trên `MiniLang`: quét toàn bộ `C(39, 2) = 741` cặp trong ~13 ms, chỉ ra đúng 9 cặp bao hàm hợp lệ `KW_IF..BOOL_LIT ⊂ IDENTIFIER` với chứng nhân `'if'`, `'else'`, ..., `'true'` và 732 cặp rời nhau `∅`).",
     )
 
     add_heading_2(doc, "4.4. Thuật toán 4 — Direct RE → DFA Đơn lẻ (Slide 54) & Đa-Token Kết hợp")
     add_body(
         doc,
-        "Trong `direct_dfa.py`, bên cạnh hàm `build_direct_dfa(pattern)` cho biểu thức đơn `r·#` — sinh chính xác **8 vị trí lá**, bảng `followpos` và **5 trạng thái Direct DFA `A..E`** "
-        "cho `(a|ba)(a|b)*ba#` trùng khớp từng con số với Slide 54–57 Chương 3.1 (Hình 3) — nhóm đã mở rộng thêm hàm `build_combined_direct_dfa(specs)`: "
-        "ghép trực tiếp `k` quy tắc thành cây cú pháp tổng hợp `(R₁·#₁) | (R₂·#₂) | ... | (Rₖ·#ₖ)` với `#ᵢ` mang thông tin `(Tᵢ, pᵢ, skipᵢ)`. "
-        "Mọi trạng thái `S` chứa các vị trí kết thúc `#ᵢ` được gán nhãn theo `argmin_{#ᵢ ∈ S} pᵢ`. Thực nghiệm cho thấy Combined Direct DFA của `MiniLang` chỉ có **79 trạng thái** "
-        "(so với 86 trạng thái của Subset DFA) và được Product Automaton chứng minh tương đương 100% với Minimized DFA (78 trạng thái)!",
+        "Trong `direct_dfa.py`, hàm `build_direct_dfa(pattern)` cho biểu thức đơn `r·#` sinh đúng **8 vị trí lá**, bảng `followpos` và **5 trạng thái Direct DFA `A..E`** "
+        "cho `(a|ba)(a|b)*ba#` trùng khớp 100% Slide 54–57 Chương 3.1 (Hình 3). Hàm mở rộng `build_combined_direct_dfa(specs)` ghép `k` quy tắc thành `(R₁·#₁) | ... | (Rₖ·#ₖ)` "
+        "với `#ᵢ` mang nhãn `(Tᵢ, pᵢ, skipᵢ)`: Combined Direct DFA của `MiniLang` chỉ có **79 trạng thái** (so với 86 của Subset DFA) và tương đương 100% với Minimized DFA (78 trạng thái).",
     )
     add_figure(
         doc,
@@ -1047,44 +1033,31 @@ def build_report() -> None:
         width_cm=13.8,
     )
 
-    add_heading_2(doc, "4.5. Thuật toán 5 — Tối thiểu hóa Song song Moore & Hopcroft + Chứng minh Myhill–Nerode")
+    add_heading_2(doc, "4.5. Thuật toán 5 — Tối thiểu hóa Moore/Hopcroft, Myhill–Nerode & GNFA Khử trạng thái (DFA → RE)")
     add_body(
         doc,
-        "Module `dfa_minimizer.py` cài đặt song song cả hai thuật toán tối thiểu hóa kinh điển trên cùng phân hoạch khởi đầu đa-token "
-        "`Π₀ = {Q \\ F ∪ {DEAD}} ∪ {F_{T₁}, ..., F_{T_m}}`: "
-        "(1) **Thuật toán Moore Partition Refinement (`O(|Σ|·|Q|²)`)** lặp tách khối theo vector chữ ký chuyển tiếp và xuất trọn vẹn vết phân hoạch `Π₀ → Π₁ → ... → Πₖ` để phục vụ giảng dạy; "
-        "(2) **Thuật toán Hopcroft (`O(|Σ|·|Q|log|Q|)`)** xây dựng đồ thị chuyển tiếp ngược `δ⁻¹(A, Eⱼ)` và hàng đợi phân tách `W`, khi một khối `Y` bị tập tiền ảnh `X` cắt đôi thành `Y₁, Y₂` "
-        "sẽ luôn đẩy khối nhỏ hơn (`min(|Y₁|, |Y₂|)`) vào `W`. "
-        "Sau đó, module `verifier.py` thực hiện hai bước chứng minh toán học độc lập: "
-        "(i) Dùng **Product Automaton BFS** chứng minh `Moore Min-DFA ≡ Hopcroft Min-DFA ≡ Subset DFA ≡ Combined Direct DFA` (0 phản ví dụ); "
-        "(ii) Dùng hàm **`verify_dfa_is_minimal(dfa)`** kiểm chứng **Định lý Myhill–Nerode**: tìm chuỗi phân biệt ngắn nhất `w` cho toàn bộ `C(|Q_min|, 2)` cặp trạng thái "
-        "(`3.003/3.003` cặp trên `MiniLang`, `190/190` cặp trên `CalcLang`, `1.326/1.326` cặp trên `MiniSQL`), chứng minh không còn bất kỳ cặp trạng thái nào có thể gộp thêm!",
+        "Module `dfa_minimizer.py` cài đặt song song **Moore (`O(p·|Q|²)`)** và **Hopcroft (`O(p·|Q|log|Q|)`)** trên phân hoạch đa-token `Π₀ = {Q \\ F ∪ {DEAD}} ∪ {F_{T₁}, ..., F_{T_m}}`, kèm phép lấy phần bù `complement_dfa(D)` kiểm chứng `~(~L) = L`. "
+        "Module `verifier.py` dùng **Product Automaton** chứng minh tương đương 7 chiều và hàm `verify_dfa_is_minimal(dfa)` tìm chuỗi phân biệt Myhill–Nerode cho 100% cặp trạng thái (`3.003/3.003` cặp trên `MiniLang`). "
+        "Đặc biệt, module mới `gnfa.py` cài đặt thuật toán **GNFA State Elimination (`dfa_to_regex`)**: loại bỏ các đỉnh không tới được/không sinh lời, nối `q_start --ε--> D₀` và `F --ε--> q_accept`, "
+        "chọn thứ tự khử đỉnh tối thiểu hóa tích `in_deg(q) × out_deg(q)` kết hợp rút gọn đại số Kleene (`∅·R = ∅`, `ε·R = R`, `r·r* = r+`), sinh biểu thức `R_sinh` (ví dụ `(a|b)*abb` → `b*a(a|ba|bb(a|b+a))*bb`) và tự động biên dịch ngược để chứng minh `L(R_gốc) ≡ L(R_sinh)`!",
     )
 
-    add_heading_2(doc, "4.6. Thuật toán 6 — Bộ quét Maximal Munch Tuyến tính O(n) (Reps, 1998) & Phục hồi lỗi kép")
+    add_heading_2(doc, "4.6. Thuật toán 6 — Bộ quét O(n) (Reps, 1998) & Bộ sinh mã Lexer Độc lập kiểu Flex")
     add_callout(
         doc,
-        "Mã giả Thuật toán Quét Từ Vựng Maximal Munch Tuyến tính O(n) với Bảng nhớ failed_states & Phục hồi lỗi kép",
+        "Thuật toán Quét Maximal Munch Tuyến tính O(n) (Reps, 1998) & Kiến trúc Bộ Sinh Mã Lexer Độc lập (codegen.py)",
         [
-            "Input : Chuỗi mã nguồn text[0..n-1], Minimized Multi-token DFA D = (Q, Σ/≡, δ, D₀, F, τ), mode ∈ {panic_char, smart_sync}",
-            "Output: Danh sách Token, Danh sách LexicalError, Vết thực thi Trace, Số lần cắt nhánh memoized_cutoffs",
+            "Input : Chuỗi text[0..n-1], Bảng chuyển tĩnh Min-DFA D = (Q, Σ(U)/≡, δ, D₀, F, τ), mode ∈ {panic_char, smart_sync}",
             "1. pos ← 0; line ← 1; col ← 1; failed_states ← ∅   // Bảng nhớ (state, cursor) theo Reps (1998)",
-            "2. WHILE pos < n DO:",
-            "3.   cur ← D₀; cursor ← pos; last_accept ← NULL; visited_path ← []",
-            "4.   WHILE cursor < n DO:",
-            "5.     IF (cur, cursor) ∈ failed_states THEN: memoized_cutoffs += 1; BREAK   // Cắt nhánh O(1) chống O(n²)",
-            "6.     nxt ← δ(cur, class_of(text[cursor]))                                   // NON_ASCII nếu ord(c) ≥ 128",
-            "7.     IF nxt == NULL THEN BREAK",
-            "8.     cur ← nxt; cursor ← cursor + 1; visited_path.append((cur, cursor))",
-            "9.     IF cur ∈ F THEN last_accept ← (cursor, cur, τ(cur))",
-            "10.  FOR (st, idx) IN visited_path WHERE idx > (last_accept.pos IF last_accept ELSE pos):",
-            "11.    failed_states.add((st, idx))                                            // Ghi nhớ cấu hình thất bại",
-            "12.  IF last_accept ≠ NULL AND last_accept.pos > pos THEN:",
-            "13.    Emit Token(last_accept.type, text[pos:last_accept.pos], line, col); Advance pos ← last_accept.pos",
-            "14.  ELSE:",
-            "15.    IF mode == smart_sync AND text[pos] starts unclosed '\"...' or '/*...':",
-            "16.      Consume entire unclosed string (to '\\n'/EOF) or unclosed block comment (to EOF) as 1 LexicalError",
-            "17.    ELSE: Emit LexicalError(text[pos], line, col); Advance pos ← pos + 1   // Panic-mode chuẩn tiến 1 ký tự",
+            "2. WHILE pos < n DO: cur ← D₀; cursor ← pos; last_accept ← NULL; visited_path ← []",
+            "3.   WHILE cursor < n DO:",
+            "4.     IF (cur, cursor) ∈ failed_states THEN: memoized_cutoffs += 1; BREAK   // Cắt nhánh O(1) chống O(n²)",
+            "5.     cls ← ASCII_CLASS_MAP[ord(ch)] IF ord(ch) < 128 ELSE UNICODE_CLASS_MAP.get(ch, NON_ASCII_CLASS)",
+            "6.     nxt ← TRANSITIONS[cur][cls]; IF nxt < 0 THEN BREAK",
+            "7.     cur ← nxt; cursor += 1; visited_path.append((cur, cursor)); IF ACCEPT[cur] THEN last_accept ← (cursor, ACCEPT[cur])",
+            "8.   FOR (st, idx) IN visited_path WHERE idx > (last_accept.pos IF last_accept ELSE pos): failed_states.add((st, idx))",
+            "9.   IF last_accept ≠ NULL THEN Emit Token & pos ← last_accept.pos ELSE Phục hồi lỗi theo panic_char / smart_sync",
+            "• Bộ sinh mã kiểu Flex (codegen.py): Đóng gói trực tiếp các mảng tĩnh ASCII_CLASS_MAP[128], UNICODE_CLASS_MAP, TRANSITIONS[|Q|][p], ACCEPT_TABLE và vòng lặp Reps O(n) thành 1 file Python độc lập (~527 dòng cho MiniLang, Zero import re, chạy độc lập không cần lexer_engine).",
         ],
         fill="F8FAFC",
         accent="1E3A8A",
@@ -1093,16 +1066,15 @@ def build_report() -> None:
 
     add_heading_2(doc, "4.7. Phân tích độ phức tạp và các trường hợp biên đã xử lý triệt để")
     comp_rows = [
-        ["Regex Parser + {m,n} + Thompson", "O(|R|)", "O(|R|)", "Hỗ trợ {m,n} (n≤64), [-a], [a-], [^^], \\f, \\v, NON_ASCII; bắt 20 mẫu lỗi RE"],
-        ["Khử ε (Định lý 2 Chương 3.1)", "O(|Q_N|² + |Q_N|·|Σ|)", "O(|Q_N|·|Σ|)", "Loại bỏ hoàn toàn ε-chuyển tiếp, bảo toàn nhãn ưu tiên token cao nhất"],
-        ["Alphabet Partitioning + Subset DFA", "Thực tế O(|Q_D|·p)", "O(|Q_D|·p)", "Nén 99 ký hiệu Σ thành p ≤ 99 lớp (MiniLang: 43 lớp); phát hiện Shadowed Rules"],
-        ["Moore & Hopcroft Minimization", "Moore: O(p·|Q|²)\nHopcroft: O(p·|Q|log|Q|)", "O(p·|Q|)", "Bảo toàn phân loại đa-token Π₀; chứng minh Moore ≡ Hopcroft trên cả 3 ngôn ngữ"],
-        ["Product Eq & Myhill–Nerode Verify", "O(|Q_A|·|Q_B|·p)", "O(|Q|²)", "Tìm chuỗi phân biệt ngắn nhất w cho 100% cặp trạng thái (MiniLang: 3003/3003 cặp)"],
-        ["Linear-Time Maximal Munch Scanner", "Tuyến tính chặt O(n)\n(với failed_states)", "O(n)", "Chống quay lui O(n²) trên chuỗi lỗi 10.000 ký tự (<25 ms); hỗ trợ panic_char & smart_sync"],
+        ["Regex Parser + Σ(U) + Anti-Bomb", "O(|R|), nút ≤ 4096", "O(|R|)", "Chặn bom (((a{64}){64}){64}) trong O(1); phủ 128 ASCII + Σ(U) bảo toàn ~(~A)=A; 24 bẫy lỗi RE"],
+        ["Thompson & Khử ε (Định lý 2)", "O(|Q_N|² + |Q_N|·p)", "O(|Q_N|·p)", "Loại bỏ hoàn toàn cung ε, bảo toàn nhãn ưu tiên token cao nhất (MiniLang: 170 → 96 TT)"],
+        ["Subset DFA & Ma trận L(Rᵢ)∩L(Rⱼ)", "Subset: O(|Q_D|·p)\nGiao: O(∑|Qᵢ||Qⱼ|p)", "O(|Q_D|·p)", "Nén Σ(U) thành 44 lớp trên MiniLang; quét 741 cặp giao nhau trong ~13 ms kèm chứng nhân"],
+        ["Moore/Hopcroft & GNFA 360°", "Hopcroft: O(p|Q|log|Q|)\nGNFA: O(|Q|³)", "O(p·|Q|)", "Hội tụ Moore ≡ Hopcroft; chứng minh Myhill–Nerode 3003/3003 cặp & L(R_gốc) ≡ L(R_sinh)"],
+        ["O(n) Scanner & Flex Codegen", "Tuyến tính chặt O(n)\n(với failed_states)", "O(n)", "Chống O(n²) trên chuỗi lỗi 10 KB; STRING_LIT loại trừ \\r trên CRLF; sinh Lexer độc lập .py"],
     ]
     add_styled_table(
         doc,
-        ["Thành phần thuật toán", "Độ phức tạp thời gian", "Bộ nhớ", "Xử lý trường hợp biên & Đóng góp kỹ thuật"],
+        ["Thành phần thuật toán", "Độ phức tạp thời gian", "Bộ nhớ", "Xử lý trường hợp biên & Đóng góp kỹ thuật v2.0"],
         comp_rows,
         col_widths_cm=[3.8, 3.3, 2.1, 7.5],
         font_size=8.4,
@@ -1116,32 +1088,32 @@ def build_report() -> None:
     add_body(
         doc,
         "Chương trình được tổ chức theo kiến trúc phân lớp gồm 3 tầng độc lập: "
-        "(1) Tầng lõi thuật toán `lexer_engine/` (100% Python Standard Library, không phụ thuộc bất kỳ gói bên ngoài nào và **Zero `import re`**); "
-        "(2) Tầng giao diện người dùng gồm ứng dụng Web `LexAutomata Studio` 5 Tab (`app.py` + `web/`) và công cụ dòng lệnh (`cli.py`), kèm cấu hình Cloud 1-Click (`.devcontainer/devcontainer.json`, `render.yaml`); "
-        "(3) Tầng kiểm thử tự động & kiểm chứng khứ hồi (`tests/test_cases.json` với 62 test cases, `tests/test_suite.py` với 16 bộ unittest, `jflap_export.py` hỗ trợ cả xuất và đọc ngược XML `.jff`). "
+        "(1) Tầng lõi thuật toán `lexer_engine/` (11 module Python Standard Library, không phụ thuộc bất kỳ gói ngoài nào và **Zero `import re`** — bao gồm cả `gnfa.py` và `codegen.py`); "
+        "(2) Tầng giao diện gồm ứng dụng Web `LexAutomata Studio` 5 Tab (`app.py` + `web/`) và công cụ dòng lệnh 9 lệnh con (`cli.py`), kèm cấu hình Cloud 1-Click; "
+        "(3) Tầng kiểm thử tự động & kiểm chứng khứ hồi (`tests/test_cases.json` với **72 test cases**, `tests/test_suite.py` với **22 bộ unittest**, `jflap_export.py` đọc/ghi XML `.jff`). "
         "Bảng 2 làm rõ ranh giới giữa phần nhóm tự cài đặt và thư viện chuẩn:",
     )
 
     lib_rows = [
         [
-            "models.py, regex_parser.py, thompson.py, subset_construction.py, direct_dfa.py, dfa_minimizer.py, scanner.py, verifier.py, jflap_export.py",
+            "models.py, regex_parser.py, thompson.py, subset_construction.py, direct_dfa.py, dfa_minimizer.py, gnfa.py, scanner.py, codegen.py, verifier.py, jflap_export.py",
             "100% nhóm tự cài đặt từ con số 0 (Zero `import re`)",
             "Chỉ dùng Python Standard Library: `dataclasses`, `collections.deque`, `xml.etree.ElementTree`, `time`",
         ],
         [
-            "app.py, cli.py, web/ (HTML5/CSS3/JS + Đồ thị SVG tương tác + Bảng Myhill–Nerode + So sánh 2 RE + Benchmark Dashboard)",
+            "app.py, cli.py, web/ (Đồ thị SVG + Ma trận Giao nhau L(Rᵢ)∩L(Rⱼ) + GNFA Kleene 360° + Xuất Standalone Lexer .py)",
             "100% nhóm tự thiết kế & lập trình",
             "Python stdlib `http.server`, `argparse`, `json`; trình duyệt chuẩn HTML5/SVG (không cần Node.js/React/pip)",
         ],
         [
-            "tests/test_suite.py (62 test cases JSON + 16 unittest kiểm chứng 5 bất biến toán học & Fuzzing)",
+            "tests/test_suite.py (72 test cases JSON + 22 unittest kiểm chứng Kleene 360°, ~(~A)=A, Anti-Bomb & Differential Codegen)",
             "Nhóm tự thiết kế kịch bản & bộ sinh chuỗi Fuzz",
-            "Python `unittest`, `ast` (kiểm tra tự động không có `import re` trong lõi), đối chứng 6 chiều",
+            "Python `unittest`, `ast` (kiểm tra tự động không có `import re` trong lõi & file sinh mã), đối chứng vi sai",
         ],
         [
             "scripts/ (tự động vẽ đồ thị báo cáo & xuất DOCX/PDF/PPTX ngoài runtime)",
             "Nhóm viết script tự động hóa",
-            "matplotlib, python-docx, python-pptx, chromium headless (không cần khi chạy ứng dụng demo)",
+            "matplotlib, python-docx, python-pptx, chromium/chrome headless (không cần khi chạy ứng dụng demo)",
         ],
     ]
     add_styled_table(
@@ -1155,33 +1127,30 @@ def build_report() -> None:
     add_heading_2(doc, "5.1. Các tính năng nổi bật của Giao diện Web LexAutomata Studio (5 Tab) & CLI")
     add_bullet(
         doc,
-        "Tab 1 — Bộ Quét Từ Vựng, Công tắc Phục hồi lỗi (Panic-mode / Smart-Sync) & Hoạt ảnh Từng bước: ",
-        "Soạn thảo mã nguồn với các kịch bản mẫu (`Hợp lệ`, `Biên Maximal Munch`, `Lỗi & Phục hồi`), chuyển đổi tức thời giữa hai chế độ phục hồi lỗi "
-        "`panic_char` và `smart_sync` (hiển thị cả chỉ số cắt nhánh `memoized_cutoffs` của Reps 1998), tô màu token trực tiếp và chạy hoạt ảnh DFA Step-by-Step.",
+        "Tab 1 & Thanh công cụ — Quét Từ Vựng O(n), Hoạt ảnh DFA & Nút ⬇ Sinh Lexer (.py) Kiểu Flex: ",
+        "Soạn thảo mã nguồn với các kịch bản mẫu, chuyển đổi tức thời giữa `panic_char` và `smart_sync` (hiển thị `memoized_cutoffs` của Reps 1998), chạy hoạt ảnh DFA từng bước và tải ngay file bộ quét Python độc lập `.py` bằng 1 cú nhấp chuột.",
     )
     add_bullet(
         doc,
-        "Tab 2 — 6 Phương pháp Automata Tổng Hợp, Đối sánh Moore vs. Hopcroft & Chứng minh Myhill–Nerode: ",
-        "Trực quan hóa đồ thị SVG có kéo-thả/zoom cho cả 6 mô hình (`Moore Min-DFA`, `Hopcroft Min-DFA`, `Subset DFA`, `Combined Direct DFA`, `NFA Khử ε`, `Thompson ε-NFA`); "
-        "hiển thị bảng chuỗi phân biệt Myhill–Nerode `w` cho các cặp trạng thái, cảnh báo `Shadowed Rules` và xuất/đọc file `.jff` chuẩn JFLAP.",
+        "Tab 2 — Đồ thị Automata Đa-Token, Myhill–Nerode & Ma trận Giao nhau Tĩnh L(Rᵢ) ∩ L(Rⱼ): ",
+        "Trực quan hóa đồ thị SVG cho cả 6 mô hình đa-token, bảng chuỗi phân biệt Myhill–Nerode, cùng thẻ con **Ma trận Giao nhau `L(Rᵢ) ∩ L(Rⱼ)`** hiển thị bản đồ nhiệt tương tác `39 × 39` và từ tố chứng nhân ngắn nhất cho từng cặp quy tắc.",
     )
     add_bullet(
         doc,
-        "Tab 3 & Tab 4 — Thí Nghiệm RE Đơn Lẻ, Kiểm tra Tương đương 2 RE (R₁ ≡ R₂?) & Live Spec Editor: ",
-        "Tại Tab 3, ngoài việc đối chứng Thompson → Khử ε → Subset → Moore/Hopcroft với cây `r·#` (`nullable`, `firstpos`, `lastpos`, `followpos`), "
-        "người dùng có thể nhập hai biểu thức `R₁` và `R₂` bất kỳ (ví dụ `(a|b)*` và `(a*b*)*`) để máy chứng minh tương đương hoặc chỉ ra chuỗi phản ví dụ ngắn nhất. "
-        "Tại Tab 4, nếu người dùng thử đẩy `IDENTIFIER` lên trên `KW_IF`, hệ thống lập tức bật biểu ngữ cảnh báo đỏ phát hiện quy tắc bị che khuất!",
+        "Tab 3 & Tab 4 — Vòng tròn Kleene 360° (GNFA DFA → RE), Kiểm chứng R₁ ≡ R₂ & Unicode Động: ",
+        "Tab 3 bổ sung thẻ con thứ 6 **GNFA Khử Trạng Thái (`DFA → RE · Kleene 360°`)** trình bày từng bước khử đỉnh `q_rip` và chứng minh `L(R_gốc) ≡ L(R_sinh)`. "
+        "Tab 4 tích hợp nút `+ Thêm Unicode (nếu / €)`, bẫy `Shadowed Rule` trực tiếp, tải `Standalone Lexer (.py)` tùy chỉnh và bảng chứng nhân giao nhau thời gian thực.",
     )
     add_bullet(
         doc,
-        "Tab 5 — Phòng Thí Nghiệm Kiểm Thử Tự Động (62/62 PASS) & Benchmark Chống Quay Lui Bậc Hai O(n²): ",
-        "Chạy trực tiếp 62 ca kiểm thử JSON, bảng đối sánh 6 phương pháp trên 3 ngôn ngữ và biểu đồ Stress Test 10.000 ký tự lỗi (`\"aaaa...`, `/*xxxx...`, `\"\\\"\\\"...`).",
+        "Tab 5 — Phòng Thí Nghiệm Kiểm Thử Tự Động (72/72 PASS) & Benchmark Chống Quay Lui Bậc Hai O(n²): ",
+        "Chạy trực tiếp 72 ca kiểm thử JSON (gồm cả Kleene 360°, Unicode động, bom AST và CRLF), bảng đối sánh hiệu năng trên 3 ngôn ngữ và biểu đồ Stress Test 10.000 ký tự lỗi.",
     )
 
     add_body(
         doc,
-        "Hình 4 minh họa đồ thị Minimized Combined DFA hoàn chỉnh của bộ ngôn ngữ `CalcLang` (12 token nén xuống đúng 20 trạng thái tối giản, toàn bộ 190/190 cặp trạng thái đều phân biệt đôi một theo Myhill–Nerode). "
-        "Hình 5 và Hình 6 chụp trực tiếp giao diện Web `LexAutomata Studio` đang vận hành thực tế tại Tab 1 và Tab 3.",
+        "Hình 4 minh họa đồ thị Minimized Combined DFA hoàn chỉnh của `CalcLang` (12 token → 20 trạng thái tối giản, 190/190 cặp Myhill–Nerode). "
+        "Hình 5 và Hình 6 chụp trực tiếp giao diện Web `LexAutomata Studio` v2.0 đang vận hành tại Tab 1 và Tab 3.",
     )
     add_figure(
         doc,
@@ -1192,13 +1161,13 @@ def build_report() -> None:
     add_figure(
         doc,
         FIG_DIR / "fig6_web_scanner_demo.png",
-        "Hình 5: Giao diện Web LexAutomata Studio — Tab 1 minh họa bộ quét đa-token với công tắc Panic-mode / Smart-Sync và vết đường đi DFA.",
+        "Hình 5: Giao diện Web LexAutomata Studio — Tab 1 với nút ⬇ Sinh Lexer (.py), công tắc Panic-mode / Smart-Sync và luồng Token.",
         width_cm=14.4,
     )
     add_figure(
         doc,
         FIG_DIR / "fig7_web_direct_re_lab.png",
-        "Hình 6: Giao diện Web LexAutomata Studio — Tab 3 minh họa cây phân tích gia tố r·#, bảng followpos (Slide 54) và công cụ kiểm chứng R₁ ≡ R₂.",
+        "Hình 6: Giao diện Web LexAutomata Studio — Tab 3 với huy hiệu Kleene 360° (R₀ ≡ R_sinh), cây r·#, bảng followpos (Slide 54) và 6 thẻ giai đoạn.",
         width_cm=14.4,
     )
 
@@ -1207,43 +1176,45 @@ def build_report() -> None:
     # =========================================================================
     add_heading_1(doc, "6. Test case, kết quả thực nghiệm và phân tích")
 
-    add_heading_2(doc, "6.1. Thiết kế bộ 62 Test Cases JSON & 16 Unittest Bất biến Toán học")
+    add_heading_2(doc, "6.1. Thiết kế bộ 72 Test Cases JSON & 22 Unittest Bất biến Toán học")
     add_body(
         doc,
         f"Nhóm đã mở rộng bộ kiểm thử có cấu trúc trong `tests/test_cases.json` lên **{test_rep['total']} kịch bản chuẩn** "
-        f"(gồm 16 ca RE đơn & biên, 20 ca bẫy lỗi cú pháp RE và 26 ca quét từ vựng đa ngôn ngữ) kết hợp với **16 bộ Unittest** trong `tests/test_suite.py`. "
-        f"Kết quả thực thi đạt **{test_rep['passed']}/{test_rep['total']} PASS ({test_rep['pass_rate']}%)** trên JSON và **16/16 OK (100%)** trên Unittest. "
-        f"Bảng 3 tổng hợp các nhóm kiểm thử đại diện và 5 bất biến toán học được kiểm chứng tự động:",
+        f"(gồm 20 ca RE đơn/Unicode/Kleene 360°, 24 ca bẫy lỗi cú pháp RE & bom AST, và 28 ca quét từ vựng đa ngôn ngữ) kết hợp với **22 bộ Unittest** trong `tests/test_suite.py`. "
+        f"Kết quả thực thi đạt **{test_rep['passed']}/{test_rep['total']} PASS ({test_rep['pass_rate']}%)** trên JSON và **22/22 OK (100%)** trên Unittest. "
+        f"Bảng 3 tổng hợp các nhóm kiểm thử đại diện và các bất biến toán học được kiểm chứng tự động:",
     )
 
     tc_rows = [
-        ["RE-01..02", "Bài giảng UEH", "(a|b)*abb & (a|ba)(a|b)*ba", "Khớp 100% Slide 38 (11→6→5→4 trạng thái) và Slide 54 (8 lá, followpos, 5 trạng thái A..E)", "PASS"],
-        ["RE-03..16", "Biên RE & {m,n}", "[-a], [a-], [^^], [0-9]{2,4}, (a*)*, (a|ε)b*", "Khai triển chuẩn định lượng {m,n}, lớp ký tự biên & biểu thức nullable; 6 Otomat khớp 100%", "PASS"],
-        ["RE-ERR-01..20", "20 Bẫy lỗi RE", "'', '()', '(|a)', 'a||b', '*a', '[z-a]', 'a{5,2}', 'a{100}'", "Bắt chính xác RegexSyntaxError kèm vị trí cột lỗi trên cả 20/20 mẫu biểu thức sai", "PASS"],
-        ["SCAN-01..07", "Maximal Munch", "ifx, a===b!==c, 1.5e-2, 1.5e, 3., 0.0.0", "Khớp dài nhất & ưu tiên luật chuẩn xác; quay lui đúng 1 ký tự tại 1.5e và 3.", "PASS"],
-        ["SCAN-08..14", "Lỗi & UTF-8", 'let gia = 100€; "Xin chào UEH"; "abc\\nlet x=1;', "Khớp chuỗi tiếng Việt UTF-8; bắt lỗi U+20AC ngoài chuỗi; đối sánh panic_char vs smart_sync", "PASS"],
-        ["SCAN-15..26", "Block Comment & CRLF", "`/**/`, `/***a*b***/`, `/*dòng 1\\r\\ndòng 2*/`, `/*chưa đóng`", "Khớp chuẩn bình luận nhiều dòng `/*...*/`; tính đúng (line, col) với `\\n`, `\\r\\n`, `\\r`", "PASS"],
-        ["INV-1 & INV-2", "Bất biến Toán học", "120+ chuỗi Fuzz Zero-Loss & 270+ chuỗi 6-Way Eq", "Ghép mọi lexeme (token + skip + lỗi) tái tạo 100% mã nguồn; 6 Otomat tương đương tuyệt đối", "PASS"],
-        ["INV-3..5", "Myhill–Nerode & O(n)", "4.519 cặp trạng thái + 30.000 ký tự lỗi + JFLAP .jff", "100% cặp trạng thái có chuỗi phân biệt w; quét 10.000 ký tự lỗi < 25 ms; JFLAP khứ hồi 100%", "PASS"],
+        ["RE-01..02", "Bài giảng UEH", "(a|b)*abb & (a|ba)(a|b)*ba", "Khớp 100% Slide 38 (11→6→5→4 TT) & Slide 54 (followpos, 5 TT); GNFA sinh R_sinh ≡ R_gốc", "PASS"],
+        ["RE-03..20", "Unicode Σ(U) & Biên", "(nếu|lặp)_[0-9]+€, [^€\\n]+, [\\f\\v]+, [0-9]{2,4}", "Phân hoạch Σ(U) không va chạm NON_ASCII; bảo toàn bù kép ~(~A)=A & Kleene 360° trên 20/20 RE", "PASS"],
+        ["RE-ERR-01..24", "24 Bẫy RE & Bom AST", "(((a{64}){64}){64}), (a{64}){64}, \\u12G4, [a-\\uffff]", "Chặn đứng bom nhân bản AST (>4096 nút) trong <0.1 ms; bắt chuẩn 24/24 lỗi cú pháp RE", "PASS"],
+        ["SCAN-01..14", "Maximal Munch & UTF-8", 'ifx, a===b, 1.5e, 100€, "Xin chào UEH"', "Khớp dài nhất & ưu tiên luật chuẩn xác; chuỗi UTF-8 hợp lệ; bắt lỗi U+20AC ngoài chuỗi", "PASS"],
+        ["SCAN-15..28", "CRLF & Điều khiển ASCII", '"unclosed\\r\\nlet ok=1;, /*...*/, "\\f\\v"', "STRING_LIT loại trừ cả \\r và \\n trên Windows CRLF; hỗ trợ \\f, \\v và bình luận /*...*/", "PASS"],
+        ["INV-1..5", "Bất biến & Myhill–Nerode", "390+ chuỗi Fuzz, 4.519 cặp TT, 30.000 ký tự lỗi", "Zero-Loss 100%; 100% cặp trạng thái có chuỗi phân biệt w; Reps O(n) cắt 5.000 nhánh quay lui", "PASS"],
+        ["V2-4..6", "GNFA, Giao & Codegen", "Kleene 360°, Ma trận 741 cặp, Standalone Lexer .py", "L(R_0)≡L(R_sinh); phát hiện 9/741 cặp giao nhau MiniLang; Lexer độc lập khớp 100% bản gốc", "PASS"],
     ]
     add_styled_table(
         doc,
         ["Mã Kiểm thử", "Phân loại", "Đầu vào / Kịch bản đại diện", "Kết quả thực nghiệm & Bất biến kiểm chứng", "Đánh giá"],
         tc_rows,
-        col_widths_cm=[2.3, 2.2, 4.1, 6.6, 1.5],
+        col_widths_cm=[2.3, 2.3, 4.0, 6.6, 1.5],
         font_size=8.3,
         mono_cols={0},
     )
 
-    add_heading_2(doc, "6.2. Thực nghiệm đối sánh 6 phương pháp Automata, Myhill–Nerode & Stress Test O(n)")
+    add_heading_2(doc, "6.2. Thực nghiệm đối sánh Đa-Otomat, Ma trận Giao nhau & Stress Test O(n)")
     add_body(
         doc,
-        "Bảng 4 và Hình 7 tổng hợp số liệu thực nghiệm trên cả 3 bộ ngôn ngữ qua toàn bộ 6 phương pháp Automata cùng kết quả chứng minh tối giản Myhill–Nerode:",
+        "Bảng 4 và Hình 7 tổng hợp số liệu thực nghiệm trên cả 3 bộ ngôn ngữ qua các phương pháp Automata, số cặp giao nhau tĩnh `L(Rᵢ) ∩ L(Rⱼ)` và kết quả chứng minh tối giản Myhill–Nerode:",
     )
 
     dir_mini = len(build_combined_direct_dfa(PRESETS["minilang"]["specs"]).states)
     dir_calc = len(build_combined_direct_dfa(PRESETS["calclang"]["specs"]).states)
     dir_sql = len(build_combined_direct_dfa(PRESETS["minisql"]["specs"]).states)
+    inter_mini = s_mini["intersection_summary"]
+    inter_calc = s_calc["intersection_summary"]
+    inter_sql = s_sql["intersection_summary"]
 
     bench_rows = [
         [
@@ -1254,9 +1225,9 @@ def build_report() -> None:
             str(s_mini["subset_dfa_states"]),
             str(dir_mini),
             f"{s_mini['minimized_dfa_states']} / {s_mini['hopcroft_dfa_states']}",
-            f"-{s_mini['state_reduction_count']} (-{s_mini['state_reduction_percent']}%)",
             f"{s_mini['minimality']['distinguishable_pairs']}/{s_mini['minimality']['total_pairs']}",
-            "✓ 6-Way Eq",
+            f"{inter_mini['overlap_count']}/{inter_mini['total_pairs']} (0 lỗi)",
+            "✓ 100% Eq",
         ],
         [
             "CalcLang",
@@ -1266,9 +1237,9 @@ def build_report() -> None:
             str(s_calc["subset_dfa_states"]),
             str(dir_calc),
             f"{s_calc['minimized_dfa_states']} / {s_calc['hopcroft_dfa_states']}",
-            f"-{s_calc['state_reduction_count']} (-{s_calc['state_reduction_percent']}%)",
             f"{s_calc['minimality']['distinguishable_pairs']}/{s_calc['minimality']['total_pairs']}",
-            "✓ 6-Way Eq",
+            f"{inter_calc['overlap_count']}/{inter_calc['total_pairs']} (0 lỗi)",
+            "✓ 100% Eq",
         ],
         [
             "MiniSQL",
@@ -1278,9 +1249,9 @@ def build_report() -> None:
             str(s_sql["subset_dfa_states"]),
             str(dir_sql),
             f"{s_sql['minimized_dfa_states']} / {s_sql['hopcroft_dfa_states']}",
-            f"-{s_sql['state_reduction_count']} (-{s_sql['state_reduction_percent']}%)",
             f"{s_sql['minimality']['distinguishable_pairs']}/{s_sql['minimality']['total_pairs']}",
-            "✓ 6-Way Eq",
+            f"{inter_sql['overlap_count']}/{inter_sql['total_pairs']} (0 lỗi)",
+            "✓ 100% Eq",
         ],
     ]
     add_styled_table(
@@ -1293,13 +1264,13 @@ def build_report() -> None:
             "Sub-DFA",
             "Dir-DFA",
             "Moore/Hop",
-            "Giảm TT",
             "Myhill–Nerode",
+            "Giao L(Rᵢ)∩L(Rⱼ)",
             "Kiểm chứng",
         ],
         bench_rows,
-        col_widths_cm=[1.8, 1.0, 1.2, 1.2, 1.4, 1.4, 1.7, 1.9, 2.2, 1.9],
-        font_size=8.2,
+        col_widths_cm=[1.8, 1.0, 1.1, 1.1, 1.3, 1.3, 1.6, 2.2, 2.5, 1.8],
+        font_size=8.1,
     )
 
     add_figure(
@@ -1316,17 +1287,15 @@ def build_report() -> None:
     )
     add_bullet(
         doc,
-        "Sự hội tụ tuyệt đối giữa Moore, Hopcroft và Combined Direct DFA: ",
-        "Trên cả 3 ngôn ngữ, thuật toán Moore và thuật toán Hopcroft đều hội tụ về đúng cùng một số trạng thái tối giản (`MiniLang: 78`, `CalcLang: 20`, `MiniSQL: 52`) "
-        "và được `verify_dfa_is_minimal()` chứng minh 100% cặp trạng thái phân biệt đôi một (`3.003/3.003`, `190/190`, `1.326/1.326`). "
-        "Đáng chú ý, nhánh `Combined Direct DFA` sinh trực tiếp ra DFA tối giản cho `CalcLang` (20) và `MiniSQL` (52), và chỉ dư đúng 1 trạng thái trên `MiniLang` (79 vs. 78) do nhánh `BLOCK_COMMENT`.",
+        "Sự hội tụ Moore ≡ Hopcroft, Kleene 360° & Đối chứng Vi sai Bộ sinh mã Lexer Độc lập: ",
+        "Trên cả 3 ngôn ngữ, Moore và Hopcroft đều hội tụ về cùng một Min-DFA duy nhất (`MiniLang: 78`, `CalcLang: 20`, `MiniSQL: 52`) với 100% cặp trạng thái phân biệt đôi một. "
+        "Khi xuất sang bộ quét Python độc lập bằng `codegen.py` (`MiniLangLexer`: 78 trạng thái × 44 lớp tương đương), kiểm thử vi sai xác nhận luồng Token và LexicalError trùng khớp 100% với engine gốc trên mọi ca kiểm thử.",
     )
     add_bullet(
         doc,
-        "Hiệu quả chống quay lui bậc hai O(n²) của bảng nhớ Reps (1998) & Chế độ Smart-Sync: ",
-        "Khi thử nghiệm quét chuỗi bệnh lý dài 10.000 ký tự chứa 5.000 cặp dấu ngoặc kép thoát nhưng không đóng (`\"` + `\\\"` * 5000), "
-        "nếu không có bảng nhớ `failed_states`, bộ quét cổ điển phải duyệt lại hậu tố tới 5.000 lần (tốn hàng chục triệu bước O(n²)). "
-        "Nhờ kỹ thuật Memoization của Reps (1998), hệ thống kích hoạt đúng **5.000 lần cắt nhánh O(1)** (`memoized_cutoffs = 5000`) và hoàn tất quét trong **~24 ms** (chế độ `panic_char`) hoặc **~4.3 ms** (chế độ `smart_sync` gom thành 1 lỗi duy nhất)!",
+        "Hiệu quả chống quay lui bậc hai O(n²) của bảng nhớ Reps (1998) & Phân tích Tĩnh L(Rᵢ) ∩ L(Rⱼ): ",
+        "Trên chuỗi bệnh lý dài 10.000 ký tự (`\"` + `\\\"` * 5000), bảng nhớ `failed_states` kích hoạt đúng **5.000 lần cắt nhánh O(1)**, giữ thời gian quét tuyến tính chỉ vài chục mili-giây thay vì hàng chục triệu bước O(n²). "
+        "Đồng thời, Ma trận Giao nhau Tĩnh chứng minh 732/741 cặp quy tắc của `MiniLang` rời nhau hoàn toàn và 9 cặp giao nhau duy nhất đều là quan hệ bao hàm có chủ đích `KW_* / BOOL_LIT ⊂ IDENTIFIER`.",
     )
 
     # =========================================================================
@@ -1334,36 +1303,35 @@ def build_report() -> None:
     # =========================================================================
     add_heading_1(doc, "7. Phân tích giới hạn lý thuyết và hướng phát triển")
 
-    add_heading_2(doc, "7.1. Các thách thức kỹ thuật đã được giải quyết triệt để & Giới hạn lý thuyết của DFA")
+    add_heading_2(doc, "7.1. Các lỗ hổng kỹ thuật tinh vi đã được giải quyết & Giới hạn lý thuyết của DFA")
     add_bullet(
         doc,
-        "Các lỗ hổng thường gặp của bộ phân tích từ vựng cơ bản đã được xử lý trọn vẹn trong đồ án: ",
-        "(1) Hiện tượng quay lui bậc hai O(n²) trên chuỗi chưa đóng dài đã được triệt tiêu bằng bảng nhớ `failed_states` (Reps, 1998); "
-        "(2) Vấn đề chuỗi/bình luận chưa đóng sinh nhiều token rác đã được giải quyết bằng chế độ `smart_sync` đối sánh trực tiếp với `panic_char`; "
-        "(3) Hạn chế bảng chữ cái ASCII đã được khắc phục bằng lớp tương đương `NON_ASCII` (`0x80`) hỗ trợ hoàn chỉnh tiếng Việt UTF-8 trong chuỗi và bình luận mà vẫn giữ DFA hữu hạn 99 ký hiệu; "
-        "(4) Rủi ro người dùng đặt sai thứ tự quy tắc đã được tự động bắt bằng cơ chế phát hiện **Shadowed Token Rules**.",
+        "Các thách thức và lỗ hổng kỹ thuật tinh vi đã được xử lý triệt để trong phiên bản v2.0: ",
+        "(1) Phân hoạch bảng chữ cái Unicode động `Σ(U)` kết hợp noncharacter `NON_ASCII (U+FDD0)` cho phép dùng trực tiếp từ khóa/ký hiệu Unicode (`nếu`, `€`, `[^€]`) mà không va chạm với lớp UTF-8 chung; "
+        "(2) Phủ kín 128 mã ASCII `0x00..0x7F` bảo toàn luật đối hợp đại số Boole `~(~A) = A` và loại trừ `\\r` khỏi `STRING_LIT` trên Windows CRLF; "
+        "(3) Chặn đứng bom nhân bản AST lồng nhau `(((a{64}){64}){64})` bằng ngưỡng `MAX_AST_NODES = 4096`; "
+        "(4) Khép kín chiều ngược Kleene 360° (`GNFA DFA → RE`), Ma trận Giao nhau `L(Rᵢ) ∩ L(Rⱼ)`, chống O(n²) theo Reps (1998) và sinh mã Lexer độc lập kiểu Flex.",
     )
     add_bullet(
         doc,
         "Giới hạn lý thuyết bất khả kháng của Automata hữu hạn (Chứng minh bằng Bổ đề Bơm — Pumping Lemma Chương 3.2): ",
-        "Mặc dù hệ thống đã hỗ trợ hoàn chỉnh bình luận nhiều dòng chuẩn C/Java `/* ... */` bằng biểu thức chính quy `/\\*([^*]|\\*+[^*/])*\\*+/`, "
+        "Dù hệ thống đã hỗ trợ bình luận nhiều dòng chuẩn C/Java `/* ... */` bằng RE `/\\*([^*]|\\*+[^*/])*\\*+/`, "
         "một DFA đơn lẻ **không thể** nhận diện bình luận nhiều dòng **lồng nhau sâu tùy ý** (`/* ... /* ... */ ... */`, như trong Rust/Swift). "
-        "Lý do toán học: nếu thay `/*` bằng `a` và `*/` bằng `b`, ngôn ngữ các bình luận lồng nhau cân bằng đẳng cấu với ngôn ngữ `L = { a^n b^n | n ≥ 1 }`. "
-        "Theo **Bổ đề Bơm cho ngôn ngữ chính quy (Chương 3.2)**, với mọi hằng số bơm `p = |Q|`, chọn chuỗi `w = a^p b^p ∈ L`, mọi cách tách `w = xyz` với `|xy| ≤ p` và `|y| ≥ 1` "
-        "đều có `y = a^k (k ≥ 1)`, dẫn tới `xy²z = a^{p+k} b^p ∉ L` (mâu thuẫn!). Tương tự, cấu trúc thụt lề phụ thuộc ngữ cảnh (`INDENT`/`DEDENT` của Python) đòi hỏi một ngăn xếp (Stack) lưu lịch sử cột.",
+        "Nếu thay `/*` bằng `a` và `*/` bằng `b`, ngôn ngữ này đẳng cấu với `L = { a^n b^n | n ≥ 1 }`. "
+        "Theo **Bổ đề Bơm (Chương 3.2)**, với mọi hằng số bơm `p = |Q|`, xét `w = a^p b^p ∈ L`, mọi cách tách `w = xyz` (`|xy| ≤ p`, `|y| ≥ 1`) "
+        "đều có `y = a^k (k ≥ 1)` nên `xy²z = a^{p+k} b^p ∉ L` (mâu thuẫn!). Tương tự, thụt lề phụ thuộc ngữ cảnh (`INDENT`/`DEDENT` của Python) cần thêm một ngăn xếp (Stack) lưu lịch sử cột.",
     )
 
     add_heading_2(doc, "7.2. Hướng phát triển tiếp theo")
     add_bullet(
         doc,
         "Tích hợp Ngăn xếp Ngữ cảnh Từ vựng (Lexical Start Conditions & Counter Automaton): ",
-        "Bổ sung chồng trạng thái ngữ cảnh (`push_state(IN_NESTED_COMMENT)`, `pop_state()`) kết hợp bộ đếm độ sâu lồng nhau để hỗ trợ cả bình luận lồng nhau và nội suy chuỗi (`\"Hello ${name}\"`).",
+        "Bổ sung chồng trạng thái ngữ cảnh (`push_state(IN_NESTED_COMMENT)`, `pop_state()`) kết hợp bộ đếm độ sâu lồng nhau để hỗ trợ bình luận lồng nhau và nội suy chuỗi (`\"Hello ${name}\"`).",
     )
     add_bullet(
         doc,
         "Kết nối trực tiếp với Bộ phân tích cú pháp Văn phạm phi ngữ cảnh (Chương 4 — CFG & PDA): ",
-        "Sử dụng luồng `Token` đầu ra của `LexicalAnalyzer` làm đầu vào trực tiếp cho bộ phân tích cú pháp `LL(1)` / `LR(1)` (Pushdown Automata — PDA), "
-        "khép kín trọn vẹn kiến thức từ Chương 1–3 (FA/RE) sang Chương 4–5 (CFG/PDA) của học phần Ngôn ngữ hình thức.",
+        "Đưa luồng `Token` đầu ra của `LexicalAnalyzer` (hoặc của file Lexer độc lập sinh bởi `codegen.py`) vào bộ phân tích cú pháp `LL(1)` / `LR(1)` (Pushdown Automata — PDA), khép kín kiến thức từ Chương 1–3 sang Chương 4–5.",
     )
 
     # =========================================================================
@@ -1372,15 +1340,13 @@ def build_report() -> None:
     add_heading_1(doc, "8. Kết luận")
     add_body(
         doc,
-        "Đồ án đã hoàn thành toàn diện và vượt xa yêu cầu của Đề tài T13 — Automata-based Lexical Analyzer. "
-        "Từ nền tảng lý thuyết Automata hữu hạn và Biểu thức chính quy của học phần Ngôn ngữ hình thức (UEH), nhóm đã tự thiết kế và cài đặt "
-        "100% chuỗi 6 phương pháp Automata từ con số 0 (Zero `import re` trong lõi): phân tích cú pháp RE hỗ trợ `{m,n}` và `NON_ASCII` UTF-8, "
-        "cấu trúc Thompson đa-token, thuật toán Khử ε (Định lý 2 Chương 3.1), Subset Construction kết hợp Alphabet Partitioning và phát hiện luật che khuất, "
-        "nhánh đối chứng Direct RE → DFA đơn lẻ và Đa-Token kết hợp (`r·#`, `followpos`), tối thiểu hóa song song bằng cả hai thuật toán Moore và Hopcroft `O(|E|·|Q|log|Q|)`, "
-        "chứng minh tương đương 6 chiều bằng Product Automaton, chứng minh tính tối giản tuyệt đối bằng Định lý Myhill–Nerode, kiểm chứng khứ hồi JFLAP `.jff`, "
-        "và bộ quét từ vựng Maximal Munch tuyến tính chặt `O(n)` (Reps, 1998) hỗ trợ hai chế độ phục hồi lỗi (`panic_char` và `smart_sync`). "
-        "Toàn bộ hệ thống được kiểm chứng nghiêm ngặt qua **62/62 kịch bản kiểm thử JSON (100% PASS)** và **16/16 bộ Unittest bất biến toán học**, "
-        "cùng ứng dụng Web tương tác `LexAutomata Studio` 5 Tab sẵn sàng phục vụ giảng dạy và thực hành.",
+        "Đồ án đã hoàn thành toàn diện và mở rộng sâu sắc yêu cầu của Đề tài T13 — Automata-based Lexical Analyzer. "
+        "Từ nền tảng lý thuyết của học phần Ngôn ngữ hình thức (UEH), nhóm đã tự thiết kế và cài đặt 100% từ con số 0 (Zero `import re` trong lõi) "
+        "một hệ thống khép kín **Vòng tròn Định lý Kleene 360°**: phân tích cú pháp RE chống bom AST (`≤ 4096` nút) trên bảng chữ cái Unicode động `Σ(U)` bảo toàn đại số Boole `~(~A) = A`, "
+        "Thompson `ε-NFA`, Khử `ε` (Định lý 2), `Subset DFA`, `Direct RE → DFA` đơn lẻ & đa-token (`r·#`), tối thiểu hóa song song `Moore & Hopcroft`, "
+        "chiều ngược **GNFA State Elimination (`DFA → RE`)**, **Ma trận Giao nhau Tĩnh `L(Rᵢ) ∩ L(Rⱼ)`**, chứng minh tối giản **Myhill–Nerode**, "
+        "bộ quét tuyến tính chặt `O(n)` (Reps, 1998) và **Bộ sinh mã Lexer Python Độc lập kiểu Flex**. "
+        "Toàn bộ hệ thống vượt qua tuyệt đối **72/72 kịch bản JSON (100% PASS)** và **22/22 bộ Unittest**, kèm ứng dụng Web `LexAutomata Studio` 5 Tab phục vụ trực quan cho học tập và giảng dạy.",
     )
 
     # =========================================================================
@@ -1418,28 +1384,28 @@ def build_report() -> None:
             "1",
             "[Họ tên TV 1]",
             "[MSSV 1]",
-            "Quản lý tiến độ; hệ thống hóa cơ sở lý thuyết Chương 1–3 & chứng minh Myhill–Nerode / Bổ đề Bơm; biên soạn báo cáo kỹ thuật & slide; phụ trách Lý thuyết khi bảo vệ.",
+            "Quản lý tiến độ; hệ thống hóa cơ sở lý thuyết Chương 1–3, vòng tròn Kleene 360°, đại số Boole ~(~A)=A & Myhill–Nerode / Bổ đề Bơm; biên soạn báo cáo & slide.",
             "25%",
         ],
         [
             "2",
             "[Họ tên TV 2]",
             "[MSSV 2]",
-            "Cài đặt `models.py` (`NON_ASCII` UTF-8), `regex_parser.py` (`{m,n}`), `thompson.py` (Thompson & Định lý 2 Khử ε), `direct_dfa.py` (Đơn lẻ & Đa-Token kết hợp); demo Tab 3.",
+            "Cài đặt `models.py` (ASCII 0..127 & Unicode động `Σ(U)`), `regex_parser.py` (`{m,n}`, `MAX_AST_NODES=4096`), `thompson.py` (Khử ε ĐL 2), `direct_dfa.py`; demo Tab 3.",
             "25%",
         ],
         [
             "3",
             "[Họ tên TV 3]",
             "[MSSV 3]",
-            "Cài đặt `subset_construction.py` (Alphabet Partitioning & Shadowed Rules), `dfa_minimizer.py` (Moore & Hopcroft), `verifier.py` (Product Automaton & Myhill–Nerode), `jflap_export.py` (Round-Trip); demo Tab 2.",
+            "Cài đặt `subset_construction.py`, `dfa_minimizer.py` (Moore, Hopcroft & `complement_dfa`), `gnfa.py` (DFA → RE), `verifier.py` (Ma trận `L(Rᵢ)∩L(Rⱼ)`), `jflap_export.py`; demo Tab 2.",
             "25%",
         ],
         [
             "4",
             "[Họ tên TV 4]",
             "[MSSV 4]",
-            "Cài đặt `scanner.py` (Maximal Munch O(n) Reps 1998, `panic_char` & `smart_sync`), `app.py`, `cli.py`, giao diện Web Studio 5 Tab (`web/`) & bộ 62 test cases + 16 unittest (`tests/`); demo Tab 1, 4, 5.",
+            "Cài đặt `scanner.py` (Reps 1998 O(n)), `codegen.py` (Standalone Flex-style Lexer Generator), `app.py`, `cli.py`, Web Studio 5 Tab & bộ 72 test cases + 22 unittest; demo Tab 1, 4, 5.",
             "25%",
         ],
     ]
@@ -1456,14 +1422,14 @@ def build_report() -> None:
         ["Công cụ AI sử dụng", "Trợ lý lập trình AI (Google Gemini / Antigravity)"],
         [
             "Mục đích sử dụng",
-            "• Tham khảo, rà soát thuật ngữ lý thuyết Automata và cấu trúc thuật toán (Định lý 2 Khử ε, Alphabet Partitioning, Multi-token Moore & Hopcroft Minimization, Myhill–Nerode Witness, Reps 1998 Linear-Time Maximal Munch).\n"
-            "• Gợi ý kiến trúc phân tách module, hỗ trợ kiểm tra các trường hợp biên (lớp ký tự `[-a]`, `[a-]`, `[^^]`, định lượng `{m,n}`, `NON_ASCII` UTF-8, phát hiện luật bị che khuất Shadowed Rules).\n"
-            "• Hỗ trợ xây dựng giao diện trực quan hóa SVG Web Studio 5 Tab, bộ 62 test cases JSON + 16 unittest bất biến toán học và chuẩn hóa trình bày báo cáo/slide.",
+            "• Tham khảo, rà soát thuật ngữ lý thuyết Automata và cấu trúc thuật toán (Vòng tròn Kleene 360° & GNFA State Elimination, Phân hoạch Unicode động `Σ(U)`, Moore & Hopcroft Min-DFA, Myhill–Nerode, Reps 1998 O(n) & Table-Driven Lexer Codegen).\n"
+            "• Gợi ý kiểm tra các lỗ hổng tinh vi (đối hợp đại số Boole `~(~A)=A` trên ASCII `0x00..0x7F`, bom nhân bản AST lồng nhau `MAX_AST_NODES=4096`, `STRING_LIT` loại trừ `\\r` trên CRLF, Ma trận Giao nhau `L(Rᵢ)∩L(Rⱼ)`).\n"
+            "• Hỗ trợ xây dựng giao diện trực quan hóa SVG Web Studio 5 Tab, bộ 72 test cases JSON + 22 unittest bất biến toán học và chuẩn hóa trình bày báo cáo/slide.",
         ],
         [
             "Phạm vi kiểm chứng & Trách nhiệm của nhóm",
             "• Toàn bộ thành viên nhóm đã đọc hiểu, kiểm tra từng dòng thuật toán cốt lõi trong `lexer_engine/`, tự kiểm chứng đối chiếu với ví dụ bài giảng Chương 3.1 "
-            "(Slide 21–22, Slide 38 và Slide 46–57), chạy 100% bộ kiểm thử tự động (62/62 JSON PASS + 16/16 Unittest OK) và đối chứng khứ hồi trên JFLAP.\n"
+            "(Slide 21–22, Slide 38 và Slide 46–57), chạy 100% bộ kiểm thử tự động (72/72 JSON PASS + 22/22 Unittest OK), đối chứng vi sai Lexer độc lập và kiểm chứng khứ hồi trên JFLAP.\n"
             "• Nhóm chịu trách nhiệm hoàn toàn về độ chính xác khoa học của mã nguồn, kết quả thực nghiệm và sẵn sàng giải thích chi tiết từng dòng code trong buổi bảo vệ.",
         ],
     ]

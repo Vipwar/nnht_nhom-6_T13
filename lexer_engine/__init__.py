@@ -1,15 +1,17 @@
 """
-T13: Automata-based Lexical Analyzer Engine (100% from scratch, zero `re` usage).
+T13: Automata-based Lexical Analyzer Engine — Version 2.0 Ultimate
+(100% from scratch, zero `import re` usage).
 
 Exposes:
 - LexicalAnalyzer: Full multi-token compilation pipeline
-      Token REs -> Combined ε-NFA -> ε-free NFA (Theorem 2) -> Subset DFA
-      -> Moore & Hopcroft Minimized Multi-token DFA -> Myhill-Nerode Minimality Proof
-      -> Shadowed Rule Detector -> Reps O(n) Linear-Time Scanner
-- inspect_single_regex: Full pedagogical pipeline for a single RE
+      Token REs -> Dynamic Unicode Alphabet Sigma(U) -> Combined ε-NFA
+      -> ε-free NFA (Theorem 2) -> Subset DFA -> Moore & Hopcroft Minimized DFA
+      -> Myhill-Nerode Minimality Proof -> Static Intersection Matrix L(R_i) ∩ L(R_j)
+      -> Shadowed Rule Detector -> Standalone Table-Driven Codegen -> Reps O(n) Scanner
+- inspect_single_regex: Full 360° Kleene Theorem pedagogical pipeline for a single RE
       RE -> AST & Postfix -> Thompson ε-NFA -> ε-free NFA -> Subset DFA
       -> Direct DFA (r# / followpos) -> Minimized DFA (Moore & Hopcroft)
-      -> Formal Equivalence & Minimality Proofs
+      -> GNFA State Elimination (DFA -> Synthesized RE) -> Formal Equivalence & Minimality Proofs
 """
 
 from __future__ import annotations
@@ -18,24 +20,35 @@ import time
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional
 
-from .dfa_minimizer import MinimizationResult, minimize_dfa, minimize_dfa_hopcroft
+from .codegen import generate_standalone_lexer
+from .dfa_minimizer import (
+    MinimizationResult,
+    complement_dfa,
+    minimize_dfa,
+    minimize_dfa_hopcroft,
+)
 from .direct_dfa import DirectDFAResult, build_combined_direct_dfa, build_direct_dfa
+from .gnfa import GNFAEliminationResult, dfa_to_regex
 from .jflap_export import (
     export_dfa_to_jflap,
     export_nfa_to_jflap,
     import_jflap_to_dfa,
     import_jflap_to_nfa,
 )
-from .models import DFA, NFA, ScanResult, TokenSpec
+from .models import DFA, NFA, ScanResult, TokenSpec, build_dynamic_sigma, complement_charset
 from .presets import PRESETS, SINGLE_REGEX_EXAMPLES
-from .regex_parser import RegexSyntaxError, parse_regex
+from .regex_parser import MAX_AST_NODES, MAX_QUANTIFIER_BOUND, RegexSyntaxError, parse_regex
 from .scanner import scan_source
 from .subset_construction import nfa_to_dfa
 from .thompson import build_combined_nfa, build_token_nfa, eliminate_epsilon
 from .verifier import (
     EquivalenceResult,
+    IntersectionMatrixResult,
     MinimalityResult,
+    PairIntersectionInfo,
+    analyze_token_intersections,
     check_dfa_equivalence,
+    check_dfa_intersection,
     compare_regex_equivalence,
     verify_dfa_is_minimal,
     verify_nfa_dfa_on_strings,
@@ -56,6 +69,7 @@ class LexicalAnalyzer:
     equivalence: EquivalenceResult
     moore_vs_hopcroft_equivalence: EquivalenceResult
     minimality_proof: MinimalityResult
+    intersection_analysis: IntersectionMatrixResult
     token_reports: List[Dict]
     warnings: List[str]
     compile_timings_ms: Dict[str, float]
@@ -102,6 +116,10 @@ class LexicalAnalyzer:
         hopcroft_res = minimize_dfa_hopcroft(subset_dfa)
         timings["hopcroft_ms"] = round((time.perf_counter() - t_hop) * 1000.0, 3)
 
+        t_inter = time.perf_counter()
+        intersection_res = analyze_token_intersections(specs)
+        timings["intersection_ms"] = round((time.perf_counter() - t_inter) * 1000.0, 3)
+
         # Detect shadowed / dead token rules (rules that never win at any reachable accepting state)
         winning_tokens = {
             info.token_name for info in min_res.minimized_dfa.accept_states.values()
@@ -116,6 +134,10 @@ class LexicalAnalyzer:
                         winner = subset_dfa.accept_states[q].token_name
                         if winner != tname and winner not in shadowers:
                             shadowers.append(winner)
+                if not shadowers:
+                    for ov in intersection_res.overlaps:
+                        if ov.rule_j == tname and ov.rule_i not in shadowers:
+                            shadowers.append(ov.rule_i)
                 by_str = ", ".join(shadowers) if shadowers else "quy tắc ưu tiên cao hơn"
                 warn_msg = (
                     f"Cảnh báo: Quy tắc `{tname}` bị che khuất hoàn toàn bởi quy tắc ưu tiên cao hơn "
@@ -139,7 +161,9 @@ class LexicalAnalyzer:
 
         t3 = time.perf_counter()
         if verify_equivalence:
-            eq_res = check_dfa_equivalence(subset_dfa, min_res.minimized_dfa, check_token_names=True)
+            eq_res = check_dfa_equivalence(
+                subset_dfa, min_res.minimized_dfa, check_token_names=True
+            )
             eq_moore_hop = check_dfa_equivalence(
                 min_res.minimized_dfa, hopcroft_res.minimized_dfa, check_token_names=True
             )
@@ -172,6 +196,7 @@ class LexicalAnalyzer:
             equivalence=eq_res,
             moore_vs_hopcroft_equivalence=eq_moore_hop,
             minimality_proof=min_proof,
+            intersection_analysis=intersection_res,
             token_reports=token_reports,
             warnings=warnings,
             compile_timings_ms=timings,
@@ -200,6 +225,12 @@ class LexicalAnalyzer:
             error_recovery=error_recovery,
         )
 
+    def generate_standalone_code(
+        self, class_name: str = "GeneratedLexer", preset_name: str = "custom"
+    ) -> str:
+        """Generate a standalone zero-dependency table-driven Python lexer source file."""
+        return generate_standalone_lexer(self, class_name=class_name, preset_name=preset_name)
+
     def summary_dict(self) -> Dict:
         conflict_states = [
             {
@@ -226,11 +257,20 @@ class LexicalAnalyzer:
             "minimized_dfa_edges": self.minimized_dfa.edge_count(),
             "hopcroft_dfa_states": len(self.hopcroft_minimization.minimized_dfa.states),
             "char_class_count": len(self.minimized_dfa.char_classes),
+            "unicode_char_count": len(self.minimized_dfa.unicode_chars),
+            "unicode_chars": sorted(self.minimized_dfa.unicode_chars),
             "state_reduction_count": self.minimization.reduction_count,
             "state_reduction_percent": self.minimization.reduction_percent,
             "equivalence": self.equivalence.to_dict(),
             "moore_vs_hopcroft": self.moore_vs_hopcroft_equivalence.to_dict(),
             "minimality": self.minimality_proof.to_dict(),
+            "intersection_summary": {
+                "total_pairs": self.intersection_analysis.total_pairs,
+                "disjoint_count": self.intersection_analysis.disjoint_count,
+                "overlap_count": self.intersection_analysis.overlap_count,
+                "safe_priority_count": self.intersection_analysis.safe_priority_count,
+                "shadow_conflict_count": self.intersection_analysis.shadow_conflict_count,
+            },
             "priority_conflicts_resolved": conflict_states,
             "token_reports": self.token_reports,
         }
@@ -242,11 +282,13 @@ def inspect_single_regex(
     test_strings: Optional[List[str]] = None,
 ) -> Dict:
     """
-    Run the complete dual formal-languages pipeline on a SINGLE regular expression:
+    Run the complete 360° Kleene Theorem formal-languages pipeline on a SINGLE regular expression:
       Path A: RE -> AST/Postfix -> Thompson ε-NFA -> ε-free NFA (Theorem 2)
                  -> Subset DFA -> Minimized DFA (Moore & Hopcroft)
       Path B: RE -> Augmented Syntax Tree (r#) -> nullable/firstpos/lastpos/followpos -> Direct DFA
-    And formally verify Subset DFA ≡ Direct DFA ≡ Moore Min-DFA ≡ Hopcroft Min-DFA + Myhill-Nerode Minimality!
+      Path C: Minimized DFA -> GNFA State Elimination -> Synthesized RE (R_syn)
+    And formally verify Subset DFA ≡ Direct DFA ≡ Moore Min-DFA ≡ Hopcroft Min-DFA ≡ L(R_syn)
+    plus Myhill-Nerode Minimality!
     """
     ast = parse_regex(pattern)
     nfa, _ = build_token_nfa(pattern, token_name=token_name)
@@ -255,6 +297,7 @@ def inspect_single_regex(
     min_res = minimize_dfa(subset_dfa)
     hopcroft_res = minimize_dfa_hopcroft(subset_dfa)
     direct_res: DirectDFAResult = build_direct_dfa(pattern, token_name=token_name)
+    gnfa_res: GNFAEliminationResult = dfa_to_regex(min_res.minimized_dfa, verify_roundtrip=True)
 
     eq_subset_min = check_dfa_equivalence(subset_dfa, min_res.minimized_dfa, check_token_names=False)
     eq_subset_direct = check_dfa_equivalence(subset_dfa, direct_res.dfa, check_token_names=False)
@@ -266,7 +309,7 @@ def inspect_single_regex(
     string_tests = []
     if test_strings:
         for s in test_strings:
-            nfa_ok, _, nfa_trace = nfa.simulate(s)
+            nfa_ok, _, _ = nfa.simulate(s)
             eps_free_ok, _, _ = eps_free_nfa.simulate(s)
             dfa_ok, _, dfa_trace = min_res.minimized_dfa.simulate(s)
             hop_ok, _, _ = hopcroft_res.minimized_dfa.simulate(s)
@@ -288,6 +331,8 @@ def inspect_single_regex(
         "pattern": pattern,
         "token_name": token_name,
         "nullable": ast.is_nullable(),
+        "ast_nodes": ast.node_count(),
+        "unicode_chars": sorted(ast.explicit_unicode_chars()),
         "explicit_infix": ast.to_explicit_infix(),
         "postfix": " ".join(ast.to_postfix_tokens()),
         "nfa": nfa.to_graph_dict(),
@@ -300,11 +345,18 @@ def inspect_single_regex(
         "minimized_table": min_res.minimized_dfa.to_transition_table(),
         "minimization": min_res.to_dict(),
         "hopcroft_minimization": hopcroft_res.to_dict(),
+        "gnfa": gnfa_res.to_dict(),
         "minimality": minimality.to_dict(),
         "equivalence": {
             "subset_vs_minimized": eq_subset_min.to_dict(),
             "subset_vs_direct": eq_subset_direct.to_dict(),
             "moore_vs_hopcroft": eq_moore_hopcroft.to_dict(),
+            "kleene_roundtrip": {
+                "equivalent": gnfa_res.kleene_equivalent,
+                "visited_pairs": gnfa_res.visited_pairs,
+                "synthesized_regex": gnfa_res.synthesized_regex,
+                "message": gnfa_res.verification_message,
+            },
         },
         "string_tests": string_tests,
     }
@@ -314,21 +366,32 @@ __all__ = [
     "LexicalAnalyzer",
     "TokenSpec",
     "RegexSyntaxError",
+    "MAX_AST_NODES",
+    "MAX_QUANTIFIER_BOUND",
     "PRESETS",
     "SINGLE_REGEX_EXAMPLES",
     "inspect_single_regex",
     "eliminate_epsilon",
     "minimize_dfa",
     "minimize_dfa_hopcroft",
+    "complement_dfa",
+    "complement_charset",
+    "build_dynamic_sigma",
     "build_direct_dfa",
     "build_combined_direct_dfa",
+    "dfa_to_regex",
+    "GNFAEliminationResult",
+    "generate_standalone_lexer",
     "export_nfa_to_jflap",
     "export_dfa_to_jflap",
     "import_jflap_to_nfa",
     "import_jflap_to_dfa",
     "check_dfa_equivalence",
+    "check_dfa_intersection",
+    "analyze_token_intersections",
+    "IntersectionMatrixResult",
+    "PairIntersectionInfo",
     "verify_dfa_is_minimal",
     "compare_regex_equivalence",
     "verify_nfa_dfa_on_strings",
 ]
-

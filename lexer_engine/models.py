@@ -3,37 +3,89 @@ Core formal-language data models for the Automata-based Lexical Analyzer (Topic 
 
 Zero external dependencies. Does NOT use Python's `re` module.
 Formal definitions follow Hopcroft, Motwani & Ullman (3rd Ed.) and UEH Formal Languages slides:
-- Alphabet Sigma (printable ASCII 32..126 + tab/LF/CR)
-- Regular Expression AST nodes
-- Epsilon-NFA: N = (Q, Sigma, delta, q0, F) with multi-token accept annotations
-- DFA: D = (Q, Sigma, delta, q0, F) using exact character equivalence classes (min-terms)
+- Full 7-bit ASCII Alphabet (0x00..0x7F, all 128 characters including \\f, \\v, \\0, DEL)
+  plus Dynamic Unicode Alphabet Partitioning:
+      Sigma(U) = ASCII_SIGMA (128) U U_explicit U {NON_ASCII}
+  guaranteeing strict Boolean algebra involution ~(~A) == A over Sigma(U)
+  and supporting explicit Unicode literals/identifiers (e.g., `nếu`, `€`) without colliding with NON_ASCII.
+- Epsilon-NFA: N = (Q, Sigma(U), delta, q0, F) with multi-token accept annotations
+- DFA: D = (Q, Sigma(U), delta, q0, F) using exact character equivalence classes (min-terms)
 - Token, LexicalError, Execution Trace & Statistics
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, FrozenSet, List, Optional, Set, Tuple
+from typing import Dict, FrozenSet, Iterable, List, Optional, Set, Tuple
 
-# Working finite alphabet Sigma:
-# - 98 standard ASCII characters: printable ASCII (32..126) + whitespace control chars (\t, \n, \r)
-# - NON_ASCII representative class (chr(128)) standing for all UTF-8 / Unicode characters (ord(c) >= 128)
-NON_ASCII: str = "\x80"
+# Internal Unicode Noncharacter sentinel (Unicode Standard §23.7: U+FDD0..U+FDEF permanently
+# reserved for internal engine use). Represents all Unicode code points >= 0x80 NOT in U_explicit.
+NON_ASCII: str = "\ufdd0"
 
-ASCII_SIGMA_LIST: Tuple[str, ...] = tuple(
-    ["\t", "\n", "\r"] + [chr(code) for code in range(32, 127)]
-)
+# Full 7-bit ASCII alphabet 0x00..0x7F (128 characters, including \0, \t, \n, \v, \f, \r, 0x20..0x7E, 0x7F)
+ASCII_SIGMA_LIST: Tuple[str, ...] = tuple(chr(code) for code in range(128))
 ASCII_SIGMA: FrozenSet[str] = frozenset(ASCII_SIGMA_LIST)
 
+# Base symbolic alphabet (128 ASCII + 1 NON_ASCII wildcard representative = 129 base symbols)
 SIGMA_LIST: Tuple[str, ...] = ASCII_SIGMA_LIST + (NON_ASCII,)
 SIGMA: FrozenSet[str] = frozenset(SIGMA_LIST)
 
 EPSILON: Optional[str] = None  # Symbolic marker for epsilon transitions
 
 
-def normalize_char(ch: str) -> str:
-    """Map any non-ASCII Unicode character (ord >= 128) to the NON_ASCII representative."""
-    return NON_ASCII if ord(ch) >= 128 else ch
+def build_dynamic_sigma(unicode_chars: FrozenSet[str] = frozenset()) -> FrozenSet[str]:
+    """
+    Construct the dynamic finite alphabet:
+        Sigma(U) = ASCII_SIGMA (0x00..0x7F) U U_explicit U {NON_ASCII}.
+    """
+    if not unicode_chars:
+        return SIGMA
+    cleaned = frozenset(c for c in unicode_chars if ord(c) >= 128 and c != NON_ASCII)
+    return SIGMA | cleaned
+
+
+def complement_charset(
+    chars: FrozenSet[str],
+    unicode_chars: FrozenSet[str] = frozenset(),
+) -> FrozenSet[str]:
+    """
+    Exact Boolean algebra complement ~A = Sigma(U) \\ A.
+    Guarantees strict involution: complement_charset(complement_charset(A, U), U) == A
+    for every subset A <= Sigma(U).
+    """
+    sigma_u = build_dynamic_sigma(unicode_chars)
+    return sigma_u - chars
+
+
+def lift_charset_to_unicode(
+    chars: FrozenSet[str],
+    own_unicode: FrozenSet[str],
+    target_unicode: FrozenSet[str],
+) -> FrozenSet[str]:
+    """
+    Lift a character set defined over Sigma(own_unicode) to a larger alphabet Sigma(target_unicode).
+    If `NON_ASCII` belongs to `chars` (meaning `chars` accepts general non-ASCII code points outside
+    `own_unicode`), then any newly introduced explicit Unicode symbol u in (target_unicode - own_unicode)
+    was previously represented by `NON_ASCII` and therefore belongs to the lifted set.
+    """
+    if NON_ASCII not in chars:
+        return chars
+    extra = target_unicode - own_unicode
+    if not extra:
+        return chars
+    return chars | frozenset(c for c in extra if ord(c) >= 128 and c != NON_ASCII)
+
+
+def normalize_char(ch: str, unicode_chars: FrozenSet[str] = frozenset()) -> str:
+    """
+    Deterministically project any runtime Unicode character `ch` onto Sigma(U):
+    - ASCII (0x00..0x7F) -> `ch`
+    - Explicit Unicode symbol (`ch in unicode_chars`) -> `ch`
+    - Any other non-ASCII character (`ord(ch) >= 128`) -> `NON_ASCII`
+    """
+    if ord(ch) < 128 or ch == NON_ASCII or ch in unicode_chars:
+        return ch
+    return NON_ASCII
 
 
 def escape_char_display(ch: str) -> str:
@@ -46,6 +98,7 @@ def escape_char_display(ch: str) -> str:
         "\r": "\\r",
         "\v": "\\v",
         "\f": "\\f",
+        "\0": "\\0",
         " ": "␣",
         "\\": "\\\\",
     }
@@ -57,7 +110,7 @@ def escape_char_display(ch: str) -> str:
 
 
 def escape_char_in_class(ch: str) -> str:
-    """Format a character inside [...] notation."""
+    """Format a character inside [...] human-readable display notation."""
     if ch == NON_ASCII:
         return "\\u0080+"
     special = {
@@ -66,9 +119,11 @@ def escape_char_in_class(ch: str) -> str:
         "\r": "\\r",
         "\v": "\\v",
         "\f": "\\f",
+        "\0": "\\0",
         " ": " ",
         "\\": "\\\\",
         "]": "\\]",
+        "[": "\\[",
         "-": "\\-",
         "^": "\\^",
     }
@@ -79,40 +134,69 @@ def escape_char_in_class(ch: str) -> str:
     return ch
 
 
-def format_charset(chars: FrozenSet[str], max_len: int = 18) -> str:
+def format_charset(
+    chars: FrozenSet[str],
+    max_len: int = 18,
+    unicode_chars: FrozenSet[str] = frozenset(),
+) -> str:
     """
     Compress a set of characters into a concise, human-readable label.
     Examples:
         {'a'} -> "a"
         {'0'..'9'} -> "[0-9]"
-        SIGMA - {'"', '\\n'} -> '[^"\\n]'
+        Sigma(U) - {'"', '\\n', '\\r'} -> '[^"\\n\\r]'
     """
     if not chars:
         return "∅"
     if len(chars) == 1:
         ch = next(iter(chars))
         return escape_char_display(ch)
-    if chars == SIGMA:
+
+    inferred_u = unicode_chars | frozenset(
+        c for c in chars if ord(c) >= 128 and c != NON_ASCII
+    )
+    sigma_u = build_dynamic_sigma(inferred_u)
+    if chars == sigma_u:
         return "Σ"
 
-    # If the complement inside SIGMA is very small (<= 4 chars), use negated class [^...]
-    complement = SIGMA - chars
-    if 0 < len(complement) <= 4 and len(chars) > len(complement) + 6:
-        ordered_comp = sorted(complement, key=lambda c: ord(c))
+    # If NON_ASCII is in chars (or the complement inside Sigma(U) is small <= 6 chars),
+    # prefer negated class [^...] when cleaner
+    complement = sigma_u - chars
+    if NON_ASCII in chars and 0 < len(complement) <= 8:
+        ordered_comp = sorted(complement, key=ord)
         body = "".join(escape_char_in_class(c) for c in ordered_comp)
-        return f"[^{body}]"
+        label = f"[^{body}]"
+        if len(label) > max_len:
+            return label[: max_len - 4] + "...]"
+        return label
+    if 0 < len(complement) <= 4 and len(chars) > len(complement) + 6:
+        ordered_comp = sorted(complement, key=ord)
+        body = "".join(escape_char_in_class(c) for c in ordered_comp)
+        label = f"[^{body}]"
+        if len(label) > max_len:
+            return label[: max_len - 4] + "...]"
+        return label
 
-    # Build contiguous ASCII ranges
-    ordered = sorted(chars, key=lambda c: ord(c))
-    # Separate control whitespace, printable ASCII, and NON_ASCII for cleaner ranges
-    ctrl = [c for c in ordered if ord(c) < 32]
+    # Build contiguous ranges
+    ordered = sorted(chars, key=ord)
+    ctrl = [c for c in ordered if ord(c) < 32 or ord(c) == 127]
     printable = [c for c in ordered if 32 <= ord(c) < 127]
-    non_ascii = [c for c in ordered if ord(c) >= 128]
+    explicit_uni = [c for c in ordered if ord(c) >= 128 and c != NON_ASCII]
+    has_non_ascii = NON_ASCII in chars
 
     parts: List[str] = []
     if ctrl:
-        for c in ctrl:
-            parts.append(escape_char_in_class(c))
+        i = 0
+        while i < len(ctrl):
+            start = i
+            while i + 1 < len(ctrl) and ord(ctrl[i + 1]) == ord(ctrl[i]) + 1:
+                i += 1
+            if i - start >= 3:
+                parts.append(f"{escape_char_in_class(ctrl[start])}-{escape_char_in_class(ctrl[i])}")
+            else:
+                for k in range(start, i + 1):
+                    parts.append(escape_char_in_class(ctrl[k]))
+            i += 1
 
     i = 0
     while i < len(printable):
@@ -131,9 +215,10 @@ def format_charset(chars: FrozenSet[str], max_len: int = 18) -> str:
             parts.append(escape_char_in_class(printable[start]))
         i += 1
 
-    if non_ascii:
-        for c in non_ascii:
-            parts.append(escape_char_in_class(c))
+    for c in explicit_uni:
+        parts.append(escape_char_in_class(c))
+    if has_non_ascii:
+        parts.append(escape_char_in_class(NON_ASCII))
 
     label = "[" + "".join(parts) + "]"
     if len(label) > max_len:
@@ -141,9 +226,109 @@ def format_charset(chars: FrozenSet[str], max_len: int = 18) -> str:
     return label
 
 
+def _escape_regex_atom_char(ch: str) -> str:
+    """Format a single concrete character (ch != NON_ASCII) as a 100% parseable Regex atom."""
+    if ch == "\n":
+        return "\\n"
+    if ch == "\t":
+        return "\\t"
+    if ch == "\r":
+        return "\\r"
+    if ch == "\f":
+        return "\\f"
+    if ch == "\v":
+        return "\\v"
+    if ch == "ε":
+        return "\\u03b5"
+    if ch in ("\\", "|", "*", "+", "?", "(", ")", "[", "]", "{", "}", ".", "^"):
+        return "\\" + ch
+    if ord(ch) < 32 or ord(ch) == 127:
+        return f"\\x{ord(ch):02x}"
+    return ch
+
+
+def _escape_regex_class_char(ch: str) -> str:
+    """Format a single concrete character (ch != NON_ASCII) inside [...] so it is 100% parseable."""
+    if ch == "\n":
+        return "\\n"
+    if ch == "\t":
+        return "\\t"
+    if ch == "\r":
+        return "\\r"
+    if ch == "\f":
+        return "\\f"
+    if ch == "\v":
+        return "\\v"
+    if ch == "ε":
+        return "\\u03b5"
+    if ch in ("\\", "]", "[", "-", "^"):
+        return "\\" + ch
+    if ord(ch) < 32 or ord(ch) == 127:
+        return f"\\x{ord(ch):02x}"
+    return ch
+
+
+def _format_exact_class_body(concrete_chars: Iterable[str]) -> str:
+    """Compress concrete characters (no NON_ASCII) into an exact, lossless [...] body."""
+    ordered = sorted(concrete_chars, key=ord)
+    parts: List[str] = []
+    i = 0
+    n = len(ordered)
+    while i < n:
+        start = i
+        while i + 1 < n and ord(ordered[i + 1]) == ord(ordered[i]) + 1:
+            i += 1
+        end = i
+        if end - start >= 2:
+            parts.append(
+                f"{_escape_regex_class_char(ordered[start])}-{_escape_regex_class_char(ordered[end])}"
+            )
+        else:
+            for k in range(start, end + 1):
+                parts.append(_escape_regex_class_char(ordered[k]))
+        i += 1
+    return "".join(parts)
+
+
+def charset_to_regex_pattern(
+    chars: FrozenSet[str],
+    unicode_chars: FrozenSet[str] = frozenset(),
+) -> str:
+    """
+    Serialize any non-empty character set `chars <= Sigma(unicode_chars)` into a concise,
+    100% lossless, valid Regular Expression string parseable by `regex_parser.parse_regex`.
+    """
+    if not chars:
+        return "∅"
+
+    all_u = unicode_chars | frozenset(
+        c for c in chars if ord(c) >= 128 and c != NON_ASCII
+    )
+    sigma_u = build_dynamic_sigma(all_u)
+
+    if chars == sigma_u:
+        return "(.|\\n)"
+    if chars == sigma_u - {"\n"}:
+        return "."
+
+    if len(chars) == 1:
+        ch = next(iter(chars))
+        if ch == NON_ASCII:
+            excl_u = "".join(_escape_regex_class_char(u) for u in sorted(all_u, key=ord))
+            return f"[^\\x00-\\x7f{excl_u}]"
+        return _escape_regex_atom_char(ch)
+
+    if NON_ASCII in chars:
+        # Complement in Sigma(all_u) is guaranteed non-empty and contains zero NON_ASCII!
+        comp = sigma_u - chars
+        return f"[^{_format_exact_class_body(comp)}]"
+
+    return f"[{_format_exact_class_body(chars)}]"
+
+
 def compute_alphabet_partition(charsets: List[FrozenSet[str]]) -> List[FrozenSet[str]]:
     """
-    Partition the alphabet Sigma into minimal disjoint equivalence classes (min-terms)
+    Partition the active alphabet into minimal disjoint equivalence classes (min-terms)
     induced by all transition character sets `charsets`.
 
     Mathematical guarantee:
@@ -151,8 +336,6 @@ def compute_alphabet_partition(charsets: List[FrozenSet[str]]) -> List[FrozenSet
         either E is a subset of C or E is disjoint from C.
         Hence all characters in E induce identical transitions in the entire automaton.
     """
-    # Only characters that actually appear in at least one charset need to be tracked;
-    # characters outside the union of all charsets can never match any transition.
     used_chars: Set[str] = set()
     for cs in charsets:
         used_chars.update(cs)
@@ -175,7 +358,6 @@ def compute_alphabet_partition(charsets: List[FrozenSet[str]]) -> List[FrozenSet
                 new_partitions.append(block)
         partitions = new_partitions
 
-    # Deterministic canonical order by smallest ASCII code in each class
     partitions.sort(key=lambda b: min(ord(c) for c in b))
     return partitions
 
@@ -237,8 +419,8 @@ class NFATransition:
 @dataclass
 class NFA:
     """
-    Formal Epsilon-NFA: N = (Q, Sigma, delta, q0, F)
-    Supports both single-token NFA and combined multi-token NFA.
+    Formal Epsilon-NFA: N = (Q, Sigma(U), delta, q0, F)
+    Supports both single-token NFA and combined multi-token NFA with dynamic Unicode alphabet.
     """
 
     states: Set[int]
@@ -248,6 +430,7 @@ class NFA:
     transitions: Dict[int, List[Tuple[Optional[FrozenSet[str]], int, str]]] = field(
         default_factory=dict
     )
+    unicode_chars: FrozenSet[str] = field(default_factory=frozenset)
     name: str = "NFA"
     pattern: str = ""
 
@@ -256,10 +439,12 @@ class NFA:
         self.states.add(dst)
         self.transitions.setdefault(src, []).append((None, dst, "ε"))
 
-    def add_transition(self, src: int, dst: int, chars: FrozenSet[str], label: Optional[str] = None) -> None:
+    def add_transition(
+        self, src: int, dst: int, chars: FrozenSet[str], label: Optional[str] = None
+    ) -> None:
         self.states.add(src)
         self.states.add(dst)
-        lbl = label if label is not None else format_charset(chars)
+        lbl = label if label is not None else format_charset(chars, unicode_chars=self.unicode_chars)
         self.transitions.setdefault(src, []).append((chars, dst, lbl))
 
     def all_charsets(self) -> List[FrozenSet[str]]:
@@ -274,7 +459,9 @@ class NFA:
         return sum(len(edges) for edges in self.transitions.values())
 
     def epsilon_edge_count(self) -> int:
-        return sum(1 for edges in self.transitions.values() for chars, _, _ in edges if chars is None)
+        return sum(
+            1 for edges in self.transitions.values() for chars, _, _ in edges if chars is None
+        )
 
     def epsilon_closure(self, state_set: Set[int]) -> FrozenSet[int]:
         """Compute epsilon-closure(S) via iterative DFS stack."""
@@ -289,12 +476,12 @@ class NFA:
         return frozenset(closure)
 
     def move(self, state_set: FrozenSet[int], ch: str) -> Set[int]:
-        """Compute Move(S, ch) = { p | exists q in S, p in delta(q, ch) }."""
-        norm_ch = NON_ASCII if ord(ch) >= 128 else ch
+        """Compute Move(S, ch) = { p | exists q in S, p in delta(q, normalize(ch)) }."""
+        sym = normalize_char(ch, self.unicode_chars)
         result: Set[int] = set()
         for q in state_set:
             for chars, nxt, _ in self.transitions.get(q, ()):
-                if chars is not None and (ch in chars or norm_ch in chars):
+                if chars is not None and sym in chars:
                     result.add(nxt)
         return result
 
@@ -367,6 +554,7 @@ class NFA:
             "epsilon_edge_count": self.epsilon_edge_count(),
             "start_state": self.start_state,
             "accept_count": len(self.accept_states),
+            "unicode_chars": sorted(self.unicode_chars),
             "nodes": nodes,
             "edges": edges,
         }
@@ -375,8 +563,9 @@ class NFA:
 @dataclass
 class DFA:
     """
-    Formal Deterministic Finite Automaton: D = (Q, Sigma, delta, q0, F)
-    Uses exact character equivalence classes (min-terms) for O(1) lookup and compact tables.
+    Formal Deterministic Finite Automaton: D = (Q, Sigma(U), delta, q0, F)
+    Uses exact character equivalence classes (min-terms) + dynamic Unicode partitioning
+    for O(1) lookup and compact tables.
     """
 
     states: Set[int]
@@ -385,6 +574,7 @@ class DFA:
     char_classes: List[FrozenSet[str]]
     # transitions[state][class_id] = next_state
     transitions: Dict[int, Dict[int, int]] = field(default_factory=dict)
+    unicode_chars: FrozenSet[str] = field(default_factory=frozenset)
     # Diagnostic metadata for pedagogical transparency
     state_subsets: Dict[int, List[int]] = field(default_factory=dict)
     all_matched_tokens: Dict[int, List[str]] = field(default_factory=dict)
@@ -398,14 +588,19 @@ class DFA:
 
     def _rebuild_char_index(self) -> None:
         self._char_to_class = {}
+        inferred_u: Set[str] = set(self.unicode_chars)
         for cid, charset in enumerate(self.char_classes):
             for ch in charset:
                 self._char_to_class[ch] = cid
+                if ord(ch) >= 128 and ch != NON_ASCII:
+                    inferred_u.add(ch)
+        if inferred_u != self.unicode_chars:
+            self.unicode_chars = frozenset(inferred_u)
 
     def step(self, state: int, ch: str) -> Optional[int]:
         """O(1) deterministic transition delta(state, ch). Returns None if dead/undefined."""
         cid = self._char_to_class.get(ch)
-        if cid is None and ord(ch) >= 128:
+        if cid is None and ord(ch) >= 128 and ch != NON_ASCII and ch not in self.unicode_chars:
             cid = self._char_to_class.get(NON_ASCII)
         if cid is None:
             return None
@@ -460,7 +655,9 @@ class DFA:
         result: List[Tuple[int, int, FrozenSet[str], str]] = []
         for (src, dst), char_set in sorted(grouped.items()):
             fset = frozenset(char_set)
-            result.append((src, dst, fset, format_charset(fset)))
+            result.append(
+                (src, dst, fset, format_charset(fset, unicode_chars=self.unicode_chars))
+            )
         return result
 
     def edge_count(self) -> int:
@@ -468,7 +665,10 @@ class DFA:
 
     def to_transition_table(self) -> Dict:
         """Return a structured transition table (states x character classes) for UI & reports."""
-        class_labels = [format_charset(cs, max_len=14) for cs in self.char_classes]
+        class_labels = [
+            format_charset(cs, max_len=14, unicode_chars=self.unicode_chars)
+            for cs in self.char_classes
+        ]
         rows = []
         for q in sorted(self.states):
             acc = self.accept_states.get(q)
@@ -534,6 +734,7 @@ class DFA:
             "state_count": len(self.states),
             "edge_count": len(edges),
             "char_class_count": len(self.char_classes),
+            "unicode_chars": sorted(self.unicode_chars),
             "start_state": self.start_state,
             "accept_count": len(self.accept_states),
             "nodes": nodes,
